@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { musicState } from '$lib/stores/music.svelte';
+	import { formatNote, getDegreeColor } from '$lib/utils/format';
 
 	// White keys in order
 	const whiteNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
@@ -55,7 +56,7 @@
 					octave,
 					isBlack: true,
 					x: (oct * 7 + whiteIndex) * whiteKeyWidth + whiteKeyWidth - blackKeyWidth / 2,
-					label: blackNote.replace('#', '♯')
+					label: formatNote(blackNote)
 				});
 			});
 		}
@@ -74,7 +75,7 @@
 		const majorDegree = musicState.getMajorDegree(key.note);
 		const isDiatonic = musicState.getNoteDegree(key.note) !== null;
 		const roman = musicState.getNoteRomanNumeral(key.note) ?? '';
-		const color = majorDegree ? `var(--degree-${majorDegree})` : '#4b5563'; // gray-600 for chromatic
+		const color = getDegreeColor(majorDegree, '#4b5563'); // gray-600 for chromatic
 		return { isDiatonic, color, roman };
 	}
 </script>

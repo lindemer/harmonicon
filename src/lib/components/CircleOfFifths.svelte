@@ -1,16 +1,10 @@
 <script lang="ts">
 	import { Key } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
+	import { formatNote, getDegreeColor } from '$lib/utils/format';
 
 	// Circle of fifths order for the visual layout
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'] as const;
-
-	// Convert accidentals to proper symbols (# -> ♯, b after note -> ♭)
-	function formatNote(note: string): string {
-		let formatted = note.replace('#', '♯');
-		formatted = formatted.replace(/([A-Ga-g])b/g, '$1♭');
-		return formatted;
-	}
 
 	// Build keys array from circle of fifths using Tonal
 	// Uses Tonal standard notation: C, Am, Bdim (uppercase root + quality suffix)
@@ -67,11 +61,6 @@
 		return Math.floor(angle / segmentAngle);
 	}
 
-	function getDegreeColor(degree: number | null): string | undefined {
-		if (!degree) return undefined;
-		return `var(--degree-${degree})`;
-	}
-
 	function handleClick(segmentIndex: number) {
 		musicState.selectedRoot = circleOfFifths[segmentIndex];
 	}
@@ -90,7 +79,7 @@
 
 	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
 		const degree = getScaleDegree(segmentIndex, ring);
-		return getDegreeColor(degree) ?? '#1f2937'; // gray-800
+		return getDegreeColor(degree);
 	}
 
 	function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
