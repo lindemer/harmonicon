@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Key } from 'tonal';
+	import { Key, Chord, Note } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { formatNote, getDegreeColor } from '$lib/utils/format';
 
@@ -109,6 +109,7 @@
 		}
 	}
 
+	// Get scale degree for wheel coloring - always uses major key (independent of mode toggle)
 	function getScaleDegree(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): number | null {
 		const segment = keys[segmentIndex];
 		// Build chord symbol: 'C', 'Am', 'Bdim'
@@ -118,7 +119,21 @@
 				: ring === 'minor'
 					? segment.minorNote + 'm'
 					: segment.dimNote + 'dim';
-		return musicState.getScaleDegree(chordSymbol);
+
+		// Always use major key triads for consistent wheel coloring
+		const chord = Chord.get(chordSymbol);
+		if (chord.empty || !chord.tonic) return null;
+
+		const chordChroma = Note.chroma(chord.tonic);
+		const triads = Key.majorKey(musicState.selectedRoot).triads;
+
+		const degreeIndex = triads.findIndex((triad) => {
+			const triadChord = Chord.get(triad);
+			const triadChroma = Note.chroma(triadChord.tonic!);
+			return triadChroma === chordChroma && triadChord.quality === chord.quality;
+		});
+
+		return degreeIndex === -1 ? null : degreeIndex + 1;
 	}
 
 	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {

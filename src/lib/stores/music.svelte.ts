@@ -57,9 +57,9 @@ export const musicState = {
 		selectedChord = value;
 	},
 
-	// Get the root note for the current mode's perspective
+	// Get the root note for the current key
 	// In major mode: selectedRoot (e.g., C)
-	// In minor mode: relative minor of selectedRoot (e.g., A for C major)
+	// In minor mode: relative minor of selectedRoot (e.g., Am for C)
 	get tonicRoot(): string {
 		if (mode === 'major') {
 			return selectedRoot;
@@ -77,14 +77,18 @@ export const musicState = {
 	// Get the scale degree (1-7) for a chord in the current key, or null if not diatonic
 	// Accepts chord symbols like 'C', 'Dm', 'F#m', 'Bdim'
 	getScaleDegree(chordSymbol: string): number | null {
-		const key = Key.majorKey(selectedRoot);
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty || !chord.tonic) return null;
 
 		const chordChroma = Note.chroma(chord.tonic);
 
+		// Get triads based on current mode using the correct tonic
+		const tonic = this.tonicRoot;
+		const triads =
+			mode === 'major' ? Key.majorKey(tonic).triads : Key.minorKey(tonic).natural.triads;
+
 		// Find matching triad by comparing pitch class (chroma) and quality
-		const degreeIndex = key.triads.findIndex((triad) => {
+		const degreeIndex = triads.findIndex((triad) => {
 			const triadChord = Chord.get(triad);
 			const triadChroma = Note.chroma(triadChord.tonic!);
 			return triadChroma === chordChroma && triadChord.quality === chord.quality;
