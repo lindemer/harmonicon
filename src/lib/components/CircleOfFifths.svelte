@@ -117,6 +117,21 @@
 	function getLabelPosition(centerX: number, centerY: number, radius: number, angle: number) {
 		return polarToCartesian(centerX, centerY, radius, angle);
 	}
+
+	function isInCenterCircle(clientX: number, clientY: number, svg: SVGSVGElement): boolean {
+		const rect = svg.getBoundingClientRect();
+		const x = clientX - rect.left;
+		const y = clientY - rect.top;
+
+		const svgX = (x / rect.width) * 400;
+		const svgY = (y / rect.height) * 400;
+
+		const dx = svgX - cx;
+		const dy = svgY - cy;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+
+		return distance < centerRadius - 5;
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -126,7 +141,11 @@
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
-	onmousedown={() => (isDragging = true)}
+	onmousedown={(e) => {
+		if (!isInCenterCircle(e.clientX, e.clientY, svgElement)) {
+			isDragging = true;
+		}
+	}}
 	onmouseup={() => (isDragging = false)}
 	onmouseleave={() => (isDragging = false)}
 	onmousemove={(e) => {
@@ -134,7 +153,12 @@
 			musicState.selectedRoot = circleOfFifths[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
 		}
 	}}
-	ontouchstart={() => (isDragging = true)}
+	ontouchstart={(e) => {
+		const touch = e.touches[0];
+		if (!isInCenterCircle(touch.clientX, touch.clientY, svgElement)) {
+			isDragging = true;
+		}
+	}}
 	ontouchend={() => (isDragging = false)}
 	ontouchmove={(e) => {
 		if (isDragging) {
