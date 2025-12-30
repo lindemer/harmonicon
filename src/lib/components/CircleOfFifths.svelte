@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { Key, Note } from 'tonal';
+	import { Key } from 'tonal';
+	import { musicState } from '$lib/stores/music.svelte';
 
-	// Circle of fifths order (majors), used for display labels
-	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
+	// Circle of fifths order for the visual layout
+	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'] as const;
 
 	// Convert accidentals to proper symbols (# -> ♯, b after note -> ♭)
 	function formatNote(note: string, lowercase = false): string {
-		// Replace # with ♯
 		let formatted = note.replace('#', '♯');
-		// Replace 'b' only when it's a flat (after A-G), not when it's the note B
 		formatted = formatted.replace(/([A-Ga-g])b/g, '$1♭');
 		return lowercase ? formatted.toLowerCase() : formatted;
 	}
@@ -17,13 +16,12 @@
 	const keys = circleOfFifths.map((root) => {
 		const keyInfo = Key.majorKey(root);
 		const relativeMinor = keyInfo.minorRelative;
-		const dimChord = keyInfo.triads[6]; // vii° is the 7th triad (index 6)
+		const dimChord = keyInfo.triads[6];
 		const dimRoot = dimChord.replace('dim', '');
 		return {
 			major: formatNote(root),
 			minor: formatNote(relativeMinor, true),
 			dim: formatNote(dimRoot, true) + '°',
-			// Store original note names for Tonal lookups
 			majorNote: root,
 			minorNote: relativeMinor,
 			dimNote: dimRoot
@@ -39,7 +37,6 @@
 	const segmentAngle = 360 / 12;
 	const rotationOffset = -15;
 
-	let selectedRoot: number = $state(0);
 	let isDragging = $state(false);
 	let svgElement: SVGSVGElement;
 
@@ -71,51 +68,19 @@
 	};
 
 	function handleClick(segmentIndex: number) {
-		selectedRoot = segmentIndex;
+		musicState.selectedRoot = circleOfFifths[segmentIndex];
 	}
 
-	// Get the scale degree (1-7) for a chord in the selected key, or null if not diatonic
-	function getScaleDegree(
-		segmentIndex: number,
-		ring: 'major' | 'minor' | 'dim'
-	): number | null {
-		const selectedKey = Key.majorKey(circleOfFifths[selectedRoot]);
+	function getScaleDegree(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): number | null {
 		const segment = keys[segmentIndex];
-
-		let chordNote: string;
-		if (ring === 'major') {
-			chordNote = segment.majorNote;
-		} else if (ring === 'minor') {
-			chordNote = segment.minorNote;
-		} else {
-			chordNote = segment.dimNote;
-		}
-
-		// Find which triad in the key matches this chord
-		for (let i = 0; i < selectedKey.triads.length; i++) {
-			const triad = selectedKey.triads[i];
-			const triadRoot = triad.replace(/m$|dim$/, '');
-
-			// Check if the chord types match
-			const isMajorTriad = !triad.includes('m') && !triad.includes('dim');
-			const isMinorTriad = triad.endsWith('m') && !triad.includes('dim');
-			const isDimTriad = triad.includes('dim');
-
-			const wantMajor = ring === 'major';
-			const wantMinor = ring === 'minor';
-			const wantDim = ring === 'dim';
-
-			// Use chroma (pitch class 0-11) to compare enharmonic equivalents
-			const sameNote = Note.chroma(triadRoot) === Note.chroma(chordNote);
-
-			if (sameNote) {
-				if ((wantMajor && isMajorTriad) || (wantMinor && isMinorTriad) || (wantDim && isDimTriad)) {
-					return i + 1; // Scale degrees are 1-indexed
-				}
-			}
-		}
-
-		return null;
+		// Build chord symbol: 'C', 'Am', 'Bdim'
+		const chordSymbol =
+			ring === 'major'
+				? segment.majorNote
+				: ring === 'minor'
+					? segment.minorNote + 'm'
+					: segment.dimNote + 'dim';
+		return musicState.getScaleDegree(chordSymbol);
 	}
 
 	function getFillClass(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
@@ -173,7 +138,7 @@
 	onmouseleave={() => (isDragging = false)}
 	onmousemove={(e) => {
 		if (isDragging) {
-			selectedRoot = getSegmentFromPoint(e.clientX, e.clientY, svgElement);
+			musicState.selectedRoot = circleOfFifths[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
 		}
 	}}
 	ontouchstart={() => (isDragging = true)}
@@ -181,7 +146,7 @@
 	ontouchmove={(e) => {
 		if (isDragging) {
 			const touch = e.touches[0];
-			selectedRoot = getSegmentFromPoint(touch.clientX, touch.clientY, svgElement);
+			musicState.selectedRoot = circleOfFifths[getSegmentFromPoint(touch.clientX, touch.clientY, svgElement)];
 		}
 	}}
 >
