@@ -67,15 +67,10 @@
 		return Math.floor(angle / segmentAngle);
 	}
 
-	const degreeColors: Record<number, string> = {
-		1: 'fill-red-500',
-		2: 'fill-orange-500',
-		3: 'fill-yellow-500',
-		4: 'fill-green-500',
-		5: 'fill-cyan-500',
-		6: 'fill-purple-500',
-		7: 'fill-pink-500'
-	};
+	function getDegreeColor(degree: number | null): string | undefined {
+		if (!degree) return undefined;
+		return `var(--degree-${degree})`;
+	}
 
 	function handleClick(segmentIndex: number) {
 		musicState.selectedRoot = circleOfFifths[segmentIndex];
@@ -93,10 +88,9 @@
 		return musicState.getScaleDegree(chordSymbol);
 	}
 
-	function getFillClass(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
+	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
 		const degree = getScaleDegree(segmentIndex, ring);
-		if (degree) return degreeColors[degree];
-		return 'fill-gray-800';
+		return getDegreeColor(degree) ?? '#1f2937'; // gray-800
 	}
 
 	function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
@@ -168,7 +162,8 @@
 		<!-- Outer ring (major keys) -->
 		<path
 			d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
-			class="{getFillClass(i, 'major')} stroke-white stroke-1 cursor-pointer"
+			fill={getFillColor(i, 'major')}
+			class="stroke-white stroke-1 cursor-pointer"
 			role="button"
 			tabindex="0"
 			aria-label="{key.major} major"
@@ -179,7 +174,8 @@
 		<!-- Middle ring (minor keys) -->
 		<path
 			d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
-			class="{getFillClass(i, 'minor')} stroke-white stroke-1 cursor-pointer"
+			fill={getFillColor(i, 'minor')}
+			class="stroke-white stroke-1 cursor-pointer"
 			role="button"
 			tabindex="0"
 			aria-label="{key.minor} minor"
@@ -190,7 +186,8 @@
 		<!-- Inner ring (diminished chords) -->
 		<path
 			d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
-			class="{getFillClass(i, 'dim')} stroke-white stroke-1 cursor-pointer"
+			fill={getFillColor(i, 'dim')}
+			class="stroke-white stroke-1 cursor-pointer"
 			role="button"
 			tabindex="0"
 			aria-label="{key.dim} diminished"

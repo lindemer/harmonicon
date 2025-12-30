@@ -1,1 +1,11 @@
 @import 'tailwindcss';
+
+:root {
+	--degree-1: #ef4444; /* red-500 */
+	--degree-2: #f97316; /* orange-500 */
+	--degree-3: #eab308; /* yellow-500 */
+	--degree-4: #22c55e; /* green-500 */
+	--degree-5: #06b6d4; /* cyan-500 */
+	--degree-6: #a855f7; /* purple-500 */
+	--degree-7: #ec4899; /* pink-500 */
+}
