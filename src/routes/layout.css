@@ -8,4 +8,9 @@
 	--degree-5: #06b6d4; /* cyan-500 */
 	--degree-6: #a855f7; /* purple-500 */
 	--degree-7: #ec4899; /* pink-500 */
+	--font-music: Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+}
+
+.font-music {
+	font-family: var(--font-music);
 }

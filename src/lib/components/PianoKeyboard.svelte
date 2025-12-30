@@ -8,13 +8,16 @@
 	// C#, D#, (skip E), F#, G#, A#, (skip B)
 	const blackKeyAfter = [0, 1, 3, 4, 5]; // indices of C, D, F, G, A
 
-	const whiteKeyWidth = 40;
+	const whiteKeyWidth = 36;
 	const whiteKeyHeight = 150;
 	const blackKeyWidth = 24;
 	const blackKeyHeight = 90;
 	const octaves = 2;
 	const startOctave = 4;
-	const labelCircleRadius = 10;
+	const whiteLabelRadius = 12;
+	const blackLabelRadius = 9;
+	const whiteKeyRadius = 4;
+	const blackKeyRadius = 4;
 
 	const totalWhiteKeys = whiteNotes.length * octaves;
 	const svgWidth = totalWhiteKeys * whiteKeyWidth;
@@ -81,16 +84,26 @@
 </script>
 
 <svg viewBox="0 0 {svgWidth} {svgHeight}" class="w-full max-w-2xl">
+	<!-- Clip path to crop top of keys (hides top rounded corners) -->
+	<defs>
+		<clipPath id="keyboard-clip">
+			<rect x="0" y="0" width={svgWidth} height={svgHeight} />
+		</clipPath>
+	</defs>
+
+	<g clip-path="url(#keyboard-clip)">
 	<!-- White keys -->
 	{#each whiteKeys as key}
 		{@const info = getNoteInfo(key)}
 		{@const labelX = key.x + whiteKeyWidth / 2}
-		{@const labelY = whiteKeyHeight - 14}
+		{@const labelY = whiteKeyHeight - 18}
 		<rect
 			x={key.x}
-			y={0}
+			y={-whiteKeyRadius}
 			width={whiteKeyWidth}
-			height={whiteKeyHeight}
+			height={whiteKeyHeight + whiteKeyRadius}
+			rx={whiteKeyRadius}
+			ry={whiteKeyRadius}
 			fill="#ffffff"
 			stroke="#374151"
 			stroke-width="1"
@@ -99,23 +112,23 @@
 			tabindex="0"
 			aria-label="{key.note}{key.octave}"
 		/>
-		<!-- Label with colored circle background (only for diatonic notes) -->
+		<!-- Colored circle and roman numeral above (only for diatonic notes) -->
 		{#if info.isDiatonic}
 			<circle
 				cx={labelX}
 				cy={labelY}
-				r={labelCircleRadius}
+				r={whiteLabelRadius}
 				fill={info.color}
 				class="pointer-events-none"
 			/>
 			<text
 				x={labelX}
-				y={labelY}
+				y={labelY - whiteLabelRadius - 10}
 				text-anchor="middle"
 				dominant-baseline="middle"
-				font-size="10"
-				fill="#1f2937"
-				class="pointer-events-none"
+				font-size="14"
+				fill="#374151"
+				class="font-music pointer-events-none"
 			>
 				{info.roman}
 			</text>
@@ -129,9 +142,11 @@
 		{@const labelY = blackKeyHeight - 14}
 		<rect
 			x={key.x}
-			y={0}
+			y={-blackKeyRadius}
 			width={blackKeyWidth}
-			height={blackKeyHeight}
+			height={blackKeyHeight + blackKeyRadius}
+			rx={blackKeyRadius}
+			ry={blackKeyRadius}
 			fill="#1f2937"
 			stroke="#111827"
 			stroke-width="1"
@@ -140,26 +155,27 @@
 			tabindex="0"
 			aria-label="{key.note}{key.octave}"
 		/>
-		<!-- Label with colored circle background (only for diatonic notes) -->
+		<!-- Colored circle and roman numeral above (only for diatonic notes) -->
 		{#if info.isDiatonic}
 			<circle
 				cx={labelX}
 				cy={labelY}
-				r={labelCircleRadius - 1}
+				r={blackLabelRadius}
 				fill={info.color}
 				class="pointer-events-none"
 			/>
 			<text
 				x={labelX}
-				y={labelY}
+				y={labelY - blackLabelRadius - 8}
 				text-anchor="middle"
 				dominant-baseline="middle"
-				font-size="8"
-				fill="#1f2937"
-				class="pointer-events-none"
+				font-size="11"
+				fill="#e5e7eb"
+				class="font-music pointer-events-none"
 			>
 				{info.roman}
 			</text>
 		{/if}
 	{/each}
+	</g>
 </svg>

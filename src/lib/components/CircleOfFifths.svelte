@@ -217,7 +217,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={majorFontSize}
-			class="{majorDegree ? 'fill-gray-900' : 'fill-gray-300'} pointer-events-none"
+			class="{majorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -231,7 +231,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={minorFontSize}
-			class="{minorDegree ? 'fill-gray-900' : 'fill-gray-300'} pointer-events-none"
+			class="{minorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -245,7 +245,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={dimFontSize}
-			class="{dimDegree ? 'fill-gray-900' : 'fill-gray-300'} pointer-events-none"
+			class="{dimDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>
@@ -258,10 +258,10 @@
 		y={cy}
 		text-anchor="middle"
 		dominant-baseline="middle"
-		font-size="14"
-		class="fill-gray-300 pointer-events-none select-none"
+		font-size="24"
+		class="fill-gray-300 font-music pointer-events-none select-none"
 	>
-		{musicState.mode === 'major' ? 'Major' : 'Minor'}
+		{musicState.mode === 'major' ? 'M' : 'm'}
 	</text>
 	<!-- Invisible clickable circle for the toggle -->
 	<circle
