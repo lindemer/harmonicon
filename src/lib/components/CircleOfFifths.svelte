@@ -42,6 +42,7 @@
 	const rotationOffset = -15;
 
 	let isDragging = $state(false);
+	let isRightDragging = $state(false);
 	let svgElement: SVGSVGElement;
 
 	function getSegmentFromPoint(clientX: number, clientY: number, svg: SVGSVGElement): number {
@@ -61,8 +62,49 @@
 		return Math.floor(angle / segmentAngle);
 	}
 
+	function getRingFromPoint(clientX: number, clientY: number, svg: SVGSVGElement): 'major' | 'minor' | 'dim' | null {
+		const rect = svg.getBoundingClientRect();
+		const x = clientX - rect.left;
+		const y = clientY - rect.top;
+
+		const svgX = (x / rect.width) * 400;
+		const svgY = (y / rect.height) * 400;
+
+		const dx = svgX - cx;
+		const dy = svgY - cy;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+
+		if (distance < centerRadius - 5) return null; // Center circle
+		if (distance < innerRadius) return 'dim';
+		if (distance < midRadius) return 'minor';
+		if (distance < outerRadius) return 'major';
+		return null; // Outside the wheel
+	}
+
 	function handleClick(segmentIndex: number) {
 		musicState.selectedRoot = circleOfFifths[segmentIndex];
+	}
+
+	function getChordSymbol(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
+		const key = keys[segmentIndex];
+		if (ring === 'major') return key.major;
+		if (ring === 'minor') return key.minor;
+		return key.dim;
+	}
+
+	function handleRightClick(clientX: number, clientY: number, toggle: boolean) {
+		const ring = getRingFromPoint(clientX, clientY, svgElement);
+		if (!ring) return;
+
+		const segmentIndex = getSegmentFromPoint(clientX, clientY, svgElement);
+		const chordSymbol = getChordSymbol(segmentIndex, ring);
+
+		if (toggle && musicState.selectedChord === chordSymbol) {
+			// Toggle off only on initial click, not during drag
+			musicState.selectedChord = null;
+		} else {
+			musicState.selectedChord = chordSymbol;
+		}
 	}
 
 	function getScaleDegree(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): number | null {
@@ -141,16 +183,35 @@
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
+	oncontextmenu={(e) => e.preventDefault()}
 	onmousedown={(e) => {
-		if (!isInCenterCircle(e.clientX, e.clientY, svgElement)) {
+		if (isInCenterCircle(e.clientX, e.clientY, svgElement)) return;
+
+		if (e.button === 2) {
+			// Right click
+			isRightDragging = true;
+			handleRightClick(e.clientX, e.clientY, true);
+		} else if (e.button === 0) {
+			// Left click
 			isDragging = true;
 		}
 	}}
-	onmouseup={() => (isDragging = false)}
-	onmouseleave={() => (isDragging = false)}
+	onmouseup={(e) => {
+		if (e.button === 2) {
+			isRightDragging = false;
+		} else {
+			isDragging = false;
+		}
+	}}
+	onmouseleave={() => {
+		isDragging = false;
+		isRightDragging = false;
+	}}
 	onmousemove={(e) => {
 		if (isDragging) {
 			musicState.selectedRoot = circleOfFifths[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
+		} else if (isRightDragging) {
+			handleRightClick(e.clientX, e.clientY, false);
 		}
 	}}
 	ontouchstart={(e) => {
@@ -178,7 +239,7 @@
 		<path
 			d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
 			fill={getFillColor(i, 'major')}
-			class="stroke-white stroke-1 cursor-pointer"
+			class="cursor-pointer stroke-white stroke-1"
 			role="button"
 			tabindex="0"
 			aria-label="{key.major} major"
@@ -190,7 +251,7 @@
 		<path
 			d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
 			fill={getFillColor(i, 'minor')}
-			class="stroke-white stroke-1 cursor-pointer"
+			class="cursor-pointer stroke-white stroke-1"
 			role="button"
 			tabindex="0"
 			aria-label="{key.minor} minor"
@@ -202,7 +263,7 @@
 		<path
 			d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
 			fill={getFillColor(i, 'dim')}
-			class="stroke-white stroke-1 cursor-pointer"
+			class="cursor-pointer stroke-white stroke-1"
 			role="button"
 			tabindex="0"
 			aria-label="{key.dim} diminished"
@@ -218,7 +279,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={majorFontSize}
-			class="{musicState.selectedChord === key.major ? 'fill-gray-100 font-bold' : majorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
+			class="{majorDegree ? 'fill-gray-900' : 'fill-gray-300'} {musicState.selectedChord === key.major ? 'font-bold' : ''} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -231,7 +292,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={minorFontSize}
-			class="{musicState.selectedChord === key.minor ? 'fill-gray-100 font-bold' : minorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
+			class="{minorDegree ? 'fill-gray-900' : 'fill-gray-300'} {musicState.selectedChord === key.minor ? 'font-bold' : ''} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -245,7 +306,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={dimFontSize}
-			class="{musicState.selectedChord === key.dim ? 'fill-gray-100 font-bold' : dimDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
+			class="{dimDegree ? 'fill-gray-900' : 'fill-gray-300'} {musicState.selectedChord === key.dim ? 'font-bold' : ''} font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>
@@ -253,4 +314,31 @@
 
 	<!-- Center circle (non-interactive) -->
 	<circle cx={cx} cy={cy} r={centerRadius - 5} fill="#111827" />
+
+	<!-- Selected chord border overlay -->
+	{#each keys as key, i}
+		{@const startAngle = i * segmentAngle + rotationOffset}
+		{@const endAngle = (i + 1) * segmentAngle + rotationOffset}
+		{#if musicState.selectedChord === key.major}
+			<path
+				d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
+				fill="none"
+				class="stroke-white stroke-[3] pointer-events-none"
+			/>
+		{/if}
+		{#if musicState.selectedChord === key.minor}
+			<path
+				d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
+				fill="none"
+				class="stroke-white stroke-[3] pointer-events-none"
+			/>
+		{/if}
+		{#if musicState.selectedChord === key.dim}
+			<path
+				d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
+				fill="none"
+				class="stroke-white stroke-[3] pointer-events-none"
+			/>
+		{/if}
+	{/each}
 </svg>
