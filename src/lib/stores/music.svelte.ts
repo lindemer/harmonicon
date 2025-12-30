@@ -2,9 +2,17 @@ import { Key, Chord, Progression, Note } from 'tonal';
 
 // Tonal's Chord type
 export type ChordType = ReturnType<typeof Chord.get>;
+export type Mode = 'major' | 'minor';
 
 // The selected key root note (e.g., 'C', 'G', 'F#')
 let selectedRoot = $state('C');
+let mode = $state<Mode>('major');
+
+// Roman numeral formatting for each scale degree
+// Major: I, ii, iii, IV, V, vi, vii°
+// Minor (natural): i, ii°, ♭III, iv, v, ♭VI, ♭VII
+const majorNumerals = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
+const minorNumerals = ['i', 'ii°', '♭III', 'iv', 'v', '♭VI', '♭VII'];
 
 export const musicState = {
 	get selectedRoot() {
@@ -13,6 +21,28 @@ export const musicState = {
 
 	set selectedRoot(value: string) {
 		selectedRoot = value;
+	},
+
+	get mode() {
+		return mode;
+	},
+
+	set mode(value: Mode) {
+		mode = value;
+	},
+
+	toggleMode() {
+		mode = mode === 'major' ? 'minor' : 'major';
+	},
+
+	// Get the root note for the current mode's perspective
+	// In major mode: selectedRoot (e.g., C)
+	// In minor mode: relative minor of selectedRoot (e.g., A for C major)
+	get tonicRoot(): string {
+		if (mode === 'major') {
+			return selectedRoot;
+		}
+		return Key.majorKey(selectedRoot).minorRelative;
 	},
 
 	// Get the roman numeral for a chord in the current key
@@ -50,5 +80,55 @@ export const musicState = {
 		const triad = key.triads[degree - 1];
 
 		return Chord.get(triad);
+	},
+
+	// Get the scale degree (1-7) for a single note in the MAJOR key
+	// Always uses selectedRoot regardless of mode - used for consistent coloring
+	// Returns null if not in the major scale
+	getMajorDegree(noteName: string): number | null {
+		const scale = Key.majorKey(selectedRoot).scale;
+
+		const noteChroma = Note.chroma(noteName);
+		if (noteChroma === undefined) return null;
+
+		const degreeIndex = scale.findIndex((scaleNote) => {
+			return Note.chroma(scaleNote) === noteChroma;
+		});
+
+		return degreeIndex === -1 ? null : degreeIndex + 1;
+	},
+
+	// Get the scale degree (1-7) for a single note in the current key
+	// Returns null if not in the scale
+	// Uses tonicRoot so minor mode is relative to the relative minor
+	getNoteDegree(noteName: string): number | null {
+		const tonic = this.tonicRoot;
+		const scale =
+			mode === 'major'
+				? Key.majorKey(tonic).scale
+				: Key.minorKey(tonic).natural.scale;
+
+		const noteChroma = Note.chroma(noteName);
+		if (noteChroma === undefined) return null;
+
+		const degreeIndex = scale.findIndex((scaleNote) => {
+			return Note.chroma(scaleNote) === noteChroma;
+		});
+
+		return degreeIndex === -1 ? null : degreeIndex + 1;
+	},
+
+	// Get the roman numeral for a note in the current key
+	// Returns properly formatted numeral (e.g., 'I', 'ii', '♭III', 'vii°')
+	getNoteRomanNumeral(noteName: string): string | null {
+		const degree = this.getNoteDegree(noteName);
+		if (degree) {
+			// Diatonic note - use proper formatting
+			const numerals = mode === 'major' ? majorNumerals : minorNumerals;
+			return numerals[degree - 1];
+		}
+
+		// Non-diatonic notes don't get labels
+		return null;
 	}
 };

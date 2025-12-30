@@ -237,4 +237,30 @@
 			{key.dim}
 		</text>
 	{/each}
+
+	<!-- Center toggle button -->
+	<circle cx={cx} cy={cy} r={centerRadius - 5} fill="#111827" class="cursor-pointer" />
+	<text
+		x={cx}
+		y={cy}
+		text-anchor="middle"
+		dominant-baseline="middle"
+		font-size="14"
+		class="fill-gray-300 pointer-events-none select-none"
+	>
+		{musicState.mode === 'major' ? 'Major' : 'Minor'}
+	</text>
+	<!-- Invisible clickable circle for the toggle -->
+	<circle
+		cx={cx}
+		cy={cy}
+		r={centerRadius - 5}
+		fill="transparent"
+		class="cursor-pointer"
+		role="button"
+		tabindex="0"
+		aria-label="Toggle between major and minor mode"
+		onclick={() => musicState.toggleMode()}
+		onkeydown={(e) => e.key === 'Enter' && musicState.toggleMode()}
+	/>
 </svg>
