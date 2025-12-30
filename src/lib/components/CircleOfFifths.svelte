@@ -171,6 +171,8 @@
 		{@const startAngle = i * segmentAngle + rotationOffset}
 		{@const endAngle = (i + 1) * segmentAngle + rotationOffset}
 		{@const midAngle = startAngle + segmentAngle / 2}
+		{@const majorDegree = getScaleDegree(i, 'major')}
+		{@const minorDegree = getScaleDegree(i, 'minor')}
 
 		<!-- Outer ring (major keys) -->
 		<path
@@ -210,28 +212,26 @@
 
 		<!-- Major key label -->
 		{@const majorPos = getLabelPosition(cx, cy, (outerRadius + midRadius) / 2, midAngle)}
-		{@const majorDegree = getScaleDegree(i, 'major')}
 		<text
 			x={majorPos.x}
 			y={majorPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={majorFontSize}
-			class="{majorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
+			class="{majorDegree ? (musicState.mode === 'major' && majorDegree === 1 ? 'fill-gray-100 font-bold' : 'fill-gray-900') : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
 
 		<!-- Minor key label -->
 		{@const minorPos = getLabelPosition(cx, cy, (midRadius + innerRadius) / 2, midAngle)}
-		{@const minorDegree = getScaleDegree(i, 'minor')}
 		<text
 			x={minorPos.x}
 			y={minorPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={minorFontSize}
-			class="{minorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
+			class="{minorDegree ? (musicState.mode === 'minor' && minorDegree === 6 ? 'fill-gray-100 font-bold' : 'fill-gray-900') : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
