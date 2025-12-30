@@ -6,13 +6,14 @@
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'] as const;
 
 	// Convert accidentals to proper symbols (# -> ♯, b after note -> ♭)
-	function formatNote(note: string, lowercase = false): string {
+	function formatNote(note: string): string {
 		let formatted = note.replace('#', '♯');
 		formatted = formatted.replace(/([A-Ga-g])b/g, '$1♭');
-		return lowercase ? formatted.toLowerCase() : formatted;
+		return formatted;
 	}
 
 	// Build keys array from circle of fifths using Tonal
+	// Uses Tonal standard notation: C, Am, Bdim (uppercase root + quality suffix)
 	const keys = circleOfFifths.map((root) => {
 		const keyInfo = Key.majorKey(root);
 		const relativeMinor = keyInfo.minorRelative;
@@ -20,8 +21,8 @@
 		const dimRoot = dimChord.replace('dim', '');
 		return {
 			major: formatNote(root),
-			minor: formatNote(relativeMinor, true),
-			dim: formatNote(dimRoot, true) + '°',
+			minor: formatNote(relativeMinor) + 'm',
+			dim: formatNote(dimRoot) + '°',
 			majorNote: root,
 			minorNote: relativeMinor,
 			dimNote: dimRoot
@@ -30,10 +31,19 @@
 
 	const cx = 200;
 	const cy = 200;
-	const outerRadius = 180;
-	const midRadius = 140;
-	const innerRadius = 100;
-	const centerRadius = 75;
+
+	// Perspective-based ring sizing for tunnel effect
+	// Each ring appears progressively smaller as if receding into depth
+	const outerRadius = 185;
+	const midRadius = 135; // outer ring width: 50
+	const innerRadius = 95; // middle ring width: 40
+	const centerRadius = 65; // inner ring width: 30, center hole: 65
+
+	// Font sizes that scale with perspective
+	const majorFontSize = 18;
+	const minorFontSize = 14;
+	const dimFontSize = 11;
+
 	const segmentAngle = 360 / 12;
 	const rotationOffset = -15;
 
@@ -196,7 +206,8 @@
 			y={majorPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
-			class="{majorDegree ? 'fill-gray-900' : 'fill-gray-300'} text-lg pointer-events-none"
+			font-size={majorFontSize}
+			class="{majorDegree ? 'fill-gray-900' : 'fill-gray-300'} pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -209,7 +220,8 @@
 			y={minorPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
-			class="{minorDegree ? 'fill-gray-900' : 'fill-gray-300'} text-sm pointer-events-none"
+			font-size={minorFontSize}
+			class="{minorDegree ? 'fill-gray-900' : 'fill-gray-300'} pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -222,7 +234,8 @@
 			y={dimPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
-			class="{dimDegree ? 'fill-gray-900' : 'fill-gray-300'} text-xs pointer-events-none"
+			font-size={dimFontSize}
+			class="{dimDegree ? 'fill-gray-900' : 'fill-gray-300'} pointer-events-none"
 		>
 			{key.dim}
 		</text>
