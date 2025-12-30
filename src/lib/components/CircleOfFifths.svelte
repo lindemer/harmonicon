@@ -1,22 +1,19 @@
 <script lang="ts">
-	import { Key, Chord, Note } from 'tonal';
+	import { Key } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
-	import { formatNote, getDegreeColor } from '$lib/utils/format';
-
-	// Circle of fifths order for the visual layout
-	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'] as const;
+	import { FormatUtil } from '$lib/utils/format';
 
 	// Build keys array from circle of fifths using Tonal
 	// Uses Tonal standard notation: C, Am, Bdim (uppercase root + quality suffix)
-	const keys = circleOfFifths.map((root) => {
+	const keys = FormatUtil.CIRCLE_OF_FIFTHS.map((root) => {
 		const keyInfo = Key.majorKey(root);
 		const relativeMinor = keyInfo.minorRelative;
 		const dimChord = keyInfo.triads[6];
 		const dimRoot = dimChord.replace('dim', '');
 		return {
-			major: formatNote(root),
-			minor: formatNote(relativeMinor) + 'm',
-			dim: formatNote(dimRoot) + '°',
+			major: FormatUtil.formatNote(root),
+			minor: FormatUtil.formatNote(relativeMinor) + 'm',
+			dim: FormatUtil.formatNote(dimRoot) + '°',
 			majorNote: root,
 			minorNote: relativeMinor,
 			dimNote: dimRoot
@@ -84,7 +81,7 @@
 	}
 
 	function handleClick(segmentIndex: number) {
-		musicState.selectedRoot = circleOfFifths[segmentIndex];
+		musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segmentIndex];
 	}
 
 	function getChordSymbol(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
@@ -120,25 +117,12 @@
 					? segment.minorNote + 'm'
 					: segment.dimNote + 'dim';
 
-		// Always use major key triads for consistent wheel coloring
-		const chord = Chord.get(chordSymbol);
-		if (chord.empty || !chord.tonic) return null;
-
-		const chordChroma = Note.chroma(chord.tonic);
-		const triads = Key.majorKey(musicState.selectedRoot).triads;
-
-		const degreeIndex = triads.findIndex((triad) => {
-			const triadChord = Chord.get(triad);
-			const triadChroma = Note.chroma(triadChord.tonic!);
-			return triadChroma === chordChroma && triadChord.quality === chord.quality;
-		});
-
-		return degreeIndex === -1 ? null : degreeIndex + 1;
+		return FormatUtil.getChordDegreeInMajorKey(chordSymbol, musicState.selectedRoot);
 	}
 
 	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
 		const degree = getScaleDegree(segmentIndex, ring);
-		return getDegreeColor(degree);
+		return FormatUtil.getDegreeColor(degree);
 	}
 
 	function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
@@ -244,7 +228,7 @@
 	}}
 	onmousemove={(e) => {
 		if (isDragging) {
-			musicState.selectedRoot = circleOfFifths[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
+			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
 		} else if (isRightDragging) {
 			// Check if we've moved to a different chord
 			const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
@@ -267,7 +251,7 @@
 	ontouchmove={(e) => {
 		if (isDragging) {
 			const touch = e.touches[0];
-			musicState.selectedRoot = circleOfFifths[getSegmentFromPoint(touch.clientX, touch.clientY, svgElement)];
+			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(touch.clientX, touch.clientY, svgElement)];
 		}
 	}}
 >
@@ -275,8 +259,6 @@
 		{@const startAngle = i * segmentAngle + rotationOffset}
 		{@const endAngle = (i + 1) * segmentAngle + rotationOffset}
 		{@const midAngle = startAngle + segmentAngle / 2}
-		{@const majorDegree = getScaleDegree(i, 'major')}
-		{@const minorDegree = getScaleDegree(i, 'minor')}
 
 		<!-- Outer ring (major keys) -->
 		<path
@@ -342,7 +324,6 @@
 
 		<!-- Diminished chord label -->
 		{@const dimPos = getLabelPosition(cx, cy, (innerRadius + centerRadius) / 2, midAngle)}
-		{@const dimDegree = getScaleDegree(i, 'dim')}
 		<text
 			x={dimPos.x}
 			y={dimPos.y}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Chord, Note } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
-	import { formatNote, unformatNote, getDegreeColor } from '$lib/utils/format';
+	import { FormatUtil } from '$lib/utils/format';
 
 	// White keys in order
 	const whiteNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
@@ -61,7 +61,7 @@
 					octave,
 					isBlack: true,
 					x: (oct * 7 + whiteIndex) * whiteKeyWidth + whiteKeyWidth - blackKeyWidth / 2,
-					label: formatNote(blackNote)
+					label: FormatUtil.formatNote(blackNote)
 				});
 			});
 		}
@@ -80,22 +80,14 @@
 		const majorDegree = musicState.getMajorDegree(key.note);
 		const inMajorScale = majorDegree !== null;
 		const roman = musicState.getNoteRomanNumeral(key.note) ?? '';
-		const color = getDegreeColor(majorDegree, '#4b5563'); // gray-600 for chromatic
+		const color = FormatUtil.getDegreeColor(majorDegree, '#4b5563'); // gray-600 for chromatic
 		return { inMajorScale, color, roman };
-	}
-
-	function formatInterval(interval: string): string {
-		// Tonal uses: 1P, 3m, 3M, 5P, 5d, 7m, 7M, etc.
-		// Display as: P1, m3, M3, P5, d5, m7, M7, etc.
-		const num = interval.match(/\d+/)?.[0] ?? '';
-		const quality = interval.match(/[PmMdA]/)?.[0] ?? '';
-		return quality + num;
 	}
 
 	function getChordInterval(noteName: string): string | null {
 		if (!musicState.selectedChord) return null;
 		// Convert formatted chord (F♯, B♭°) to Tonal notation (F#, Bbdim)
-		const chordSymbol = unformatNote(musicState.selectedChord);
+		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty) return null;
 
@@ -105,7 +97,7 @@
 		// Find matching note in chord by chroma (handles enharmonics)
 		for (let i = 0; i < chordNotes.length; i++) {
 			if (Note.chroma(chordNotes[i]) === noteChroma) {
-				return formatInterval(chord.intervals[i]);
+				return FormatUtil.formatInterval(chord.intervals[i]);
 			}
 		}
 		return null;

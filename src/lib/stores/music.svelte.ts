@@ -1,20 +1,15 @@
-import { Key, Chord, Progression, Note } from 'tonal';
+import { Key, Chord, Progression } from 'tonal';
+import { FormatUtil, type Mode } from '$lib/utils/format';
 
-// Tonal's Chord type
+// Re-export types
+export type { Mode };
 export type ChordType = ReturnType<typeof Chord.get>;
-export type Mode = 'major' | 'minor';
 
 // The selected key root note (e.g., 'C', 'G', 'F#')
 let selectedRoot = $state('C');
 let mode = $state<Mode>('major');
 let wheelLocked = $state(false);
 let selectedChord = $state<string | null>(null);
-
-// Roman numeral formatting for each scale degree
-// Major: I, ii, iii, IV, V, vi, vii°
-// Minor (natural): i, ii°, ♭III, iv, v, ♭VI, ♭VII
-const majorNumerals = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
-const minorNumerals = ['i', 'ii°', '♭III', 'iv', 'v', '♭VI', '♭VII'];
 
 export const musicState = {
 	get selectedRoot() {
@@ -61,10 +56,7 @@ export const musicState = {
 	// In major mode: selectedRoot (e.g., C)
 	// In minor mode: relative minor of selectedRoot (e.g., Am for C)
 	get tonicRoot(): string {
-		if (mode === 'major') {
-			return selectedRoot;
-		}
-		return Key.majorKey(selectedRoot).minorRelative;
+		return FormatUtil.getTonicRoot(selectedRoot, mode);
 	},
 
 	// Get the roman numeral for a chord in the current key
@@ -77,24 +69,7 @@ export const musicState = {
 	// Get the scale degree (1-7) for a chord in the current key, or null if not diatonic
 	// Accepts chord symbols like 'C', 'Dm', 'F#m', 'Bdim'
 	getScaleDegree(chordSymbol: string): number | null {
-		const chord = Chord.get(chordSymbol);
-		if (chord.empty || !chord.tonic) return null;
-
-		const chordChroma = Note.chroma(chord.tonic);
-
-		// Get triads based on current mode using the correct tonic
-		const tonic = this.tonicRoot;
-		const triads =
-			mode === 'major' ? Key.majorKey(tonic).triads : Key.minorKey(tonic).natural.triads;
-
-		// Find matching triad by comparing pitch class (chroma) and quality
-		const degreeIndex = triads.findIndex((triad) => {
-			const triadChord = Chord.get(triad);
-			const triadChroma = Note.chroma(triadChord.tonic!);
-			return triadChroma === chordChroma && triadChord.quality === chord.quality;
-		});
-
-		return degreeIndex === -1 ? null : degreeIndex + 1;
+		return FormatUtil.getChordDegree(chordSymbol, selectedRoot, mode);
 	},
 
 	// Get the chord for a given scale degree in the current key
@@ -112,36 +87,14 @@ export const musicState = {
 	// Always uses selectedRoot regardless of mode - used for consistent coloring
 	// Returns null if not in the major scale
 	getMajorDegree(noteName: string): number | null {
-		const scale = Key.majorKey(selectedRoot).scale;
-
-		const noteChroma = Note.chroma(noteName);
-		if (noteChroma === undefined) return null;
-
-		const degreeIndex = scale.findIndex((scaleNote) => {
-			return Note.chroma(scaleNote) === noteChroma;
-		});
-
-		return degreeIndex === -1 ? null : degreeIndex + 1;
+		return FormatUtil.getNoteDegreeInMajorKey(noteName, selectedRoot);
 	},
 
 	// Get the scale degree (1-7) for a single note in the current key
 	// Returns null if not in the scale
 	// Uses tonicRoot so minor mode is relative to the relative minor
 	getNoteDegree(noteName: string): number | null {
-		const tonic = this.tonicRoot;
-		const scale =
-			mode === 'major'
-				? Key.majorKey(tonic).scale
-				: Key.minorKey(tonic).natural.scale;
-
-		const noteChroma = Note.chroma(noteName);
-		if (noteChroma === undefined) return null;
-
-		const degreeIndex = scale.findIndex((scaleNote) => {
-			return Note.chroma(scaleNote) === noteChroma;
-		});
-
-		return degreeIndex === -1 ? null : degreeIndex + 1;
+		return FormatUtil.getNoteDegree(noteName, selectedRoot, mode);
 	},
 
 	// Get the roman numeral for a note in the current key
@@ -149,12 +102,8 @@ export const musicState = {
 	getNoteRomanNumeral(noteName: string): string | null {
 		const degree = this.getNoteDegree(noteName);
 		if (degree) {
-			// Diatonic note - use proper formatting
-			const numerals = mode === 'major' ? majorNumerals : minorNumerals;
-			return numerals[degree - 1];
+			return FormatUtil.getDiatonicRomanNumeral(degree, mode);
 		}
-
-		// Non-diatonic notes don't get labels
 		return null;
 	}
 };
