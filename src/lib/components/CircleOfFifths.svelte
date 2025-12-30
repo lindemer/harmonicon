@@ -43,6 +43,8 @@
 
 	let isDragging = $state(false);
 	let isRightDragging = $state(false);
+	let rightDragMoved = $state(false);
+	let rightClickStart: { segment: number; ring: 'major' | 'minor' | 'dim' } | null = $state(null);
 	let svgElement: SVGSVGElement;
 
 	function getSegmentFromPoint(clientX: number, clientY: number, svg: SVGSVGElement): number {
@@ -188,9 +190,16 @@
 		if (isInCenterCircle(e.clientX, e.clientY, svgElement)) return;
 
 		if (e.button === 2) {
-			// Right click
-			isRightDragging = true;
-			handleRightClick(e.clientX, e.clientY, true);
+			// Right click - track start position
+			const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
+			if (ring) {
+				isRightDragging = true;
+				rightDragMoved = false;
+				rightClickStart = {
+					segment: getSegmentFromPoint(e.clientX, e.clientY, svgElement),
+					ring
+				};
+			}
 		} else if (e.button === 0) {
 			// Left click
 			isDragging = true;
@@ -198,7 +207,17 @@
 	}}
 	onmouseup={(e) => {
 		if (e.button === 2) {
+			if (!rightDragMoved && rightClickStart) {
+				// Didn't drag - toggle the chord
+				const chordSymbol = getChordSymbol(rightClickStart.segment, rightClickStart.ring);
+				if (musicState.selectedChord === chordSymbol) {
+					musicState.selectedChord = null;
+				} else {
+					musicState.selectedChord = chordSymbol;
+				}
+			}
 			isRightDragging = false;
+			rightClickStart = null;
 		} else {
 			isDragging = false;
 		}
@@ -206,12 +225,21 @@
 	onmouseleave={() => {
 		isDragging = false;
 		isRightDragging = false;
+		rightClickStart = null;
 	}}
 	onmousemove={(e) => {
 		if (isDragging) {
 			musicState.selectedRoot = circleOfFifths[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
 		} else if (isRightDragging) {
-			handleRightClick(e.clientX, e.clientY, false);
+			// Check if we've moved to a different chord
+			const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
+			const segment = getSegmentFromPoint(e.clientX, e.clientY, svgElement);
+			if (ring && rightClickStart && (ring !== rightClickStart.ring || segment !== rightClickStart.segment)) {
+				rightDragMoved = true;
+			}
+			if (rightDragMoved) {
+				handleRightClick(e.clientX, e.clientY, false);
+			}
 		}
 	}}
 	ontouchstart={(e) => {
@@ -279,7 +307,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={majorFontSize}
-			class="{majorDegree ? 'fill-gray-900' : 'fill-gray-300'} {musicState.selectedChord === key.major ? 'font-bold' : ''} font-music pointer-events-none"
+			class="{musicState.selectedChord === key.major ? 'fill-white font-bold' : 'fill-gray-100'} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -292,7 +320,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={minorFontSize}
-			class="{minorDegree ? 'fill-gray-900' : 'fill-gray-300'} {musicState.selectedChord === key.minor ? 'font-bold' : ''} font-music pointer-events-none"
+			class="{musicState.selectedChord === key.minor ? 'fill-white font-bold' : 'fill-gray-100'} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -306,7 +334,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={dimFontSize}
-			class="{dimDegree ? 'fill-gray-900' : 'fill-gray-300'} {musicState.selectedChord === key.dim ? 'font-bold' : ''} font-music pointer-events-none"
+			class="{musicState.selectedChord === key.dim ? 'fill-white font-bold' : 'fill-gray-100'} font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>

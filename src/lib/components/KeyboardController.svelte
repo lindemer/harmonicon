@@ -8,7 +8,7 @@
 		onclick={() => musicState.toggleMode()}
 	>
 		<span class="px-2 py-0.5 {musicState.mode === 'major' ? 'bg-gray-500 text-white' : 'text-gray-400'}">
-			M
+			△
 		</span>
 		<span class="px-2 py-0.5 {musicState.mode === 'minor' ? 'bg-gray-500 text-white' : 'text-gray-400'}">
 			m
