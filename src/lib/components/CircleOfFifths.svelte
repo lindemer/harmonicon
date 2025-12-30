@@ -1,18 +1,34 @@
 <script lang="ts">
-	const keys = [
-		{ major: 'C', minor: 'a', dim: 'b°' },
-		{ major: 'G', minor: 'e', dim: 'f♯°' },
-		{ major: 'D', minor: 'b', dim: 'c♯°' },
-		{ major: 'A', minor: 'f♯', dim: 'g♯°' },
-		{ major: 'E', minor: 'c♯', dim: 'd♯°' },
-		{ major: 'B', minor: 'g♯', dim: 'a♯°' },
-		{ major: 'F♯', minor: 'd♯', dim: 'e♯°' },
-		{ major: 'D♭', minor: 'b♭', dim: 'c°' },
-		{ major: 'A♭', minor: 'f', dim: 'g°' },
-		{ major: 'E♭', minor: 'c', dim: 'd°' },
-		{ major: 'B♭', minor: 'g', dim: 'a°' },
-		{ major: 'F', minor: 'd', dim: 'e°' }
-	];
+	import { Key, Note } from 'tonal';
+
+	// Circle of fifths order (majors), used for display labels
+	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
+
+	// Convert accidentals to proper symbols (# -> ♯, b after note -> ♭)
+	function formatNote(note: string, lowercase = false): string {
+		// Replace # with ♯
+		let formatted = note.replace('#', '♯');
+		// Replace 'b' only when it's a flat (after A-G), not when it's the note B
+		formatted = formatted.replace(/([A-Ga-g])b/g, '$1♭');
+		return lowercase ? formatted.toLowerCase() : formatted;
+	}
+
+	// Build keys array from circle of fifths using Tonal
+	const keys = circleOfFifths.map((root) => {
+		const keyInfo = Key.majorKey(root);
+		const relativeMinor = keyInfo.minorRelative;
+		const dimChord = keyInfo.triads[6]; // vii° is the 7th triad (index 6)
+		const dimRoot = dimChord.replace('dim', '');
+		return {
+			major: formatNote(root),
+			minor: formatNote(relativeMinor, true),
+			dim: formatNote(dimRoot, true) + '°',
+			// Store original note names for Tonal lookups
+			majorNote: root,
+			minorNote: relativeMinor,
+			dimNote: dimRoot
+		};
+	});
 
 	const cx = 200;
 	const cy = 200;
@@ -32,16 +48,14 @@
 		const x = clientX - rect.left;
 		const y = clientY - rect.top;
 
-		// Convert to SVG coordinates
 		const svgX = (x / rect.width) * 400;
 		const svgY = (y / rect.height) * 400;
 
-		// Calculate angle from center
 		const dx = svgX - cx;
 		const dy = svgY - cy;
 		let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-		angle = (angle + 90 + 360) % 360; // Adjust so 0° is at top
-		angle = (angle - rotationOffset + 360) % 360; // Account for rotation offset
+		angle = (angle + 90 + 360) % 360;
+		angle = (angle - rotationOffset + 360) % 360;
 
 		return Math.floor(angle / segmentAngle);
 	}
@@ -56,53 +70,57 @@
 		7: 'fill-pink-500'
 	};
 
-	// Circle of fifths offsets for major chords in a key
-	// I is at the root, V is +1 clockwise, IV is -1 (or +11)
-	const majorDegreeOffsets: Record<number, number> = {
-		0: 1,  // I
-		1: 5,  // V
-		11: 4  // IV
-	};
-
-	// Minor chords shown in each segment are the RELATIVE MINOR of that segment's major
-	// The relative minor is 3 positions COUNTER-clockwise from its relative major
-	// So to find where a minor chord appears, we need to find its relative major
-	//
-	// In C major (root = 0):
-	// - ii = D minor. D minor's relative major is F. F is at offset 11. So ii appears at offset 11.
-	// - iii = E minor. E minor's relative major is G. G is at offset 1. So iii appears at offset 1.
-	// - vi = A minor. A minor's relative major is C. C is at offset 0. So vi appears at offset 0.
-	const minorDegreeOffsets: Record<number, number> = {
-		11: 2, // ii (relative major is IV)
-		1: 3,  // iii (relative major is V)
-		0: 6   // vi (relative major is I)
-	};
-
-	// Diminished chord: The dim shown in each segment is the leading tone (vii°) of THAT segment's major key
-	// So b° appears in segment 0 (C's segment) because B is the leading tone of C
-	// For C major, the vii° is B dim, which appears in segment 0 (offset 0)
-	const dimDegreeOffsets: Record<number, number> = {
-		0: 7   // vii° appears in the root segment
-	};
-
 	function handleClick(segmentIndex: number) {
 		selectedRoot = segmentIndex;
 	}
 
-	function getFillClass(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
-		const offset = (segmentIndex - selectedRoot + 12) % 12;
+	// Get the scale degree (1-7) for a chord in the selected key, or null if not diatonic
+	function getScaleDegree(
+		segmentIndex: number,
+		ring: 'major' | 'minor' | 'dim'
+	): number | null {
+		const selectedKey = Key.majorKey(circleOfFifths[selectedRoot]);
+		const segment = keys[segmentIndex];
 
+		let chordNote: string;
 		if (ring === 'major') {
-			const degree = majorDegreeOffsets[offset];
-			if (degree) return degreeColors[degree];
+			chordNote = segment.majorNote;
 		} else if (ring === 'minor') {
-			const degree = minorDegreeOffsets[offset];
-			if (degree) return degreeColors[degree];
-		} else if (ring === 'dim') {
-			const degree = dimDegreeOffsets[offset];
-			if (degree) return degreeColors[degree];
+			chordNote = segment.minorNote;
+		} else {
+			chordNote = segment.dimNote;
 		}
 
+		// Find which triad in the key matches this chord
+		for (let i = 0; i < selectedKey.triads.length; i++) {
+			const triad = selectedKey.triads[i];
+			const triadRoot = triad.replace(/m$|dim$/, '');
+
+			// Check if the chord types match
+			const isMajorTriad = !triad.includes('m') && !triad.includes('dim');
+			const isMinorTriad = triad.endsWith('m') && !triad.includes('dim');
+			const isDimTriad = triad.includes('dim');
+
+			const wantMajor = ring === 'major';
+			const wantMinor = ring === 'minor';
+			const wantDim = ring === 'dim';
+
+			// Use chroma (pitch class 0-11) to compare enharmonic equivalents
+			const sameNote = Note.chroma(triadRoot) === Note.chroma(chordNote);
+
+			if (sameNote) {
+				if ((wantMajor && isMajorTriad) || (wantMinor && isMinorTriad) || (wantDim && isDimTriad)) {
+					return i + 1; // Scale degrees are 1-indexed
+				}
+			}
+		}
+
+		return null;
+	}
+
+	function getFillClass(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
+		const degree = getScaleDegree(segmentIndex, ring);
+		if (degree) return degreeColors[degree];
 		return 'fill-gray-800';
 	}
 
@@ -207,7 +225,7 @@
 
 		<!-- Major key label -->
 		{@const majorPos = getLabelPosition(cx, cy, (outerRadius + midRadius) / 2, midAngle)}
-		{@const majorDegree = majorDegreeOffsets[(i - selectedRoot + 12) % 12]}
+		{@const majorDegree = getScaleDegree(i, 'major')}
 		<text
 			x={majorPos.x}
 			y={majorPos.y}
@@ -220,7 +238,7 @@
 
 		<!-- Minor key label -->
 		{@const minorPos = getLabelPosition(cx, cy, (midRadius + innerRadius) / 2, midAngle)}
-		{@const minorDegree = minorDegreeOffsets[(i - selectedRoot + 12) % 12]}
+		{@const minorDegree = getScaleDegree(i, 'minor')}
 		<text
 			x={minorPos.x}
 			y={minorPos.y}
@@ -233,7 +251,7 @@
 
 		<!-- Diminished chord label -->
 		{@const dimPos = getLabelPosition(cx, cy, (innerRadius + centerRadius) / 2, midAngle)}
-		{@const dimDegree = dimDegreeOffsets[(i - selectedRoot + 12) % 12]}
+		{@const dimDegree = getScaleDegree(i, 'dim')}
 		<text
 			x={dimPos.x}
 			y={dimPos.y}
