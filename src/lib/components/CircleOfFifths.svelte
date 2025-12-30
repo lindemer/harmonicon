@@ -218,7 +218,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={majorFontSize}
-			class="{majorDegree ? (musicState.mode === 'major' && majorDegree === 1 ? 'fill-gray-100 font-bold' : 'fill-gray-900') : 'fill-gray-300'} font-music pointer-events-none"
+			class="{musicState.selectedChord === key.major ? 'fill-gray-100 font-bold' : majorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -231,7 +231,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={minorFontSize}
-			class="{minorDegree ? (musicState.mode === 'minor' && minorDegree === 6 ? 'fill-gray-100 font-bold' : 'fill-gray-900') : 'fill-gray-300'} font-music pointer-events-none"
+			class="{musicState.selectedChord === key.minor ? 'fill-gray-100 font-bold' : minorDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -245,35 +245,12 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={dimFontSize}
-			class="{dimDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
+			class="{musicState.selectedChord === key.dim ? 'fill-gray-100 font-bold' : dimDegree ? 'fill-gray-900' : 'fill-gray-300'} font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>
 	{/each}
 
-	<!-- Center toggle button -->
-	<circle cx={cx} cy={cy} r={centerRadius - 5} fill="#111827" class="cursor-pointer" />
-	<text
-		x={cx}
-		y={cy}
-		text-anchor="middle"
-		dominant-baseline="middle"
-		font-size="24"
-		class="fill-gray-300 font-music pointer-events-none select-none"
-	>
-		{musicState.mode === 'major' ? 'M' : 'm'}
-	</text>
-	<!-- Invisible clickable circle for the toggle -->
-	<circle
-		cx={cx}
-		cy={cy}
-		r={centerRadius - 5}
-		fill="transparent"
-		class="cursor-pointer"
-		role="button"
-		tabindex="0"
-		aria-label="Toggle between major and minor mode"
-		onclick={() => musicState.toggleMode()}
-		onkeydown={(e) => e.key === 'Enter' && musicState.toggleMode()}
-	/>
+	<!-- Center circle (non-interactive) -->
+	<circle cx={cx} cy={cy} r={centerRadius - 5} fill="#111827" />
 </svg>

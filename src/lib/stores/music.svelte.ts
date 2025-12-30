@@ -7,6 +7,8 @@ export type Mode = 'major' | 'minor';
 // The selected key root note (e.g., 'C', 'G', 'F#')
 let selectedRoot = $state('C');
 let mode = $state<Mode>('major');
+let wheelLocked = $state(false);
+let selectedChord = $state<string | null>(null);
 
 // Roman numeral formatting for each scale degree
 // Major: I, ii, iii, IV, V, vi, vii°
@@ -33,6 +35,26 @@ export const musicState = {
 
 	toggleMode() {
 		mode = mode === 'major' ? 'minor' : 'major';
+	},
+
+	get wheelLocked() {
+		return wheelLocked;
+	},
+
+	set wheelLocked(value: boolean) {
+		wheelLocked = value;
+	},
+
+	toggleWheelLocked() {
+		wheelLocked = !wheelLocked;
+	},
+
+	get selectedChord() {
+		return selectedChord;
+	},
+
+	set selectedChord(value: string | null) {
+		selectedChord = value;
 	},
 
 	// Get the root note for the current mode's perspective

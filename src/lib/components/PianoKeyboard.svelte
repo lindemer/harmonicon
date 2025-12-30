@@ -9,6 +9,7 @@
 	const blackKeyAfter = [0, 1, 3, 4, 5]; // indices of C, D, F, G, A
 
 	const whiteKeyWidth = 36;
+	const whiteKeyGap = 1;
 	const whiteKeyHeight = 150;
 	const blackKeyWidth = 24;
 	const blackKeyHeight = 90;
@@ -98,15 +99,13 @@
 		{@const labelX = key.x + whiteKeyWidth / 2}
 		{@const labelY = whiteKeyHeight - 18}
 		<rect
-			x={key.x}
+			x={key.x + whiteKeyGap / 2}
 			y={-whiteKeyRadius}
-			width={whiteKeyWidth}
+			width={whiteKeyWidth - whiteKeyGap}
 			height={whiteKeyHeight + whiteKeyRadius}
 			rx={whiteKeyRadius}
 			ry={whiteKeyRadius}
 			fill="#ffffff"
-			stroke="#374151"
-			stroke-width="1"
 			class="cursor-pointer hover:brightness-95"
 			role="button"
 			tabindex="0"
@@ -148,8 +147,6 @@
 			rx={blackKeyRadius}
 			ry={blackKeyRadius}
 			fill="#1f2937"
-			stroke="#111827"
-			stroke-width="1"
 			class="cursor-pointer hover:brightness-125"
 			role="button"
 			tabindex="0"
