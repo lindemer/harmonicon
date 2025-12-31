@@ -188,24 +188,24 @@
 	onmousedown={(e) => {
 		if (isInCenterCircle(e.clientX, e.clientY, svgElement)) return;
 
-		if (e.button === 2) {
-			// Right click - track start position
+		if (e.button === 0) {
+			// Left click - track start position for chord selection
 			const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
 			if (ring) {
-				isRightDragging = true;
+				isDragging = true;
 				rightDragMoved = false;
 				rightClickStart = {
 					segment: getSegmentFromPoint(e.clientX, e.clientY, svgElement),
 					ring
 				};
 			}
-		} else if (e.button === 0) {
-			// Left click
-			isDragging = true;
+		} else if (e.button === 2) {
+			// Right click - root key selection
+			isRightDragging = true;
 		}
 	}}
 	onmouseup={(e) => {
-		if (e.button === 2) {
+		if (e.button === 0) {
 			if (!rightDragMoved && rightClickStart) {
 				// Didn't drag - toggle the chord
 				const chordSymbol = getChordSymbol(rightClickStart.segment, rightClickStart.ring);
@@ -215,10 +215,12 @@
 					musicState.selectedChord = chordSymbol;
 				}
 			}
-			isRightDragging = false;
-			rightClickStart = null;
-		} else {
 			isDragging = false;
+			rightClickStart = null;
+		} else if (e.button === 2) {
+			// Right click - set root key
+			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
+			isRightDragging = false;
 		}
 	}}
 	onmouseleave={() => {
@@ -227,9 +229,9 @@
 		rightClickStart = null;
 	}}
 	onmousemove={(e) => {
-		if (isDragging) {
+		if (isRightDragging) {
 			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
-		} else if (isRightDragging) {
+		} else if (isDragging) {
 			// Check if we've moved to a different chord
 			const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
 			const segment = getSegmentFromPoint(e.clientX, e.clientY, svgElement);
@@ -265,11 +267,6 @@
 			d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
 			fill={getFillColor(i, 'major')}
 			class="cursor-pointer stroke-white stroke-1"
-			role="button"
-			tabindex="0"
-			aria-label="{key.major} major"
-			onclick={() => handleClick(i)}
-			onkeydown={(e) => e.key === 'Enter' && handleClick(i)}
 		/>
 
 		<!-- Middle ring (minor keys) -->
@@ -277,11 +274,6 @@
 			d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
 			fill={getFillColor(i, 'minor')}
 			class="cursor-pointer stroke-white stroke-1"
-			role="button"
-			tabindex="0"
-			aria-label="{key.minor} minor"
-			onclick={() => handleClick(i)}
-			onkeydown={(e) => e.key === 'Enter' && handleClick(i)}
 		/>
 
 		<!-- Inner ring (diminished chords) -->
@@ -289,11 +281,6 @@
 			d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
 			fill={getFillColor(i, 'dim')}
 			class="cursor-pointer stroke-white stroke-1"
-			role="button"
-			tabindex="0"
-			aria-label="{key.dim} diminished"
-			onclick={() => handleClick(i)}
-			onkeydown={(e) => e.key === 'Enter' && handleClick(i)}
 		/>
 
 		<!-- Major key label -->
