@@ -39,7 +39,7 @@ export class FormatUtil {
 		'A',
 		'E',
 		'B',
-		'F#',
+		'Gb',
 		'Db',
 		'Ab',
 		'Eb',
