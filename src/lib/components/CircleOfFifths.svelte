@@ -265,21 +265,21 @@
 		<!-- Outer ring (major keys) -->
 		<path
 			d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
-			fill={getFillColor(i, 'major')}
+			fill={musicState.selectedChord === key.major ? 'white' : getFillColor(i, 'major')}
 			class="cursor-pointer stroke-white stroke-1"
 		/>
 
 		<!-- Middle ring (minor keys) -->
 		<path
 			d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
-			fill={getFillColor(i, 'minor')}
+			fill={musicState.selectedChord === key.minor ? 'white' : getFillColor(i, 'minor')}
 			class="cursor-pointer stroke-white stroke-1"
 		/>
 
 		<!-- Inner ring (diminished chords) -->
 		<path
 			d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
-			fill={getFillColor(i, 'dim')}
+			fill={musicState.selectedChord === key.dim ? 'white' : getFillColor(i, 'dim')}
 			class="cursor-pointer stroke-white stroke-1"
 		/>
 
@@ -291,7 +291,8 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={majorFontSize}
-			class="{musicState.selectedChord === key.major ? 'fill-white font-bold' : 'fill-gray-100'} font-music pointer-events-none"
+			fill={musicState.selectedChord === key.major ? getFillColor(i, 'major') : undefined}
+			class="{musicState.selectedChord === key.major ? 'font-bold' : 'fill-gray-100'} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -304,7 +305,8 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={minorFontSize}
-			class="{musicState.selectedChord === key.minor ? 'fill-white font-bold' : 'fill-gray-100'} font-music pointer-events-none"
+			fill={musicState.selectedChord === key.minor ? getFillColor(i, 'minor') : undefined}
+			class="{musicState.selectedChord === key.minor ? 'font-bold' : 'fill-gray-100'} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -317,7 +319,8 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={dimFontSize}
-			class="{musicState.selectedChord === key.dim ? 'fill-white font-bold' : 'fill-gray-100'} font-music pointer-events-none"
+			fill={musicState.selectedChord === key.dim ? getFillColor(i, 'dim') : undefined}
+			class="{musicState.selectedChord === key.dim ? 'font-bold' : 'fill-gray-100'} font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>
@@ -326,30 +329,4 @@
 	<!-- Center circle (non-interactive) -->
 	<circle cx={cx} cy={cy} r={centerRadius - 5} fill="#111827" />
 
-	<!-- Selected chord border overlay -->
-	{#each keys as key, i}
-		{@const startAngle = i * segmentAngle + rotationOffset}
-		{@const endAngle = (i + 1) * segmentAngle + rotationOffset}
-		{#if musicState.selectedChord === key.major}
-			<path
-				d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
-				fill="none"
-				class="stroke-white stroke-[3] pointer-events-none"
-			/>
-		{/if}
-		{#if musicState.selectedChord === key.minor}
-			<path
-				d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
-				fill="none"
-				class="stroke-white stroke-[3] pointer-events-none"
-			/>
-		{/if}
-		{#if musicState.selectedChord === key.dim}
-			<path
-				d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
-				fill="none"
-				class="stroke-white stroke-[3] pointer-events-none"
-			/>
-		{/if}
-	{/each}
 </svg>
