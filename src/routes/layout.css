@@ -14,3 +14,17 @@
 .font-music {
 	font-family: var(--font-music);
 }
+
+.app-layout {
+	display: flex;
+	min-height: 100vh;
+}
+
+.left-panel {
+	flex: 1;
+}
+
+.right-panel {
+	flex: 1;
+	background-color: #111827; /* gray-900 */
+}
