@@ -1,41 +1,36 @@
 <script lang="ts">
-	import { sequencerState, type CellValue, type OctaveValue } from '$lib/stores/sequencer.svelte';
+	import { sequencerState, COLS, COLUMN_OCTAVES, type CellValue } from '$lib/stores/sequencer.svelte';
 
 	let hoveredCell: { col: number; row: number } | null = $state(null);
 	let dragMode: 'none' | 'increment' | 'clear' = $state('none');
-	let isDraggingSlider = $state(false);
-	let hoveredSlider: number | null = $state(null);
-	let sliderAreaRef: HTMLElement | null = $state(null);
 	let gridAreaRef: HTMLElement | null = $state(null);
-
-	const SLIDER_HEIGHT = 60;
-	const POSITIONS = 5;
-	const KNOB_SIZE = 12;
+	let lastCell: string | null = $state(null);
 	const COLUMN_WIDTH = 32; // w-8 = 2rem = 32px
 	const GAP = 4; // gap-1 = 0.25rem = 4px
-	const TOTAL_WIDTH = 8 * COLUMN_WIDTH + 7 * GAP;
+	const TOTAL_WIDTH = COLS * COLUMN_WIDTH + (COLS - 1) * GAP;
 	const ROWS = 16;
 	const TOTAL_HEIGHT = ROWS * COLUMN_WIDTH + (ROWS - 1) * GAP;
 
-	function getKnobY(value: OctaveValue): number {
-		const trackHeight = SLIDER_HEIGHT - KNOB_SIZE;
-		return (4 - value) * (trackHeight / (POSITIONS - 1));
+	// Group consecutive columns with the same octave
+	type OctaveGroup = { octave: number; startCol: number; span: number };
+	const octaveGroups: OctaveGroup[] = [];
+	for (let i = 0; i < COLUMN_OCTAVES.length; i++) {
+		const octave = COLUMN_OCTAVES[i];
+		const lastGroup = octaveGroups[octaveGroups.length - 1];
+		if (lastGroup && lastGroup.octave === octave) {
+			lastGroup.span++;
+		} else {
+			octaveGroups.push({ octave, startCol: i, span: 1 });
+		}
 	}
 
-	function getKnobCenterY(value: OctaveValue): number {
-		return getKnobY(value) + KNOB_SIZE / 2;
-	}
-
-	function yToOctaveValue(y: number): OctaveValue {
-		const trackHeight = SLIDER_HEIGHT - KNOB_SIZE;
-		const position = Math.round(((y - KNOB_SIZE / 2) / trackHeight) * (POSITIONS - 1));
-		const clampedPosition = Math.max(0, Math.min(POSITIONS - 1, position));
-		return (4 - clampedPosition) as OctaveValue;
+	function getGroupWidth(span: number): number {
+		return span * COLUMN_WIDTH + (span - 1) * GAP;
 	}
 
 	function xToColumn(x: number): number {
-		const col = Math.floor((x / TOTAL_WIDTH) * 8);
-		return Math.max(0, Math.min(7, col));
+		const col = Math.floor((x / TOTAL_WIDTH) * COLS);
+		return Math.max(0, Math.min(COLS - 1, col));
 	}
 
 	function yToRow(y: number): number {
@@ -45,30 +40,6 @@
 
 	function posToCell(x: number, y: number): { col: number; row: number } {
 		return { col: xToColumn(x), row: yToRow(y) };
-	}
-
-	function handleSliderAreaMouseDown(e: MouseEvent) {
-		e.preventDefault();
-		isDraggingSlider = true;
-		if (!sliderAreaRef) return;
-		const rect = sliderAreaRef.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-		const col = xToColumn(x);
-		sequencerState.setOctave(col, yToOctaveValue(y));
-	}
-
-	function handleSliderMouseMove(e: MouseEvent) {
-		if (!isDraggingSlider || !sliderAreaRef) return;
-		const rect = sliderAreaRef.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-		const col = xToColumn(x);
-		sequencerState.setOctave(col, yToOctaveValue(y));
-	}
-
-	function handleSliderMouseUp() {
-		isDraggingSlider = false;
 	}
 
 	function getCellColor(value: CellValue, hover: boolean): string {
@@ -84,6 +55,8 @@
 		if (!gridAreaRef) return;
 		const rect = gridAreaRef.getBoundingClientRect();
 		const { col, row } = posToCell(e.clientX - rect.left, e.clientY - rect.top);
+		const cellKey = `${col},${row}`;
+		lastCell = cellKey;
 		if (e.button === 0) {
 			dragMode = 'increment';
 			sequencerState.toggleCell(col, row);
@@ -98,6 +71,9 @@
 		const rect = gridAreaRef.getBoundingClientRect();
 		const { col, row } = posToCell(e.clientX - rect.left, e.clientY - rect.top);
 		hoveredCell = { col, row };
+		const cellKey = `${col},${row}`;
+		if (cellKey === lastCell) return;
+		lastCell = cellKey;
 		if (dragMode === 'increment') {
 			sequencerState.toggleCell(col, row);
 		} else if (dragMode === 'clear') {
@@ -107,6 +83,7 @@
 
 	function handleMouseUp() {
 		dragMode = 'none';
+		lastCell = null;
 	}
 
 	function handleContextMenu(e: MouseEvent) {
@@ -114,60 +91,21 @@
 	}
 </script>
 
-<svelte:window onmouseup={() => { handleMouseUp(); handleSliderMouseUp(); }} />
+<svelte:window onmouseup={handleMouseUp} />
 
 <div
 	class="flex h-full items-center justify-center py-8"
-	onmousemove={handleSliderMouseMove}
 	role="application"
 >
-	<div class="flex flex-col gap-2">
-		<!-- Octave sliders -->
-		<div
-			class="relative cursor-pointer"
-			style="height: {SLIDER_HEIGHT}px; width: {TOTAL_WIDTH}px;"
-			bind:this={sliderAreaRef}
-			onmousedown={handleSliderAreaMouseDown}
-			onmouseenter={(e) => {
-				const rect = sliderAreaRef?.getBoundingClientRect();
-				if (rect) hoveredSlider = xToColumn(e.clientX - rect.left);
-			}}
-			onmousemove={(e) => {
-				const rect = sliderAreaRef?.getBoundingClientRect();
-				if (rect) hoveredSlider = xToColumn(e.clientX - rect.left);
-			}}
-			onmouseleave={() => (hoveredSlider = null)}
-			role="group"
-			aria-label="Octave sliders"
-		>
-			<!-- SVG for gridlines -->
-			<svg class="absolute inset-0 pointer-events-none" style="width: {TOTAL_WIDTH}px; height: {SLIDER_HEIGHT}px;">
-				<!-- Horizontal gridlines -->
-				{#each { length: POSITIONS } as _, pos}
-					<line
-						x1={0}
-						y1={getKnobCenterY(pos as OctaveValue)}
-						x2={TOTAL_WIDTH}
-						y2={getKnobCenterY(pos as OctaveValue)}
-						stroke="#374151"
-						stroke-width="2"
-					/>
-				{/each}
-			</svg>
-			<!-- Knobs -->
-			<div class="grid gap-1 pointer-events-none" style="grid-template-columns: repeat(8, 1fr);">
-				{#each { length: 8 } as _, col}
-					<div
-						class="relative flex justify-center"
-						style="height: {SLIDER_HEIGHT}px; width: 2rem;"
-					>
-						<div
-							class="absolute rounded"
-							style="width: {KNOB_SIZE}px; height: {KNOB_SIZE}px; top: {getKnobY(sequencerState.getOctave(col))}px; left: 50%; transform: translateX(-50%); background-color: {hoveredSlider === col ? '#6b7280' : '#4b5563'};"
-						></div>
-					</div>
-				{/each}
-			</div>
+	<div class="flex flex-col gap-1">
+		<!-- Octave indicators -->
+		<div class="flex" style="width: {TOTAL_WIDTH}px;">
+			{#each octaveGroups as group, i}
+				<div class="flex flex-col items-center" style="width: {getGroupWidth(group.span)}px; margin-right: {i < octaveGroups.length - 1 ? GAP : 0}px;">
+					<span class="text-gray-500 text-xs select-none">{group.octave}</span>
+					<div class="w-full border-b border-gray-500"></div>
+				</div>
+			{/each}
 		</div>
 		<!-- Sequencer grid -->
 		<div
@@ -181,9 +119,9 @@
 			role="grid"
 			aria-label="Sequencer grid"
 		>
-			<div class="grid gap-1 pointer-events-none" style="grid-template-columns: repeat(8, 1fr);">
-				{#each { length: 16 } as _, row}
-				{#each { length: 8 } as _, col}
+			<div class="grid gap-1 pointer-events-none" style="grid-template-columns: repeat({COLS}, 1fr);">
+				{#each { length: ROWS } as _, row}
+				{#each { length: COLS } as _, col}
 					<div
 						class="aspect-square w-8 rounded"
 						style="background-color: {getCellColor(sequencerState.getCell(col, row), isHovered(col, row))}"

@@ -1,10 +1,12 @@
 export type CellValue = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export type OctaveValue = 0 | 1 | 2 | 3 | 4;
 
-const COLS = 8;
+export const COLS = 13;
 const ROWS = 16;
 
-// Create initial grid: 8 columns x 16 rows, all zeros
+// Octave mapping for each column: [1, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 7]
+export const COLUMN_OCTAVES = [1, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 7] as const;
+
+// Create initial grid: 13 columns x 16 rows, all zeros
 function createEmptyGrid(): CellValue[][] {
 	return Array(COLS)
 		.fill(null)
@@ -12,7 +14,6 @@ function createEmptyGrid(): CellValue[][] {
 }
 
 let grid = $state<CellValue[][]>(createEmptyGrid());
-let octaves = $state<OctaveValue[]>(Array(COLS).fill(2) as OctaveValue[]);
 
 export const sequencerState = {
 	get grid() {
@@ -35,25 +36,5 @@ export const sequencerState = {
 
 	clearGrid(): void {
 		grid = createEmptyGrid();
-	},
-
-	getOctave(col: number): OctaveValue {
-		return octaves[col] ?? 2;
-	},
-
-	setOctave(col: number, value: OctaveValue): void {
-		if (col < 0 || col >= COLS) return;
-		octaves[col] = value;
-		// Enforce constraint: left columns must be <= current, right columns must be >= current
-		for (let i = col - 1; i >= 0; i--) {
-			if (octaves[i] > value) {
-				octaves[i] = value;
-			}
-		}
-		for (let i = col + 1; i < COLS; i++) {
-			if (octaves[i] < value) {
-				octaves[i] = value;
-			}
-		}
 	}
 };
