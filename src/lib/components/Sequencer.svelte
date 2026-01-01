@@ -6,10 +6,11 @@
 	let gridAreaRef: HTMLElement | null = $state(null);
 	let lastCell: string | null = $state(null);
 	const COLUMN_WIDTH = 28; // w-7 = 1.75rem = 28px
+	const ROW_HEIGHT = 14; // 50% of column width
 	const GAP = 4; // gap-1 = 0.25rem = 4px
 	const TOTAL_WIDTH = COLS * COLUMN_WIDTH + (COLS - 1) * GAP;
 	const ROWS = 16;
-	const TOTAL_HEIGHT = ROWS * COLUMN_WIDTH + (ROWS - 1) * GAP;
+	const TOTAL_HEIGHT = ROWS * ROW_HEIGHT + (ROWS - 1) * GAP;
 
 	// Group consecutive columns with the same octave
 	type OctaveGroup = { octave: number; startCol: number; span: number };
@@ -124,8 +125,8 @@
 				{#each { length: ROWS } as _, row}
 				{#each { length: COLS } as _, col}
 					<div
-						class="aspect-square w-7 rounded"
-						style="background-color: {getCellColor(sequencerState.getCell(col, row), isHovered(col, row))}"
+						class="w-7 rounded"
+						style="height: {ROW_HEIGHT}px; background-color: {getCellColor(sequencerState.getCell(col, row), isHovered(col, row))}"
 						aria-label="Step {row + 1}, track {col + 1}, value {sequencerState.getCell(col, row)}"
 					></div>
 				{/each}

@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@fontsource/bravura';
 
 :root {
 	--degree-1: #f43f5e; /* rose-500 */
@@ -16,10 +17,15 @@
 	--degree-6-hover: #a78bfa; /* violet-400 */
 	--degree-7-hover: #e879f9; /* fuchsia-400 */
 	--font-music: Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+	--font-bravura: 'Bravura', serif;
 }
 
 .font-music {
 	font-family: var(--font-music);
+}
+
+.font-bravura {
+	font-family: var(--font-bravura);
 }
 
 .app-layout {

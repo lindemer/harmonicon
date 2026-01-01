@@ -4,12 +4,25 @@ import { FormatUtil, type Mode } from '$lib/utils/format';
 // Re-export types
 export type { Mode };
 export type ChordType = ReturnType<typeof Chord.get>;
+export type TimeSignature = { top: number; bottom: number };
+export type Clef = 'treble' | 'bass';
+
+// Supported time signatures grouped by bottom number
+const TIME_SIG_TOPS_BY_BOTTOM: Record<number, number[]> = {
+	4: [2, 3, 4, 5, 7], // sorted least to greatest
+	8: [6, 9, 12] // sorted least to greatest
+};
+
+const BOTTOM_OPTIONS = [4, 8];
 
 // The selected key root note (e.g., 'C', 'G', 'F#')
 let selectedRoot = $state('C');
 let mode = $state<Mode>('major');
 let wheelLocked = $state(false);
 let selectedChord = $state<string | null>(null);
+let timeSignatureBottom = $state(4);
+let timeSignatureTop = $state(4);
+let clef = $state<Clef>('treble');
 
 export const musicState = {
 	get selectedRoot() {
@@ -50,6 +63,48 @@ export const musicState = {
 
 	set selectedChord(value: string | null) {
 		selectedChord = value;
+	},
+
+	get timeSignatureTop() {
+		return timeSignatureTop;
+	},
+
+	get timeSignatureBottom() {
+		return timeSignatureBottom;
+	},
+
+	get timeSignature(): TimeSignature {
+		return { top: timeSignatureTop, bottom: timeSignatureBottom };
+	},
+
+	// Cycle through allowed top numbers for the current bottom number
+	cycleTimeSignatureTop() {
+		const tops = TIME_SIG_TOPS_BY_BOTTOM[timeSignatureBottom];
+		const currentIndex = tops.indexOf(timeSignatureTop);
+		timeSignatureTop = tops[(currentIndex + 1) % tops.length];
+	},
+
+	// Toggle between 4 and 8, setting appropriate default top number
+	cycleTimeSignatureBottom() {
+		if (timeSignatureBottom === 4) {
+			timeSignatureBottom = 8;
+			timeSignatureTop = 6; // Default for /8
+		} else {
+			timeSignatureBottom = 4;
+			timeSignatureTop = 4; // Default for /4
+		}
+	},
+
+	get clef() {
+		return clef;
+	},
+
+	set clef(value: Clef) {
+		clef = value;
+	},
+
+	toggleClef() {
+		clef = clef === 'treble' ? 'bass' : 'treble';
 	},
 
 	// Get the root note for the current key
