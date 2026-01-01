@@ -5,7 +5,7 @@
 	let dragMode: 'none' | 'increment' | 'clear' = $state('none');
 	let gridAreaRef: HTMLElement | null = $state(null);
 	let lastCell: string | null = $state(null);
-	const COLUMN_WIDTH = 32; // w-8 = 2rem = 32px
+	const COLUMN_WIDTH = 28; // w-7 = 1.75rem = 28px
 	const GAP = 4; // gap-1 = 0.25rem = 4px
 	const TOTAL_WIDTH = COLS * COLUMN_WIDTH + (COLS - 1) * GAP;
 	const ROWS = 16;
@@ -117,13 +117,14 @@
 			onmouseleave={() => (hoveredCell = null)}
 			oncontextmenu={handleContextMenu}
 			role="grid"
+			tabindex="0"
 			aria-label="Sequencer grid"
 		>
 			<div class="grid gap-1 pointer-events-none" style="grid-template-columns: repeat({COLS}, 1fr);">
 				{#each { length: ROWS } as _, row}
 				{#each { length: COLS } as _, col}
 					<div
-						class="aspect-square w-8 rounded"
+						class="aspect-square w-7 rounded"
 						style="background-color: {getCellColor(sequencerState.getCell(col, row), isHovered(col, row))}"
 						aria-label="Step {row + 1}, track {col + 1}, value {sequencerState.getCell(col, row)}"
 					></div>
