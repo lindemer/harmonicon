@@ -43,6 +43,7 @@
 	let rightDragMoved = $state(false);
 	let rightClickStart: { segment: number; ring: 'major' | 'minor' | 'dim' } | null = $state(null);
 	let svgElement: SVGSVGElement;
+	let hoveredSegment: { index: number; ring: 'major' | 'minor' | 'dim' } | null = $state(null);
 
 	function getSegmentFromPoint(clientX: number, clientY: number, svg: SVGSVGElement): number {
 		const rect = svg.getBoundingClientRect();
@@ -120,9 +121,17 @@
 		return FormatUtil.getChordDegreeInMajorKey(chordSymbol, musicState.selectedRoot);
 	}
 
-	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
+	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim', hover: boolean = false): string {
 		const degree = getScaleDegree(segmentIndex, ring);
-		return FormatUtil.getDegreeColor(degree);
+		if (!degree) {
+			// Non-diatonic: use gray with subtle hover
+			return hover ? '#374151' : '#1f2937'; // gray-700 / gray-800
+		}
+		return FormatUtil.getDegreeColor(degree, undefined, hover);
+	}
+
+	function isHovered(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): boolean {
+		return hoveredSegment?.index === segmentIndex && hoveredSegment?.ring === ring;
 	}
 
 	function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
@@ -227,14 +236,22 @@
 		isDragging = false;
 		isRightDragging = false;
 		rightClickStart = null;
+		hoveredSegment = null;
 	}}
 	onmousemove={(e) => {
+		// Update hover state
+		const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
+		const segment = getSegmentFromPoint(e.clientX, e.clientY, svgElement);
+		if (ring) {
+			hoveredSegment = { index: segment, ring };
+		} else {
+			hoveredSegment = null;
+		}
+
 		if (isRightDragging) {
 			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
 		} else if (isDragging) {
 			// Check if we've moved to a different chord
-			const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
-			const segment = getSegmentFromPoint(e.clientX, e.clientY, svgElement);
 			if (ring && rightClickStart && (ring !== rightClickStart.ring || segment !== rightClickStart.segment)) {
 				rightDragMoved = true;
 			}
@@ -265,21 +282,21 @@
 		<!-- Outer ring (major keys) -->
 		<path
 			d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
-			fill={musicState.selectedChord === key.major ? 'white' : getFillColor(i, 'major')}
+			fill={musicState.selectedChord === key.major ? 'white' : getFillColor(i, 'major', isHovered(i, 'major'))}
 			class="cursor-pointer stroke-white stroke-1"
 		/>
 
 		<!-- Middle ring (minor keys) -->
 		<path
 			d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
-			fill={musicState.selectedChord === key.minor ? 'white' : getFillColor(i, 'minor')}
+			fill={musicState.selectedChord === key.minor ? 'white' : getFillColor(i, 'minor', isHovered(i, 'minor'))}
 			class="cursor-pointer stroke-white stroke-1"
 		/>
 
 		<!-- Inner ring (diminished chords) -->
 		<path
 			d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
-			fill={musicState.selectedChord === key.dim ? 'white' : getFillColor(i, 'dim')}
+			fill={musicState.selectedChord === key.dim ? 'white' : getFillColor(i, 'dim', isHovered(i, 'dim'))}
 			class="cursor-pointer stroke-white stroke-1"
 		/>
 

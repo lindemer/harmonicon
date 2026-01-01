@@ -1,13 +1,20 @@
 @import 'tailwindcss';
 
 :root {
-	--degree-1: #ef4444; /* red-500 */
+	--degree-1: #f43f5e; /* rose-500 */
 	--degree-2: #f97316; /* orange-500 */
-	--degree-3: #eab308; /* yellow-500 */
-	--degree-4: #22c55e; /* green-500 */
-	--degree-5: #06b6d4; /* cyan-500 */
-	--degree-6: #a855f7; /* purple-500 */
-	--degree-7: #ec4899; /* pink-500 */
+	--degree-3: #facc15; /* yellow-400 */
+	--degree-4: #10b981; /* emerald-500 */
+	--degree-5: #0ea5e9; /* sky-500 */
+	--degree-6: #8b5cf6; /* violet-500 */
+	--degree-7: #d946ef; /* fuchsia-500 */
+	--degree-1-hover: #fb7185; /* rose-400 */
+	--degree-2-hover: #fb923c; /* orange-400 */
+	--degree-3-hover: #fde047; /* yellow-300 */
+	--degree-4-hover: #34d399; /* emerald-400 */
+	--degree-5-hover: #38bdf8; /* sky-400 */
+	--degree-6-hover: #a78bfa; /* violet-400 */
+	--degree-7-hover: #e879f9; /* fuchsia-400 */
 	--font-music: Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
 }
 
