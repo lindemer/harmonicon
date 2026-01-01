@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { sequencerState, COLS, COLUMN_OCTAVES, type CellValue } from '$lib/stores/sequencer.svelte';
+	import { musicState } from '$lib/stores/music.svelte';
 
 	let hoveredCell: { col: number; row: number } | null = $state(null);
 	let dragMode: 'none' | 'increment' | 'clear' = $state('none');
@@ -9,8 +10,44 @@
 	const ROW_HEIGHT = 14; // 50% of column width
 	const GAP = 4; // gap-1 = 0.25rem = 4px
 	const TOTAL_WIDTH = COLS * COLUMN_WIDTH + (COLS - 1) * GAP;
-	const ROWS = 16;
-	const TOTAL_HEIGHT = ROWS * ROW_HEIGHT + (ROWS - 1) * GAP;
+	const LABEL_WIDTH = 20; // Width for beat labels
+	const rows = $derived(sequencerState.rows);
+	const totalHeight = $derived(rows * ROW_HEIGHT + (rows - 1) * GAP);
+
+	// Beat labeling logic
+	// For /4 with 2-4 beats: label every 4 rows (16th notes, 4 per beat)
+	// For /4 with 5+ beats: label every 2 rows (8th notes, 2 per beat)
+	// For /8: label every row (8th notes, 1 per beat)
+	const labelInterval = $derived(
+		musicState.timeSignatureBottom === 4
+			? musicState.timeSignatureTop <= 4 ? 4 : 2
+			: 1
+	);
+	const beatsPerBar = $derived(musicState.timeSignatureTop);
+
+	function getBeatLabel(row: number): string | null {
+		if (row % labelInterval !== 0) return null;
+		const beatIndex = row / labelInterval;
+		return String((beatIndex % beatsPerBar) + 1);
+	}
+
+	// Resize grid when time signature changes
+	// For /4 with 2-4 beats: 16th note rows (4 per beat × 2 bars)
+	// For /4 with 5+ beats: 8th note rows (2 per beat × 2 bars)
+	// For /8: 8th note rows (1 per beat × 2 bars)
+	$effect(() => {
+		let targetRows: number;
+		if (musicState.timeSignatureBottom === 4) {
+			if (musicState.timeSignatureTop <= 4) {
+				targetRows = musicState.timeSignatureTop * 8; // 16th notes
+			} else {
+				targetRows = musicState.timeSignatureTop * 4; // 8th notes
+			}
+		} else {
+			targetRows = musicState.timeSignatureTop * 2; // 8th notes
+		}
+		sequencerState.resizeGrid(targetRows);
+	});
 
 	// Group consecutive columns with the same octave
 	type OctaveGroup = { octave: number; startCol: number; span: number };
@@ -35,8 +72,8 @@
 	}
 
 	function yToRow(y: number): number {
-		const row = Math.floor((y / TOTAL_HEIGHT) * ROWS);
-		return Math.max(0, Math.min(ROWS - 1, row));
+		const row = Math.floor((y / totalHeight) * rows);
+		return Math.max(0, Math.min(rows - 1, row));
 	}
 
 	function posToCell(x: number, y: number): { col: number; row: number } {
@@ -98,39 +135,53 @@
 	class="flex h-full items-center justify-center py-8"
 	role="application"
 >
-	<div class="flex flex-col gap-1">
-		<!-- Octave indicators -->
-		<div class="flex" style="width: {TOTAL_WIDTH}px;">
-			{#each octaveGroups as group, i}
-				<div class="flex flex-col items-center" style="width: {getGroupWidth(group.span)}px; margin-right: {i < octaveGroups.length - 1 ? GAP : 0}px;">
-					<span class="text-gray-500 text-xs select-none">{group.octave}</span>
-					<div class="w-full border-b border-gray-500"></div>
+	<div class="flex gap-2">
+		<!-- Beat labels column -->
+		<div class="flex flex-col gap-1 pt-5" style="width: {LABEL_WIDTH}px;">
+			{#each { length: rows } as _, row}
+				<div
+					class="flex items-center justify-end text-gray-500 text-xs select-none"
+					style="height: {ROW_HEIGHT}px;"
+				>
+					{getBeatLabel(row) ?? ''}
 				</div>
 			{/each}
 		</div>
-		<!-- Sequencer grid -->
-		<div
-			class="relative cursor-pointer"
-			style="width: {TOTAL_WIDTH}px; height: {TOTAL_HEIGHT}px;"
-			bind:this={gridAreaRef}
-			onmousedown={handleGridMouseDown}
-			onmousemove={handleGridMouseMove}
-			onmouseleave={() => (hoveredCell = null)}
-			oncontextmenu={handleContextMenu}
-			role="grid"
-			tabindex="0"
-			aria-label="Sequencer grid"
-		>
-			<div class="grid gap-1 pointer-events-none" style="grid-template-columns: repeat({COLS}, 1fr);">
-				{#each { length: ROWS } as _, row}
-				{#each { length: COLS } as _, col}
-					<div
-						class="w-7 rounded"
-						style="height: {ROW_HEIGHT}px; background-color: {getCellColor(sequencerState.getCell(col, row), isHovered(col, row))}"
-						aria-label="Step {row + 1}, track {col + 1}, value {sequencerState.getCell(col, row)}"
-					></div>
+		<!-- Grid section -->
+		<div class="flex flex-col gap-1">
+			<!-- Octave indicators -->
+			<div class="flex" style="width: {TOTAL_WIDTH}px;">
+				{#each octaveGroups as group, i}
+					<div class="flex flex-col items-center" style="width: {getGroupWidth(group.span)}px; margin-right: {i < octaveGroups.length - 1 ? GAP : 0}px;">
+						<span class="text-gray-500 text-xs select-none">{group.octave}</span>
+						<div class="w-full border-b border-gray-500"></div>
+					</div>
 				{/each}
-			{/each}
+			</div>
+			<!-- Sequencer grid -->
+			<div
+				class="relative cursor-pointer"
+				style="width: {TOTAL_WIDTH}px; height: {totalHeight}px;"
+				bind:this={gridAreaRef}
+				onmousedown={handleGridMouseDown}
+				onmousemove={handleGridMouseMove}
+				onmouseleave={() => (hoveredCell = null)}
+				oncontextmenu={handleContextMenu}
+				role="grid"
+				tabindex="0"
+				aria-label="Sequencer grid"
+			>
+				<div class="grid gap-1 pointer-events-none" style="grid-template-columns: repeat({COLS}, 1fr);">
+					{#each { length: rows } as _, row}
+					{#each { length: COLS } as _, col}
+						<div
+							class="w-7 rounded"
+							style="height: {ROW_HEIGHT}px; background-color: {getCellColor(sequencerState.getCell(col, row), isHovered(col, row))}"
+							aria-label="Step {row + 1}, track {col + 1}, value {sequencerState.getCell(col, row)}"
+						></div>
+					{/each}
+				{/each}
+				</div>
 			</div>
 		</div>
 	</div>
