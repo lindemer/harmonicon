@@ -9,21 +9,29 @@
 	// C#, D#, (skip E), F#, G#, A#, (skip B)
 	const blackKeyAfter = [0, 1, 3, 4, 5]; // indices of C, D, F, G, A
 
-	const whiteKeyWidth = 36;
+	const whiteKeyWidth = 24;
 	const whiteKeyGap = 1;
-	const whiteKeyHeight = 150;
-	const blackKeyWidth = 24;
-	const blackKeyHeight = 90;
-	const octaves = 2;
-	const startOctave = 4;
-	const whiteLabelRadius = 12;
-	const blackLabelRadius = 9;
-	const whiteKeyRadius = 4;
-	const blackKeyRadius = 4;
+	const whiteKeyHeight = 120;
+	const blackKeyWidth = 16;
+	const blackKeyHeight = 72;
+	// 61 keys: C2 to C7 (5 octaves + final C)
+	const octaves = 5;
+	const startOctave = 2;
+	const whiteLabelRadius = 10;
+	const blackLabelRadius = 7;
+	const whiteKeyRadius = 3;
+	const blackKeyRadius = 3;
 
-	const totalWhiteKeys = whiteNotes.length * octaves;
+	// 36 white keys: 5 octaves × 7 + 1 (C7)
+	const totalWhiteKeys = whiteNotes.length * octaves + 1;
 	const svgWidth = totalWhiteKeys * whiteKeyWidth;
 	const svgHeight = whiteKeyHeight;
+
+	function getChordRomanNumeral(): { numeral: string; isDiatonic: boolean } | null {
+		if (!musicState.selectedChord) return null;
+		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
+		return FormatUtil.getChordRomanNumeral(chordSymbol, musicState.selectedRoot, musicState.mode);
+	}
 
 	type KeyInfo = {
 		note: string;
@@ -50,6 +58,14 @@
 				});
 			});
 		}
+		// Add the final C7 white key
+		keys.push({
+			note: 'C',
+			octave: startOctave + octaves,
+			isBlack: false,
+			x: octaves * 7 * whiteKeyWidth,
+			label: 'C'
+		});
 
 		// Black keys (rendered on top)
 		for (let oct = 0; oct < octaves; oct++) {
@@ -104,7 +120,23 @@
 	}
 </script>
 
-<svg viewBox="0 0 {svgWidth} {svgHeight}" class="w-full max-w-2xl">
+<div class="flex justify-between items-center px-4 py-2 select-none">
+	<button
+		class="font-music text-lg cursor-pointer"
+		onclick={() => musicState.toggleMode()}
+	>
+		<span class="{musicState.mode === 'major' ? 'text-white' : 'text-gray-600'}">Δ</span>
+		<span class="text-gray-600">/</span>
+		<span class="{musicState.mode === 'minor' ? 'text-white' : 'text-gray-600'}">m</span>
+	</button>
+	{#if musicState.selectedChord}
+		{@const result = getChordRomanNumeral()}
+		<span class="font-music text-lg text-gray-300">
+			{musicState.selectedChord}{#if result}<span class="{result.isDiatonic ? 'text-gray-400' : 'text-gray-600'} ml-2">({result.numeral})</span>{/if}
+		</span>
+	{/if}
+</div>
+<svg viewBox="0 0 {svgWidth} {svgHeight}" class="w-full" preserveAspectRatio="xMidYMax meet">
 	<!-- Clip path to crop top of keys (hides top rounded corners) -->
 	<defs>
 		<clipPath id="keyboard-clip">
@@ -145,10 +177,10 @@
 				<!-- Show roman numeral above (hidden in 'none' mode) -->
 				<text
 					x={labelX}
-					y={labelY - whiteLabelRadius - 10}
+					y={labelY - whiteLabelRadius - 8}
 					text-anchor="middle"
 					dominant-baseline="middle"
-					font-size="14"
+					font-size="11"
 					fill="#374151"
 					class="font-music pointer-events-none"
 				>
@@ -162,7 +194,7 @@
 					y={labelY}
 					text-anchor="middle"
 					dominant-baseline="middle"
-					font-size="10"
+					font-size="8"
 					fill="#ffffff"
 					class="font-music pointer-events-none"
 				>
@@ -183,7 +215,7 @@
 				y={labelY}
 				text-anchor="middle"
 				dominant-baseline="middle"
-				font-size="10"
+				font-size="8"
 				fill="#ffffff"
 				class="font-music pointer-events-none"
 			>
@@ -197,7 +229,7 @@
 		{@const info = getNoteInfo(key)}
 		{@const interval = getChordInterval(key.note)}
 		{@const labelX = key.x + blackKeyWidth / 2}
-		{@const labelY = blackKeyHeight - 14}
+		{@const labelY = blackKeyHeight - 10}
 		<rect
 			x={key.x}
 			y={-blackKeyRadius}
@@ -224,10 +256,10 @@
 				<!-- Show roman numeral above (hidden in 'none' mode) -->
 				<text
 					x={labelX}
-					y={labelY - blackLabelRadius - 8}
+					y={labelY - blackLabelRadius - 6}
 					text-anchor="middle"
 					dominant-baseline="middle"
-					font-size="11"
+					font-size="9"
 					fill="#e5e7eb"
 					class="font-music pointer-events-none"
 				>
@@ -241,7 +273,7 @@
 					y={labelY}
 					text-anchor="middle"
 					dominant-baseline="middle"
-					font-size="8"
+					font-size="6"
 					fill="#ffffff"
 					class="font-music pointer-events-none"
 				>
@@ -262,7 +294,7 @@
 				y={labelY}
 				text-anchor="middle"
 				dominant-baseline="middle"
-				font-size="8"
+				font-size="6"
 				fill="#ffffff"
 				class="font-music pointer-events-none"
 			>

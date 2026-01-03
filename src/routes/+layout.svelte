@@ -1,16 +1,22 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import LeftPanel from '$lib/components/LeftPanel.svelte';
-	import RightPanel from '$lib/components/RightPanel.svelte';
+	import CircleOfFifths from '$lib/components/CircleOfFifths.svelte';
+	import Piano from '$lib/components/Piano.svelte';
+	import Keyboard from '$lib/components/Keyboard.svelte';
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 <div class="app-layout">
-	<div class="left-panel">
-		<LeftPanel />
+	<div class="top-area">
+		<div class="left-half">
+			<CircleOfFifths />
+		</div>
+		<div class="right-half">
+			<Keyboard />
+		</div>
 	</div>
-	<div class="right-panel">
-		<RightPanel />
+	<div class="bottom-area">
+		<Piano />
 	</div>
 </div>
