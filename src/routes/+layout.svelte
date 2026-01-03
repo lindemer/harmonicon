@@ -7,6 +7,9 @@
 	import { Key } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
+	import type { Snippet } from 'svelte';
+
+	let { children }: { children: Snippet } = $props();
 
 	// Map special characters produced by Alt+number on macOS to degrees
 	const altKeyCodeToDegree: Record<string, number> = {
@@ -83,3 +86,4 @@
 		<Piano />
 	</div>
 </div>
+{@render children()}

@@ -238,6 +238,7 @@
 
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="keyboard-container" onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application">
 	<div class="keyboard">
 		<!-- Number row -->
