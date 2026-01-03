@@ -20,6 +20,7 @@ let selectedRoot = $state('C');
 let mode = $state<Mode>('major');
 let wheelLocked = $state(false);
 let selectedChord = $state<string | null>(null);
+let selectedInversion = $state<0 | 1 | 2>(0);
 let timeSignatureBottom = $state(4);
 let timeSignatureTop = $state(4);
 let clef = $state<Clef>('treble');
@@ -64,6 +65,15 @@ export const musicState = {
 
 	set selectedChord(value: string | null) {
 		selectedChord = value;
+		selectedInversion = 0; // Reset inversion when chord changes
+	},
+
+	get selectedInversion() {
+		return selectedInversion;
+	},
+
+	set selectedInversion(value: 0 | 1 | 2) {
+		selectedInversion = value;
 	},
 
 	get timeSignatureTop() {

@@ -368,6 +368,13 @@
 	{#if musicState.selectedChord}
 		{@const result = getChordRomanNumeral()}
 		{#if result}
+			{@const inversion = musicState.selectedInversion}
+			{@const numeralWidth = result.numeral.split('').reduce((w, c) => {
+				if (c === 'I' || c === 'i') return w + 8;
+				if (c === 'V' || c === 'v') return w + 14;
+				if (c === '°' || c === '♭' || c === '♯') return w + 10;
+				return w + 12;
+			}, 0)}
 			<text
 				x={cx}
 				y={cy}
@@ -379,6 +386,37 @@
 			>
 				{result.numeral}
 			</text>
+			<!-- Inversion indicator (figured bass notation) -->
+			{#if inversion === 1}
+				<text
+					x={cx + numeralWidth / 2 + 6}
+					y={cy}
+					text-anchor="start"
+					dominant-baseline="middle"
+					font-size="24"
+					fill="white"
+					class="font-music pointer-events-none"
+				>⁶</text>
+			{:else if inversion === 2}
+				<text
+					x={cx + numeralWidth / 2 + 6}
+					y={cy - 4}
+					text-anchor="start"
+					dominant-baseline="middle"
+					font-size="24"
+					fill="white"
+					class="font-music pointer-events-none"
+				>⁶</text>
+				<text
+					x={cx + numeralWidth / 2 + 6}
+					y={cy + 8}
+					text-anchor="start"
+					dominant-baseline="middle"
+					font-size="22"
+					fill="white"
+					class="font-music pointer-events-none"
+				>₄</text>
+			{/if}
 		{/if}
 	{/if}
 

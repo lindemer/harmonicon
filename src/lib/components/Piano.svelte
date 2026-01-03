@@ -101,16 +101,30 @@
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty) return null;
 
-		const noteChroma = Note.chroma(noteName);
-		const chordNotes = chord.notes;
+		const chordNotes = chord.notes; // e.g., ['C', 'E', 'G'] for C major
+		const inversion = musicState.selectedInversion;
 
-		// Find matching note in chord by chroma (handles enharmonics)
-		for (let i = 0; i < chordNotes.length; i++) {
-			if (Note.chroma(chordNotes[i]) === noteChroma) {
-				return FormatUtil.formatInterval(chord.intervals[i]);
-			}
-		}
-		return null;
+		// Reorder notes based on inversion
+		// 0: [C, E, G] -> bass=C
+		// 1: [E, G, C] -> bass=E
+		// 2: [G, C, E] -> bass=G
+		const invertedNotes = [
+			...chordNotes.slice(inversion),
+			...chordNotes.slice(0, inversion)
+		];
+		const bassNote = invertedNotes[0];
+
+		// Check if this note is in the chord
+		const noteChroma = Note.chroma(noteName);
+		const noteIndex = invertedNotes.findIndex(n => Note.chroma(n) === noteChroma);
+		if (noteIndex === -1) return null;
+
+		// Calculate interval from bass note to this note
+		const bassChroma = Note.chroma(bassNote);
+		if (bassChroma === undefined || noteChroma === undefined) return null;
+		const semitones = (noteChroma - bassChroma + 12) % 12;
+
+		return FormatUtil.formatFiguredBassInterval(semitones);
 	}
 </script>
 
