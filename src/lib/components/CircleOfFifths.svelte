@@ -390,7 +390,7 @@
 			{#if inversion === 1}
 				<text
 					x={cx + numeralWidth / 2 + 6}
-					y={cy}
+					y={cy - 4}
 					text-anchor="start"
 					dominant-baseline="middle"
 					font-size="24"
@@ -409,7 +409,7 @@
 				>⁶</text>
 				<text
 					x={cx + numeralWidth / 2 + 6}
-					y={cy + 8}
+					y={cy + 4}
 					text-anchor="start"
 					dominant-baseline="middle"
 					font-size="22"
