@@ -67,6 +67,16 @@
 	const whiteKeys = $derived(keys.filter((k) => !k.isBlack));
 	const blackKeys = $derived(keys.filter((k) => k.isBlack));
 
+	// Get highlighted notes from pressed keys
+	const highlightedNotes = $derived(musicState.getHighlightedPianoNotes());
+
+	// Check if a piano key should be highlighted
+	function isKeyHighlighted(key: KeyInfo): boolean {
+		return highlightedNotes.some(
+			(hn) => Note.chroma(hn.note) === Note.chroma(key.note) && hn.octave === key.octave
+		);
+	}
+
 	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string } {
 		const majorDegree = musicState.getMajorDegree(key.note);
 		const inMajorScale = majorDegree !== null;
@@ -179,6 +189,7 @@
 	<g clip-path="url(#keyboard-clip)" transform="translate(0, {octaveLabelHeight})">
 		<!-- White keys -->
 		{#each whiteKeys as key}
+			{@const highlighted = isKeyHighlighted(key)}
 			<rect
 				x={key.x + whiteKey.gap / 2}
 				y={-whiteKey.radius}
@@ -186,8 +197,9 @@
 				height={whiteKey.height + whiteKey.radius}
 				rx={whiteKey.radius}
 				ry={whiteKey.radius}
-				fill="#ffffff"
-				class="cursor-pointer hover:brightness-95"
+				fill={highlighted ? '#fbbf24' : '#ffffff'}
+				class="cursor-pointer piano-key"
+				class:highlighted
 				role="button"
 				tabindex="0"
 				aria-label="{key.note}{key.octave}"
@@ -197,6 +209,7 @@
 
 		<!-- Black keys (on top) -->
 		{#each blackKeys as key}
+			{@const highlighted = isKeyHighlighted(key)}
 			<rect
 				x={key.x}
 				y={-blackKey.radius}
@@ -204,8 +217,9 @@
 				height={blackKey.height + blackKey.radius}
 				rx={blackKey.radius}
 				ry={blackKey.radius}
-				fill="#1f2937"
-				class="cursor-pointer hover:brightness-125"
+				fill={highlighted ? '#f59e0b' : '#1f2937'}
+				class="cursor-pointer piano-key"
+				class:highlighted
 				role="button"
 				tabindex="0"
 				aria-label="{key.note}{key.octave}"
@@ -217,3 +231,17 @@
 	<!-- Thin border on top of keys to cover zoom artifacts -->
 	<rect x="0" y={octaveLabelHeight} width={svgWidth} height="1" fill="#111827" />
 </svg>
+
+<style>
+	.piano-key {
+		transition: fill 0.08s ease;
+	}
+
+	.piano-key:hover:not(.highlighted) {
+		filter: brightness(0.95);
+	}
+
+	.piano-key.highlighted {
+		filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
+	}
+</style>

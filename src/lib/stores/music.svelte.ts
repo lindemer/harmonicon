@@ -1,5 +1,28 @@
-import { Key, Chord, Progression } from 'tonal';
+import { Key, Chord, Progression, Note } from 'tonal';
 import { FormatUtil, type Mode } from '$lib/utils/format';
+
+// Keyboard key to note mapping (Logic Pro Musical Typing layout)
+const KEY_TO_NOTE: Record<string, { note: string; octaveOffset: number }> = {
+	// White keys (home row)
+	a: { note: 'C', octaveOffset: 0 },
+	s: { note: 'D', octaveOffset: 0 },
+	d: { note: 'E', octaveOffset: 0 },
+	f: { note: 'F', octaveOffset: 0 },
+	g: { note: 'G', octaveOffset: 0 },
+	h: { note: 'A', octaveOffset: 0 },
+	j: { note: 'B', octaveOffset: 0 },
+	k: { note: 'C', octaveOffset: 1 },
+	l: { note: 'D', octaveOffset: 1 },
+	';': { note: 'E', octaveOffset: 1 },
+	// Black keys (top row)
+	w: { note: 'C#', octaveOffset: 0 },
+	e: { note: 'D#', octaveOffset: 0 },
+	t: { note: 'F#', octaveOffset: 0 },
+	y: { note: 'G#', octaveOffset: 0 },
+	u: { note: 'A#', octaveOffset: 0 },
+	o: { note: 'C#', octaveOffset: 1 },
+	p: { note: 'D#', octaveOffset: 1 }
+};
 
 // Re-export types
 export type { Mode };
@@ -26,6 +49,8 @@ let timeSignatureTop = $state(4);
 let clef = $state<Clef>('treble');
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
+let pressedDegree = $state<number | null>(null);
+let pressedNoteKey = $state<string | null>(null);
 
 export const musicState = {
 	get selectedRoot() {
@@ -149,7 +174,7 @@ export const musicState = {
 	},
 
 	incrementChordOctave() {
-		if (chordDisplayOctave < 5) chordDisplayOctave++;
+		if (chordDisplayOctave < 4) chordDisplayOctave++;
 	},
 
 	decrementChordOctave() {
@@ -181,9 +206,14 @@ export const musicState = {
 	getChordForDegree(degree: number): ChordType | null {
 		if (degree < 1 || degree > 7) return null;
 
-		const key = Key.majorKey(selectedRoot);
-		const triad = key.triads[degree - 1];
+		// Get triads based on current mode
+		// In minor mode, use the relative minor (e.g., Am for C)
+		const triads =
+			mode === 'major'
+				? Key.majorKey(selectedRoot).triads
+				: Key.minorKey(Key.majorKey(selectedRoot).minorRelative).natural.triads;
 
+		const triad = triads[degree - 1];
 		return Chord.get(triad);
 	},
 
@@ -209,5 +239,64 @@ export const musicState = {
 			return FormatUtil.getDiatonicRomanNumeral(degree, mode);
 		}
 		return null;
+	},
+
+	// Pressed key state for visual feedback
+	get pressedDegree() {
+		return pressedDegree;
+	},
+
+	set pressedDegree(value: number | null) {
+		pressedDegree = value;
+	},
+
+	get pressedNoteKey() {
+		return pressedNoteKey;
+	},
+
+	set pressedNoteKey(value: string | null) {
+		pressedNoteKey = value;
+	},
+
+	// Get the notes that should be highlighted on the piano based on pressed keys
+	// Returns array of {note, octave} objects
+	getHighlightedPianoNotes(): Array<{ note: string; octave: number }> {
+		// Chord highlighting from degree key (1-7)
+		if (pressedDegree !== null) {
+			const chord = this.getChordForDegree(pressedDegree);
+			if (!chord || !chord.notes.length) return [];
+
+			const chordNotes = chord.notes;
+			const inversion = selectedInversion;
+			const baseOctave = chordDisplayOctave;
+
+			// Reorder notes based on inversion
+			const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
+			const bassNote = invertedNotes[0];
+			const bassChroma = Note.chroma(bassNote);
+			if (bassChroma === undefined) return [];
+
+			// Compute octave for each note
+			return invertedNotes.map((noteName) => {
+				const noteChroma = Note.chroma(noteName);
+				if (noteChroma === undefined) return { note: noteName, octave: baseOctave };
+
+				// Notes lower than bass go up an octave
+				const octave = noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+				return { note: noteName, octave };
+			});
+		}
+
+		// Single note highlighting from piano key (A-L, WETYUOP)
+		if (pressedNoteKey !== null) {
+			const keyInfo = KEY_TO_NOTE[pressedNoteKey.toLowerCase()];
+			if (!keyInfo) return [];
+
+			// Single notes are 2 octaves higher than chord display
+			const octave = chordDisplayOctave + 2 + keyInfo.octaveOffset;
+			return [{ note: keyInfo.note, octave }];
+		}
+
+		return [];
 	}
 };

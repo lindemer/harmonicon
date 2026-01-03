@@ -22,9 +22,20 @@
 	let shiftPressed = $state(false);
 	let altPressed = $state(false);
 
+	// Track all pressed keys for visual feedback
+	let pressedKeys = $state<Set<string>>(new Set());
+
 	// Derived inversion level based on modifiers
 	// Alt = 1st inversion, Alt+Shift = 2nd inversion (shift alone does nothing)
 	let inversion: 0 | 1 | 2 = $derived(altPressed && shiftPressed ? 2 : altPressed ? 1 : 0);
+
+	// Helper to check if a key is pressed (case-insensitive)
+	function isKeyPressed(key: string): boolean {
+		return pressedKeys.has(key.toLowerCase());
+	}
+
+	// Piano keys that should trigger pressedNoteKey in musicState
+	const pianoKeyChars = new Set(['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', 'w', 'e', 't', 'y', 'u', 'o', 'p']);
 
 	// Number row for chord degrees
 	const numberRow = ['1', '2', '3', '4', '5', '6', '7'];
@@ -51,7 +62,16 @@
 		X: { text: '8', sup: 'va' }
 	};
 
-	// Handle keydown/keyup for modifier tracking and spacebar toggle
+	// Map KeyboardEvent.code to our key characters (handles Alt+key on macOS)
+	const codeToKey: Record<string, string> = {
+		KeyA: 'a', KeyS: 's', KeyD: 'd', KeyF: 'f', KeyG: 'g', KeyH: 'h', KeyJ: 'j', KeyK: 'k', KeyL: 'l',
+		Semicolon: ';',
+		KeyW: 'w', KeyE: 'e', KeyT: 't', KeyY: 'y', KeyU: 'u', KeyO: 'o', KeyP: 'p',
+		Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', Digit5: '5', Digit6: '6', Digit7: '7',
+		KeyZ: 'z', KeyX: 'x'
+	};
+
+	// Handle keydown/keyup for modifier tracking, key press tracking, and spacebar toggle
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Shift') shiftPressed = true;
 		if (e.key === 'Alt') altPressed = true;
@@ -59,17 +79,46 @@
 			e.preventDefault();
 			musicState.toggleMode();
 		}
-		if (e.key === 'z' || e.key === 'Z') {
+
+		// Use code-based lookup to handle Alt+key on macOS
+		const mappedKey = codeToKey[e.code];
+
+		if (mappedKey === 'z') {
 			musicState.decrementChordOctave();
 		}
-		if (e.key === 'x' || e.key === 'X') {
+		if (mappedKey === 'x') {
 			musicState.incrementChordOctave();
+		}
+
+		// Track pressed key for visual feedback (use mapped key for consistency)
+		if (mappedKey) {
+			pressedKeys = new Set(pressedKeys).add(mappedKey);
+		}
+
+		// Set pressedNoteKey for piano keys (triggers Piano.svelte highlight)
+		if (mappedKey && pianoKeyChars.has(mappedKey)) {
+			musicState.pressedNoteKey = mappedKey;
 		}
 	}
 
 	function handleKeyup(e: KeyboardEvent) {
 		if (e.key === 'Shift') shiftPressed = false;
 		if (e.key === 'Alt') altPressed = false;
+
+		// Use code-based lookup to handle Alt+key on macOS
+		const mappedKey = codeToKey[e.code];
+
+		// Clear pressed key
+		if (mappedKey) {
+			const newSet = new Set(pressedKeys);
+			newSet.delete(mappedKey);
+			pressedKeys = newSet;
+		}
+
+		// Clear pressedNoteKey if this was the piano key
+		if (mappedKey && pianoKeyChars.has(mappedKey) && musicState.pressedNoteKey === mappedKey) {
+			musicState.pressedNoteKey = null;
+		}
 	}
 
 	// Get degree for a number key (1-7)
@@ -95,6 +144,7 @@
 				{@const degree = getDegree(key)}
 				<div
 					class="key degree-key"
+					class:pressed={isKeyPressed(key)}
 					style:background-color={degree ? getDegreeColorForInversion(degree, inversion) : undefined}
 				>
 					<span class="key-label">{key}</span>
@@ -109,7 +159,7 @@
 		<div class="piano-section">
 			{#each pianoKeys as pk, i}
 				<!-- White key (tall, extends from home row up) -->
-				<div class="white-key" style:--key-index={i}>
+				<div class="white-key" class:pressed={isKeyPressed(pk.white)} style:--key-index={i}>
 					<div class="white-key-top"></div>
 					<div class="white-key-bottom">
 						<span class="key-label">{pk.white}</span>
@@ -118,7 +168,7 @@
 				</div>
 				<!-- Black key (if present) -->
 				{#if pk.black}
-					<div class="black-key" style:--key-index={i}>
+					<div class="black-key" class:pressed={isKeyPressed(pk.black)} style:--key-index={i}>
 						<span class="key-label">{pk.black}</span>
 						<span class="key-function font-music">{pk.note}♯</span>
 					</div>
@@ -136,7 +186,7 @@
 
 			{#each bottomRow as key}
 				{@const action = actionMap[key]}
-				<div class="key action-key">
+				<div class="key action-key" class:pressed={isKeyPressed(key)}>
 					<span class="key-label">{key}</span>
 					{#if action}
 						<span class="key-function font-music">{action.text}<sup>{action.sup}</sup></span>
@@ -213,7 +263,9 @@
 		padding: 4px 6px;
 		gap: 3px;
 		cursor: pointer;
-		transition: filter 0.1s ease;
+		transition:
+			filter 0.08s ease,
+			transform 0.08s ease;
 	}
 
 	.key:hover {
@@ -251,11 +303,20 @@
 		border-radius: 6px;
 		overflow: hidden;
 		cursor: pointer;
-		transition: filter 0.1s ease;
+		transition:
+			filter 0.08s ease,
+			transform 0.08s ease;
 	}
 
 	.white-key:hover {
 		filter: brightness(1.15);
+	}
+
+	.white-key.pressed {
+		/* Scale down and translate up so top edge stays fixed */
+		/* 128px height * 0.03 (3% shrink) / 2 = ~2px offset */
+		transform: scale(0.97) translateY(-2px);
+		filter: brightness(0.85);
 	}
 
 	.white-key-top {
@@ -295,11 +356,22 @@
 		gap: 3px;
 		z-index: 1;
 		cursor: pointer;
-		transition: filter 0.1s ease;
+		transition:
+			filter 0.08s ease,
+			transform 0.08s ease,
+			background-color 0.08s ease;
 	}
 
 	.black-key:hover {
 		filter: brightness(1.25);
+	}
+
+	.black-key.pressed {
+		/* Scale down and translate up so top edge stays fixed */
+		/* 64px height * 0.05 (5% shrink) / 2 = ~1.6px offset */
+		transform: scale(0.95) translateY(-1.6px);
+		background: #374151;
+		filter: brightness(0.9);
 	}
 
 	.black-key .key-label {
@@ -321,6 +393,11 @@
 		font-weight: 500;
 	}
 
+	.degree-key.pressed {
+		transform: scale(0.95);
+		filter: brightness(0.8);
+	}
+
 	/* Action keys (Z, X for octave) */
 	.action-key {
 		background: #4b5563;
@@ -328,6 +405,11 @@
 
 	.action-key .key-function {
 		color: #fbbf24;
+	}
+
+	.action-key.pressed {
+		transform: scale(0.95);
+		filter: brightness(0.8);
 	}
 
 	/* Modifier keys */

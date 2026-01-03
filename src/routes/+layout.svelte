@@ -27,6 +27,7 @@
 			degree = parseInt(e.key);
 			if (degree === 0) {
 				musicState.selectedChord = null;
+				musicState.pressedDegree = null;
 				return;
 			}
 			if (!(degree >= 1 && degree <= 7)) {
@@ -35,6 +36,9 @@
 		}
 
 		if (degree >= 1 && degree <= 7) {
+			// Set pressed state for visual feedback
+			musicState.pressedDegree = degree;
+
 			// Get triads based on current mode
 			// In minor mode, use the relative minor (e.g., Am for C)
 			const triads = musicState.mode === 'major'
@@ -50,9 +54,21 @@
 			}
 		}
 	}
+
+	function handleKeyup(e: KeyboardEvent) {
+		// Clear degree on key release
+		const degree = parseInt(e.key);
+		if (degree >= 1 && degree <= 7) {
+			musicState.pressedDegree = null;
+		}
+		// Handle Alt+number release (macOS special characters)
+		if (altKeyCodeToDegree[e.key]) {
+			musicState.pressedDegree = null;
+		}
+	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 <div class="app-layout">
 	<div class="top-area">
