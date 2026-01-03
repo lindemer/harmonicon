@@ -3,13 +3,28 @@
 	import { FormatUtil } from '$lib/utils/format';
 	import RomanNumeral from './RomanNumeral.svelte';
 
+	// Get color for a degree key, accounting for inversion
+	// When inverted, the color reflects the bass note's degree instead
+	function getDegreeColorForInversion(degree: number, inv: 0 | 1 | 2): string {
+		if (inv === 0) {
+			return FormatUtil.getDegreeColor(degree);
+		}
+		const chord = musicState.getChordForDegree(degree);
+		if (!chord || !chord.notes.length) {
+			return FormatUtil.getDegreeColor(degree);
+		}
+		const bassNote = chord.notes[inv] ?? chord.notes[0];
+		const bassDegree = musicState.getMajorDegree(bassNote);
+		return FormatUtil.getDegreeColor(bassDegree ?? degree);
+	}
+
 	// Track modifier key states
 	let shiftPressed = $state(false);
 	let altPressed = $state(false);
 
 	// Derived inversion level based on modifiers
 	// Alt = 1st inversion, Alt+Shift = 2nd inversion (shift alone does nothing)
-	let inversion = $derived(altPressed && shiftPressed ? 2 : altPressed ? 1 : 0);
+	let inversion: 0 | 1 | 2 = $derived(altPressed && shiftPressed ? 2 : altPressed ? 1 : 0);
 
 	// Number row for chord degrees
 	const numberRow = ['1', '2', '3', '4', '5', '6', '7'];
@@ -31,15 +46,19 @@
 
 	// Bottom row actions
 	const bottomRow = ['Z', 'X'];
-	const actionMap: Record<string, string> = {
-		Z: 'oct−',
-		X: 'oct+'
+	const actionMap: Record<string, { text: string; sup: string }> = {
+		Z: { text: '8', sup: 'vb' },
+		X: { text: '8', sup: 'va' }
 	};
 
-	// Handle keydown/keyup for modifier tracking
+	// Handle keydown/keyup for modifier tracking and spacebar toggle
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Shift') shiftPressed = true;
 		if (e.key === 'Alt') altPressed = true;
+		if (e.key === ' ') {
+			e.preventDefault();
+			musicState.toggleMode();
+		}
 	}
 
 	function handleKeyup(e: KeyboardEvent) {
@@ -70,7 +89,7 @@
 				{@const degree = getDegree(key)}
 				<div
 					class="key degree-key"
-					style:background-color={degree ? FormatUtil.getDegreeColor(degree) : undefined}
+					style:background-color={degree ? getDegreeColorForInversion(degree, inversion) : undefined}
 				>
 					<span class="key-label">{key}</span>
 					{#if degree}
@@ -106,7 +125,7 @@
 			<!-- Shift key -->
 			<div class="key wide-key modifier-key" class:pressed={shiftPressed}>
 				<span class="key-label">⇧</span>
-				<span class="key-function">2nd</span>
+				<span class="key-function font-music">2<sup>nd</sup></span>
 			</div>
 
 			{#each bottomRow as key}
@@ -114,7 +133,7 @@
 				<div class="key action-key">
 					<span class="key-label">{key}</span>
 					{#if action}
-						<span class="key-function">{action}</span>
+						<span class="key-function font-music">{action.text}<sup>{action.sup}</sup></span>
 					{/if}
 				</div>
 			{/each}
@@ -127,13 +146,23 @@
 			</div>
 			<div class="key modifier-key" class:pressed={altPressed}>
 				<span class="key-label">⌥</span>
-				<span class="key-function">1st</span>
+				<span class="key-function font-music">1<sup>st</sup></span>
 			</div>
 			<div class="key modifier-key">
 				<span class="key-label">⌘</span>
 			</div>
-			<div class="key space-key">
-				<span class="key-label"></span>
+			<div
+				class="key space-key"
+				onclick={() => musicState.toggleMode()}
+				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); musicState.toggleMode(); } }}
+				role="button"
+				tabindex="0"
+			>
+				<span class="key-function mode-toggle font-music">
+					<span class:active-mode={musicState.mode === 'major'} class:inactive-mode={musicState.mode !== 'major'}>Δ</span>
+					<span class="mode-separator">/</span>
+					<span class:active-mode={musicState.mode === 'minor'} class:inactive-mode={musicState.mode !== 'minor'}>m</span>
+				</span>
 			</div>
 		</div>
 	</div>
@@ -147,6 +176,7 @@
 		align-items: center;
 		justify-content: center;
 		padding: 1rem;
+		user-select: none;
 	}
 
 	.keyboard {
@@ -292,7 +322,6 @@
 
 	.action-key .key-function {
 		color: #fbbf24;
-		font-size: 9px;
 	}
 
 	/* Modifier keys */
@@ -302,7 +331,6 @@
 
 	.modifier-key .key-function {
 		color: #9ca3af;
-		font-size: 9px;
 	}
 
 	.modifier-key.pressed {
@@ -322,6 +350,24 @@
 	.space-key {
 		min-width: 320px;
 		background: #374151;
+	}
+
+	.mode-toggle {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.mode-separator {
+		color: #6b7280;
+	}
+
+	.active-mode {
+		color: #f3f4f6;
+	}
+
+	.inactive-mode {
+		color: #6b7280;
 	}
 
 	.bottom-row {
