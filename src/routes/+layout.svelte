@@ -1,6 +1,5 @@
 <script lang="ts">
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import CircleOfFifths from '$lib/components/CircleOfFifths.svelte';
 	import Piano from '$lib/components/Piano.svelte';
 	import Keyboard from '$lib/components/Keyboard.svelte';
@@ -72,7 +71,9 @@
 </script>
 
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+	<title>Harmonicon</title>
+</svelte:head>
 <div class="app-layout">
 	<div class="top-area">
 		<div class="left-half">

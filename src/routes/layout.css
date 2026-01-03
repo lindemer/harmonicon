@@ -82,7 +82,7 @@
 
 .header a {
 	font-family: monospace;
-	font-size: 1.25rem;
+	font-size: 1rem;
 	color: #9ca3af; /* gray-400 */
 	text-decoration: none;
 	transition: color 0.2s ease;
