@@ -3,6 +3,12 @@
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
 
+	function getChordRomanNumeral(): { numeral: string; isDiatonic: boolean } | null {
+		if (!musicState.selectedChord) return null;
+		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
+		return FormatUtil.getChordRomanNumeral(chordSymbol, musicState.selectedRoot, musicState.mode);
+	}
+
 	// Build keys array from circle of fifths using Tonal
 	// Uses Tonal standard notation: C, Am, Bdim (uppercase root + quality suffix)
 	const keys = FormatUtil.CIRCLE_OF_FIFTHS.map((root) => {
@@ -186,10 +192,20 @@
 	}
 </script>
 
+<div class="relative w-full max-w-lg">
+<button
+	class="absolute top-0 left-0 font-music text-lg cursor-pointer select-none z-10"
+	onclick={() => musicState.toggleMode()}
+>
+	<span class="{musicState.mode === 'major' ? 'text-white' : 'text-gray-600'}">Δ</span>
+	<span class="text-gray-600">/</span>
+	<span class="{musicState.mode === 'minor' ? 'text-white' : 'text-gray-600'}">m</span>
+</button>
+
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
 	viewBox="0 0 400 400"
-	class="w-full max-w-lg select-none"
+	class="w-full select-none"
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
@@ -343,7 +359,24 @@
 		</text>
 	{/each}
 
-	<!-- Center circle (non-interactive) -->
+	<!-- Center circle with roman numeral -->
 	<circle cx={cx} cy={cy} r={centerRadius - 5} fill="#111827" />
+	{#if musicState.selectedChord}
+		{@const result = getChordRomanNumeral()}
+		{#if result}
+			<text
+				x={cx}
+				y={cy}
+				text-anchor="middle"
+				dominant-baseline="middle"
+				font-size="28"
+				fill="white"
+				class="font-music pointer-events-none"
+			>
+				{result.numeral}
+			</text>
+		{/if}
+	{/if}
 
 </svg>
+</div>

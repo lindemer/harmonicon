@@ -27,12 +27,6 @@
 	const svgWidth = totalWhiteKeys * whiteKeyWidth;
 	const svgHeight = whiteKeyHeight;
 
-	function getChordRomanNumeral(): { numeral: string; isDiatonic: boolean } | null {
-		if (!musicState.selectedChord) return null;
-		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
-		return FormatUtil.getChordRomanNumeral(chordSymbol, musicState.selectedRoot, musicState.mode);
-	}
-
 	type KeyInfo = {
 		note: string;
 		octave: number;
@@ -120,22 +114,6 @@
 	}
 </script>
 
-<div class="flex justify-between items-center px-4 py-2 select-none">
-	<button
-		class="font-music text-lg cursor-pointer"
-		onclick={() => musicState.toggleMode()}
-	>
-		<span class="{musicState.mode === 'major' ? 'text-white' : 'text-gray-600'}">Δ</span>
-		<span class="text-gray-600">/</span>
-		<span class="{musicState.mode === 'minor' ? 'text-white' : 'text-gray-600'}">m</span>
-	</button>
-	{#if musicState.selectedChord}
-		{@const result = getChordRomanNumeral()}
-		<span class="font-music text-lg text-gray-300">
-			{musicState.selectedChord}{#if result}<span class="{result.isDiatonic ? 'text-gray-400' : 'text-gray-600'} ml-2">({result.numeral})</span>{/if}
-		</span>
-	{/if}
-</div>
 <svg viewBox="0 0 {svgWidth} {svgHeight}" class="w-full" preserveAspectRatio="xMidYMax meet">
 	<!-- Clip path to crop top of keys (hides top rounded corners) -->
 	<defs>
