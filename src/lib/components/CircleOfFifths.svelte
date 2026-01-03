@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Key } from 'tonal';
+	import { Key, Chord } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
 
@@ -98,18 +98,27 @@
 		return key.dim;
 	}
 
-	function handleRightClick(clientX: number, clientY: number, toggle: boolean) {
+	function getInversionFromEvent(e: MouseEvent): 0 | 1 | 2 {
+		// Note: Ctrl+click on macOS triggers right-click, so we use Alt for both inversions
+		// Alt/Option = 1st inversion, Alt+Shift = 2nd inversion
+		if (e.altKey && e.shiftKey) return 2;
+		if (e.altKey) return 1;
+		return 0;
+	}
+
+	function handleRightClick(clientX: number, clientY: number, toggle: boolean, inversion: 0 | 1 | 2 = 0) {
 		const ring = getRingFromPoint(clientX, clientY, svgElement);
 		if (!ring) return;
 
 		const segmentIndex = getSegmentFromPoint(clientX, clientY, svgElement);
 		const chordSymbol = getChordSymbol(segmentIndex, ring);
 
-		if (toggle && musicState.selectedChord === chordSymbol) {
+		if (toggle && musicState.selectedChord === chordSymbol && musicState.selectedInversion === inversion) {
 			// Toggle off only on initial click, not during drag
 			musicState.selectedChord = null;
 		} else {
 			musicState.selectedChord = chordSymbol;
+			musicState.selectedInversion = inversion;
 		}
 	}
 
@@ -224,10 +233,12 @@
 			if (!rightDragMoved && rightClickStart) {
 				// Didn't drag - toggle the chord
 				const chordSymbol = getChordSymbol(rightClickStart.segment, rightClickStart.ring);
-				if (musicState.selectedChord === chordSymbol) {
+				const inversion = getInversionFromEvent(e);
+				if (musicState.selectedChord === chordSymbol && musicState.selectedInversion === inversion) {
 					musicState.selectedChord = null;
 				} else {
 					musicState.selectedChord = chordSymbol;
+					musicState.selectedInversion = inversion;
 				}
 			}
 			isDragging = false;
@@ -262,7 +273,7 @@
 				rightDragMoved = true;
 			}
 			if (rightDragMoved) {
-				handleRightClick(e.clientX, e.clientY, false);
+				handleRightClick(e.clientX, e.clientY, false, getInversionFromEvent(e));
 			}
 		}
 	}}
@@ -375,13 +386,19 @@
 				if (c === '°' || c === '♭' || c === '♯') return w + 10;
 				return w + 12;
 			}, 0)}
+			{@const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord)}
+			{@const chord = Chord.get(chordSymbol)}
+			{@const chordNotes = chord.notes}
+			{@const bassNote = chordNotes[inversion] ?? chordNotes[0]}
+			{@const bassDegree = musicState.getMajorDegree(bassNote)}
+			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
 			<text
 				x={cx}
 				y={cy}
 				text-anchor="middle"
 				dominant-baseline="middle"
 				font-size="28"
-				fill="white"
+				fill={numeralColor}
 				class="font-music pointer-events-none"
 			>
 				{result.numeral}
@@ -394,7 +411,7 @@
 					text-anchor="start"
 					dominant-baseline="middle"
 					font-size="24"
-					fill="white"
+					fill={numeralColor}
 					class="font-music pointer-events-none"
 				>⁶</text>
 			{:else if inversion === 2}
@@ -404,7 +421,7 @@
 					text-anchor="start"
 					dominant-baseline="middle"
 					font-size="24"
-					fill="white"
+					fill={numeralColor}
 					class="font-music pointer-events-none"
 				>⁶</text>
 				<text
@@ -413,7 +430,7 @@
 					text-anchor="start"
 					dominant-baseline="middle"
 					font-size="22"
-					fill="white"
+					fill={numeralColor}
 					class="font-music pointer-events-none"
 				>₄</text>
 			{/if}

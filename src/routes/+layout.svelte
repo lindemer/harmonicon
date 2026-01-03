@@ -12,20 +12,30 @@
 	const altKeyCodeToDegree: Record<string, number> = {
 		'¡': 1, '™': 2, '£': 3, '¢': 4, '∞': 5, '§': 6, '¶': 7
 	};
+	// Map Alt+Shift+number key codes (macOS produces different special characters)
+	const altShiftKeyCodeToDegree: Record<string, number> = {
+		'⁄': 1, '€': 2, '‹': 3, '›': 4, 'fi': 5, '‡': 6, '·': 7
+	};
 
 	function handleKeydown(e: KeyboardEvent) {
 		let degree: number;
 		let inversion: 0 | 1 | 2 = 0;
 
-		// Check for Alt+number (macOS produces special characters)
-		if (e.altKey && altKeyCodeToDegree[e.key]) {
+		// Check for Alt+Shift+number (macOS produces special characters) - 2nd inversion
+		if (e.altKey && e.shiftKey && altShiftKeyCodeToDegree[e.key]) {
+			degree = altShiftKeyCodeToDegree[e.key];
+			inversion = 2;
+		// Check for Alt+number (macOS produces special characters) - 1st inversion
+		} else if (e.altKey && altKeyCodeToDegree[e.key]) {
 			degree = altKeyCodeToDegree[e.key];
-			inversion = 2; // Alt/Option = 2nd inversion
+			inversion = 1;
 		} else {
 			degree = parseInt(e.key);
-			if (degree >= 1 && degree <= 7) {
-				if (e.ctrlKey || e.metaKey) inversion = 1;  // Ctrl/Cmd = 1st inversion
-			} else {
+			if (degree === 0) {
+				musicState.selectedChord = null;
+				return;
+			}
+			if (!(degree >= 1 && degree <= 7)) {
 				return; // Not a valid degree key
 			}
 		}
