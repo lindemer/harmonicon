@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
+	import RomanNumeral from './RomanNumeral.svelte';
 
 	// Track modifier key states
 	let shiftPressed = $state(false);
 	let altPressed = $state(false);
 
 	// Derived inversion level based on modifiers
-	let inversion = $derived(shiftPressed ? 2 : altPressed ? 1 : 0);
+	// Alt = 1st inversion, Alt+Shift = 2nd inversion (shift alone does nothing)
+	let inversion = $derived(altPressed && shiftPressed ? 2 : altPressed ? 1 : 0);
 
 	// Number row for chord degrees
 	const numberRow = ['1', '2', '3', '4', '5', '6', '7'];
@@ -72,7 +74,7 @@
 				>
 					<span class="key-label">{key}</span>
 					{#if degree}
-						<span class="key-function font-music">{getRomanNumeral(degree)}{#if inversion > 0}<span class="inversion-indicator"><span>⁶</span>{#if inversion === 2}<span>₄</span>{/if}</span>{/if}</span>
+						<span class="key-function"><RomanNumeral numeral={getRomanNumeral(degree)} inversion={inversion} /></span>
 					{/if}
 				</div>
 			{/each}
@@ -160,12 +162,12 @@
 	}
 
 	.number-row {
-		margin-left: calc(-4 * 60px - 38px);
+		margin-left: calc(-4 * 68px - 42px);
 	}
 
 	.key {
-		min-width: 56px;
-		height: 56px;
+		min-width: 64px;
+		height: 64px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -174,6 +176,12 @@
 		border-radius: 6px;
 		padding: 4px 6px;
 		gap: 3px;
+		cursor: pointer;
+		transition: filter 0.1s ease;
+	}
+
+	.key:hover {
+		filter: brightness(1.15);
 	}
 
 	.key-label {
@@ -192,20 +200,26 @@
 	/* Piano section - positioned layout */
 	.piano-section {
 		position: relative;
-		height: 112px;
-		width: calc(10 * 60px);
+		height: 128px;
+		width: calc(10 * 68px);
 	}
 
 	/* White keys - tall piano-style */
 	.white-key {
 		position: absolute;
-		left: calc(var(--key-index) * 60px);
-		width: 56px;
-		height: 112px;
+		left: calc(var(--key-index) * 68px);
+		width: 64px;
+		height: 128px;
 		display: flex;
 		flex-direction: column;
 		border-radius: 6px;
 		overflow: hidden;
+		cursor: pointer;
+		transition: filter 0.1s ease;
+	}
+
+	.white-key:hover {
+		filter: brightness(1.15);
 	}
 
 	.white-key-top {
@@ -215,7 +229,7 @@
 	}
 
 	.white-key-bottom {
-		height: 56px;
+		height: 64px;
 		background: #4b5563;
 		display: flex;
 		flex-direction: column;
@@ -227,15 +241,15 @@
 
 	.white-key .key-function {
 		color: #f3f4f6;
-		font-size: 14px;
+		font-size: 20px;
 	}
 
 	/* Black keys - square, positioned between white keys */
 	.black-key {
 		position: absolute;
-		left: calc(var(--key-index) * 60px - 23px);
-		width: 56px;
-		height: 56px;
+		left: calc(var(--key-index) * 68px - 26px);
+		width: 64px;
+		height: 64px;
 		background: #1f2937;
 		border-radius: 6px;
 		display: flex;
@@ -244,6 +258,12 @@
 		justify-content: center;
 		gap: 3px;
 		z-index: 1;
+		cursor: pointer;
+		transition: filter 0.1s ease;
+	}
+
+	.black-key:hover {
+		filter: brightness(1.25);
 	}
 
 	.black-key .key-label {
@@ -252,7 +272,7 @@
 
 	.black-key .key-function {
 		color: #9ca3af;
-		font-size: 12px;
+		font-size: 16px;
 	}
 
 	/* Degree keys (1-7) with colored backgrounds */
@@ -263,27 +283,6 @@
 	.degree-key .key-function {
 		color: white;
 		font-weight: 500;
-	}
-
-	.inversion-indicator {
-		position: relative;
-		display: inline-block;
-		font-size: 0.85em;
-		vertical-align: baseline;
-		margin-left: 4px;
-		width: 0.5em;
-	}
-
-	.inversion-indicator span:first-child {
-		position: absolute;
-		bottom: 0em;
-		left: 0;
-	}
-
-	.inversion-indicator span:last-child:not(:first-child) {
-		position: absolute;
-		bottom: -0.35em;
-		left: 0;
 	}
 
 	/* Action keys (Z, X for octave) */
@@ -317,11 +316,11 @@
 
 	/* Wide keys */
 	.wide-key {
-		min-width: 84px;
+		min-width: 96px;
 	}
 
 	.space-key {
-		min-width: 280px;
+		min-width: 320px;
 		background: #374151;
 	}
 

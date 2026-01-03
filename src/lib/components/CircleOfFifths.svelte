@@ -2,6 +2,7 @@
 	import { Key, Chord } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
+	import RomanNumeral from './RomanNumeral.svelte';
 
 	function getChordRomanNumeral(): { numeral: string; isDiatonic: boolean } | null {
 		if (!musicState.selectedChord) return null;
@@ -380,61 +381,28 @@
 		{@const result = getChordRomanNumeral()}
 		{#if result}
 			{@const inversion = musicState.selectedInversion}
-			{@const numeralWidth = result.numeral.split('').reduce((w, c) => {
-				if (c === 'I' || c === 'i') return w + 8;
-				if (c === 'V' || c === 'v') return w + 14;
-				if (c === '°' || c === '♭' || c === '♯') return w + 10;
-				return w + 12;
-			}, 0)}
 			{@const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord)}
 			{@const chord = Chord.get(chordSymbol)}
 			{@const chordNotes = chord.notes}
 			{@const bassNote = chordNotes[inversion] ?? chordNotes[0]}
 			{@const bassDegree = musicState.getMajorDegree(bassNote)}
 			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
-			<text
-				x={cx}
-				y={cy}
-				text-anchor="middle"
-				dominant-baseline="middle"
-				font-size="28"
-				fill={numeralColor}
-				class="font-music pointer-events-none"
-			>
-				{result.numeral}
-			</text>
-			<!-- Inversion indicator (figured bass notation) -->
-			{#if inversion === 1}
-				<text
-					x={cx + numeralWidth / 2 + 6}
-					y={cy - 4}
-					text-anchor="start"
-					dominant-baseline="middle"
-					font-size="24"
-					fill={numeralColor}
-					class="font-music pointer-events-none"
-				>⁶</text>
-			{:else if inversion === 2}
-				<text
-					x={cx + numeralWidth / 2 + 6}
-					y={cy - 4}
-					text-anchor="start"
-					dominant-baseline="middle"
-					font-size="24"
-					fill={numeralColor}
-					class="font-music pointer-events-none"
-				>⁶</text>
-				<text
-					x={cx + numeralWidth / 2 + 6}
-					y={cy + 4}
-					text-anchor="start"
-					dominant-baseline="middle"
-					font-size="22"
-					fill={numeralColor}
-					class="font-music pointer-events-none"
-				>₄</text>
-			{/if}
+			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
+				<div class="center-numeral">
+					<RomanNumeral numeral={result.numeral} inversion={inversion} color={numeralColor} size="lg" />
+				</div>
+			</foreignObject>
 		{/if}
 	{/if}
 
 </svg>
+
+<style>
+	.center-numeral {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+</style>
