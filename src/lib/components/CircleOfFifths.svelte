@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Key, Chord } from 'tonal';
+	import { Key, Chord, Note } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
 	import {
@@ -13,6 +13,7 @@
 	} from '$lib/utils/geometry';
 	import { CIRCLE_DIMENSIONS, CIRCLE_RINGS, type RingType } from '$lib/constants/circle';
 	import RomanNumeral from './RomanNumeral.svelte';
+	import { playNotes, stopAllNotes } from '$lib/services/audio';
 
 	const { viewBox, center, radii, fontSizes, segmentAngle, rotationOffset, centerPadding } = CIRCLE_DIMENSIONS;
 	const cx = center.x;
@@ -42,8 +43,7 @@
 
 	let isDragging = $state(false);
 	let isRightDragging = $state(false);
-	let rightDragMoved = $state(false);
-	let rightClickStart: { segment: number; ring: RingType } | null = $state(null);
+	let currentDragSegment: { segment: number; ring: RingType } | null = $state(null);
 	let svgElement: SVGSVGElement;
 	let hoveredSegment: { index: number; ring: RingType } | null = $state(null);
 
@@ -90,16 +90,6 @@
 		return 0;
 	}
 
-	function handleChordSelection(clientX: number, clientY: number, toggle: boolean, inversion: 0 | 1 | 2 = 0) {
-		const ring = getRingFromPoint(clientX, clientY);
-		if (!ring) return;
-
-		const segmentIndex = getSegmentFromPoint(clientX, clientY);
-		const chordSymbol = getChordSymbol(segmentIndex, ring);
-
-		musicState.selectChord(chordSymbol, inversion, toggle);
-	}
-
 	// Get scale degree for wheel coloring - always uses major key
 	function getScaleDegree(segmentIndex: number, ring: RingType): number | null {
 		const segment = keys[segmentIndex];
@@ -128,6 +118,41 @@
 	function getLabelPosition(radius: number, angle: number) {
 		return polarToCartesian(cx, cy, radius, angle);
 	}
+
+	// Helper to get chord notes with octaves for audio playback
+	function getChordNotesForSymbol(chordSymbol: string, inv: 0 | 1 | 2 = 0): Array<{ note: string; octave: number }> {
+		const unformatted = FormatUtil.unformatNote(chordSymbol);
+		const chord = Chord.get(unformatted);
+		if (chord.empty || !chord.notes.length) return [];
+
+		const baseOctave = musicState.chordDisplayOctave;
+		const chordNotes = chord.notes;
+
+		// Reorder notes based on inversion
+		const invertedNotes = [...chordNotes.slice(inv), ...chordNotes.slice(0, inv)];
+
+		const bassNote = invertedNotes[0];
+		const bassChroma = Note.chroma(bassNote);
+
+		if (bassChroma === undefined) {
+			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
+		}
+
+		return invertedNotes.map((noteName) => {
+			const noteChroma = Note.chroma(noteName);
+			const octave = noteChroma !== undefined && noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+			return { note: noteName, octave };
+		});
+	}
+
+	// Play chord audio for a segment
+	function playChordForSegment(segmentIndex: number, ring: RingType, inv: 0 | 1 | 2 = 0) {
+		const chordSymbol = getChordSymbol(segmentIndex, ring);
+		const notes = getChordNotesForSymbol(chordSymbol, inv);
+		if (notes.length > 0) {
+			playNotes(notes);
+		}
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -145,12 +170,15 @@
 			const ring = getRingFromPoint(e.clientX, e.clientY);
 			if (ring) {
 				isDragging = true;
-				rightDragMoved = false;
-				rightClickStart = {
-					segment: getSegmentFromPoint(e.clientX, e.clientY),
-					ring
-				};
+				const segment = getSegmentFromPoint(e.clientX, e.clientY);
+				currentDragSegment = { segment, ring };
 				musicState.isChordPressed = true;
+
+				// Select and play chord
+				const chordSymbol = getChordSymbol(segment, ring);
+				const inversion = getInversionFromEvent(e);
+				musicState.selectChord(chordSymbol, inversion, false);
+				playChordForSegment(segment, ring, inversion);
 			}
 		} else if (e.button === 2) {
 			isRightDragging = true;
@@ -158,14 +186,12 @@
 	}}
 	onmouseup={(e) => {
 		if (e.button === 0) {
-			if (!rightDragMoved && rightClickStart) {
-				const chordSymbol = getChordSymbol(rightClickStart.segment, rightClickStart.ring);
-				const inversion = getInversionFromEvent(e);
-				musicState.selectChord(chordSymbol, inversion, true);
-			}
 			isDragging = false;
-			rightClickStart = null;
+			currentDragSegment = null;
 			musicState.isChordPressed = false;
+
+			// Stop chord audio (selection persists)
+			stopAllNotes();
 		} else if (e.button === 2) {
 			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY)];
 			isRightDragging = false;
@@ -174,9 +200,12 @@
 	onmouseleave={() => {
 		isDragging = false;
 		isRightDragging = false;
-		rightClickStart = null;
+		currentDragSegment = null;
 		hoveredSegment = null;
 		musicState.isChordPressed = false;
+
+		// Stop chord audio when leaving
+		stopAllNotes();
 	}}
 	onmousemove={(e) => {
 		const ring = getRingFromPoint(e.clientX, e.clientY);
@@ -185,33 +214,60 @@
 
 		if (isRightDragging) {
 			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segment];
-		} else if (isDragging) {
-			if (ring && rightClickStart && (ring !== rightClickStart.ring || segment !== rightClickStart.segment)) {
-				rightDragMoved = true;
-			}
-			if (rightDragMoved) {
-				handleChordSelection(e.clientX, e.clientY, false, getInversionFromEvent(e));
+		} else if (isDragging && ring) {
+			// Only update if segment or ring changed
+			if (!currentDragSegment || currentDragSegment.segment !== segment || currentDragSegment.ring !== ring) {
+				currentDragSegment = { segment, ring };
+
+				// Stop previous chord and play new one
+				stopAllNotes();
+				const chordSymbol = getChordSymbol(segment, ring);
+				const inversion = getInversionFromEvent(e);
+				musicState.selectChord(chordSymbol, inversion, false);
+				playChordForSegment(segment, ring, inversion);
 			}
 		}
 	}}
 	ontouchstart={(e) => {
 		const touch = e.touches[0];
 		if (!isInCenterCircle(touch.clientX, touch.clientY)) {
-			isDragging = true;
 			const ring = getRingFromPoint(touch.clientX, touch.clientY);
 			if (ring) {
+				isDragging = true;
+				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
+				currentDragSegment = { segment, ring };
 				musicState.isChordPressed = true;
+
+				// Select and play chord
+				const chordSymbol = getChordSymbol(segment, ring);
+				musicState.selectChord(chordSymbol, 0, false);
+				playChordForSegment(segment, ring, 0);
 			}
 		}
 	}}
 	ontouchend={() => {
 		isDragging = false;
+		currentDragSegment = null;
 		musicState.isChordPressed = false;
+		// Stop chord audio
+		stopAllNotes();
 	}}
 	ontouchmove={(e) => {
 		if (isDragging) {
 			const touch = e.touches[0];
-			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(touch.clientX, touch.clientY)];
+			const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
+			const ring = getRingFromPoint(touch.clientX, touch.clientY);
+
+			// Only update if segment or ring changed
+			if (ring && (!currentDragSegment || currentDragSegment.segment !== segment || currentDragSegment.ring !== ring)) {
+				currentDragSegment = { segment, ring };
+
+				// Stop previous chord and play new one
+				stopAllNotes();
+				const chordSymbol = getChordSymbol(segment, ring);
+				musicState.selectChord(chordSymbol, 0, false);
+				playChordForSegment(segment, ring, 0);
+			}
 		}
 	}}
 >

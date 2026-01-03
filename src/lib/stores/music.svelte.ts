@@ -1,29 +1,6 @@
 import { Key, Chord, Progression, Note } from 'tonal';
 import { FormatUtil, type Mode } from '$lib/utils/format';
 
-// Keyboard key to note mapping (Logic Pro Musical Typing layout)
-const KEY_TO_NOTE: Record<string, { note: string; octaveOffset: number }> = {
-	// White keys (home row)
-	a: { note: 'C', octaveOffset: 0 },
-	s: { note: 'D', octaveOffset: 0 },
-	d: { note: 'E', octaveOffset: 0 },
-	f: { note: 'F', octaveOffset: 0 },
-	g: { note: 'G', octaveOffset: 0 },
-	h: { note: 'A', octaveOffset: 0 },
-	j: { note: 'B', octaveOffset: 0 },
-	k: { note: 'C', octaveOffset: 1 },
-	l: { note: 'D', octaveOffset: 1 },
-	';': { note: 'E', octaveOffset: 1 },
-	// Black keys (top row)
-	w: { note: 'C#', octaveOffset: 0 },
-	e: { note: 'D#', octaveOffset: 0 },
-	t: { note: 'F#', octaveOffset: 0 },
-	y: { note: 'G#', octaveOffset: 0 },
-	u: { note: 'A#', octaveOffset: 0 },
-	o: { note: 'C#', octaveOffset: 1 },
-	p: { note: 'D#', octaveOffset: 1 }
-};
-
 // Re-export types
 export type { Mode };
 export type ChordType = ReturnType<typeof Chord.get>;
@@ -50,8 +27,10 @@ let clef = $state<Clef>('treble');
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 let pressedDegree = $state<number | null>(null);
-let pressedNoteKey = $state<string | null>(null);
 let isChordPressed = $state(false);
+
+// Track all currently pressed notes as "{note}{octave}" strings (e.g., "C4", "F#3")
+let pressedNotes = $state<Set<string>>(new Set());
 
 export const musicState = {
 	get selectedRoot() {
@@ -251,12 +230,44 @@ export const musicState = {
 		pressedDegree = value;
 	},
 
-	get pressedNoteKey() {
-		return pressedNoteKey;
+	get pressedNotes() {
+		return pressedNotes;
 	},
 
-	set pressedNoteKey(value: string | null) {
-		pressedNoteKey = value;
+	// Add a note to the pressed set (format: "C4", "F#3", etc.)
+	addPressedNote(note: string, octave: number) {
+		const noteStr = `${note}${octave}`;
+		pressedNotes = new Set(pressedNotes).add(noteStr);
+	},
+
+	// Remove a note from the pressed set
+	removePressedNote(note: string, octave: number) {
+		const noteStr = `${note}${octave}`;
+		const newSet = new Set(pressedNotes);
+		newSet.delete(noteStr);
+		pressedNotes = newSet;
+	},
+
+	// Add multiple notes at once (for chords)
+	addPressedNotes(notes: Array<{ note: string; octave: number }>) {
+		const newSet = new Set(pressedNotes);
+		for (const n of notes) {
+			newSet.add(`${n.note}${n.octave}`);
+		}
+		pressedNotes = newSet;
+	},
+
+	// Remove multiple notes at once (for chords)
+	removePressedNotes(notes: Array<{ note: string; octave: number }>) {
+		const newSet = new Set(pressedNotes);
+		for (const n of notes) {
+			newSet.delete(`${n.note}${n.octave}`);
+		}
+		pressedNotes = newSet;
+	},
+
+	clearPressedNotes() {
+		pressedNotes = new Set();
 	},
 
 	get isChordPressed() {
@@ -327,14 +338,12 @@ export const musicState = {
 			}
 		}
 
-		// Single note highlighting from piano key (A-L, WETYUOP)
-		// Runs alongside chord highlighting, not as else branch
-		if (pressedNoteKey !== null) {
-			const keyInfo = KEY_TO_NOTE[pressedNoteKey.toLowerCase()];
-			if (keyInfo) {
-				// Single notes are 2 octaves higher than chord display
-				const octave = chordDisplayOctave + 2 + keyInfo.octaveOffset;
-				results.push({ note: keyInfo.note, octave });
+		// Notes from pressedNotes set (keyboard keys, chords, etc.)
+		for (const noteStr of pressedNotes) {
+			// Parse "C4" -> { note: "C", octave: 4 } or "F#3" -> { note: "F#", octave: 3 }
+			const match = noteStr.match(/^([A-G]#?)(\d+)$/);
+			if (match) {
+				results.push({ note: match[1], octave: parseInt(match[2]) });
 			}
 		}
 

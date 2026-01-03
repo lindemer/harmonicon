@@ -37,6 +37,7 @@
 	},
 	"dependencies": {
 		"@fontsource/bravura": "^5.2.5",
-		"tonal": "^6.4.2"
+		"tonal": "^6.4.2",
+		"tone": "^15.1.22"
 	}
 }

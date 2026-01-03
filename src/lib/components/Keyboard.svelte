@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Key } from 'tonal';
+	import { Key, Note } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
 	import RomanNumeral from './RomanNumeral.svelte';
+	import { playNote, stopNote, playNotes, stopAllNotes } from '$lib/services/audio';
 
 	// Get color for a degree key, accounting for inversion
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
@@ -53,6 +54,63 @@
 	// Piano keys that should trigger pressedNoteKey in musicState
 	const pianoKeyChars = new Set(['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', 'w', 'e', 't', 'y', 'u', 'o', 'p']);
 
+	// Keyboard key to note mapping (for audio playback)
+	const KEY_TO_NOTE: Record<string, { note: string; octaveOffset: number }> = {
+		// White keys (home row)
+		a: { note: 'C', octaveOffset: 0 },
+		s: { note: 'D', octaveOffset: 0 },
+		d: { note: 'E', octaveOffset: 0 },
+		f: { note: 'F', octaveOffset: 0 },
+		g: { note: 'G', octaveOffset: 0 },
+		h: { note: 'A', octaveOffset: 0 },
+		j: { note: 'B', octaveOffset: 0 },
+		k: { note: 'C', octaveOffset: 1 },
+		l: { note: 'D', octaveOffset: 1 },
+		';': { note: 'E', octaveOffset: 1 },
+		// Black keys (top row)
+		w: { note: 'C#', octaveOffset: 0 },
+		e: { note: 'D#', octaveOffset: 0 },
+		t: { note: 'F#', octaveOffset: 0 },
+		y: { note: 'G#', octaveOffset: 0 },
+		u: { note: 'A#', octaveOffset: 0 },
+		o: { note: 'C#', octaveOffset: 1 },
+		p: { note: 'D#', octaveOffset: 1 }
+	};
+
+	// Helper to get note info for audio playback
+	function getNoteForKey(key: string): { note: string; octave: number } | null {
+		const keyInfo = KEY_TO_NOTE[key.toLowerCase()];
+		if (!keyInfo) return null;
+		// Single notes are 2 octaves higher than chord display (matching musicState)
+		const octave = musicState.chordDisplayOctave + 2 + keyInfo.octaveOffset;
+		return { note: keyInfo.note, octave };
+	}
+
+	// Helper to get chord notes for a degree
+	function getChordNotesForDegree(degree: number): Array<{ note: string; octave: number }> {
+		const chord = musicState.getChordForDegree(degree);
+		if (!chord || !chord.notes.length) return [];
+
+		const baseOctave = musicState.chordDisplayOctave;
+		const chordNotes = chord.notes;
+
+		// Reorder notes based on current inversion
+		const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
+
+		const bassNote = invertedNotes[0];
+		const bassChroma = Note.chroma(bassNote);
+
+		if (bassChroma === undefined) {
+			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
+		}
+
+		return invertedNotes.map((noteName) => {
+			const noteChroma = Note.chroma(noteName);
+			const octave = noteChroma !== undefined && noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+			return { note: noteName, octave };
+		});
+	}
+
 	// Number row for chord degrees
 	const numberRow = ['1', '2', '3', '4', '5', '6', '7'];
 
@@ -88,6 +146,9 @@
 		KeyZ: 'z', KeyX: 'x'
 	};
 
+	// Track currently pressed piano keys for proper multi-key handling
+	let pressedPianoKeys = new Set<string>();
+
 	// Handle keydown/keyup for modifier tracking, key press tracking, and spacebar toggle
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Shift') shiftPressed = true;
@@ -113,9 +174,27 @@
 			pressedKeys = new Set(pressedKeys).add(mappedKey);
 		}
 
-		// Set pressedNoteKey for piano keys (triggers Piano.svelte highlight)
+		// Handle piano keys (A-L, W-P)
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
-			musicState.pressedNoteKey = mappedKey;
+			// Play audio for the note (track to handle multi-key)
+			if (!e.repeat && !pressedPianoKeys.has(mappedKey)) {
+				pressedPianoKeys = new Set(pressedPianoKeys).add(mappedKey);
+				const noteInfo = getNoteForKey(mappedKey);
+				if (noteInfo) {
+					musicState.addPressedNote(noteInfo.note, noteInfo.octave);
+					playNote(noteInfo.note, noteInfo.octave);
+				}
+			}
+		}
+
+		// Handle degree keys (1-7) for chord playback
+		const degree = getDegree(mappedKey);
+		if (degree && !e.repeat) {
+			const chordNotes = getChordNotesForDegree(degree);
+			if (chordNotes.length > 0) {
+				musicState.addPressedNotes(chordNotes);
+				playNotes(chordNotes);
+			}
 		}
 	}
 
@@ -134,9 +213,32 @@
 			pressedKeys = newSet;
 		}
 
-		// Clear pressedNoteKey if this was the piano key
-		if (mappedKey && pianoKeyChars.has(mappedKey) && musicState.pressedNoteKey === mappedKey) {
-			musicState.pressedNoteKey = null;
+		// Handle piano key release
+		if (mappedKey && pianoKeyChars.has(mappedKey)) {
+			// Remove from pressed piano keys and stop audio
+			if (pressedPianoKeys.has(mappedKey)) {
+				const newPianoKeys = new Set(pressedPianoKeys);
+				newPianoKeys.delete(mappedKey);
+				pressedPianoKeys = newPianoKeys;
+
+				const noteInfo = getNoteForKey(mappedKey);
+				if (noteInfo) {
+					musicState.removePressedNote(noteInfo.note, noteInfo.octave);
+					stopNote(noteInfo.note, noteInfo.octave);
+				}
+			}
+		}
+
+		// Handle degree key release - stop chord notes
+		const degree = getDegree(mappedKey);
+		if (degree) {
+			const chordNotes = getChordNotesForDegree(degree);
+			if (chordNotes.length > 0) {
+				musicState.removePressedNotes(chordNotes);
+				for (const n of chordNotes) {
+					stopNote(n.note, n.octave);
+				}
+			}
 		}
 	}
 
@@ -159,6 +261,10 @@
 		return FormatUtil.getDegreeColor(degree);
 	}
 
+	// Track currently playing chord notes for proper cleanup
+	let currentChordNotes: Array<{ note: string; octave: number }> = [];
+	let currentNoteInfo: { note: string; octave: number } | null = null;
+
 	// Mouse handlers for glissando-style playing
 	function handleDegreeMouseDown(degree: number) {
 		isDraggingDegree = true;
@@ -174,11 +280,26 @@
 			musicState.selectedChord = formatted;
 			musicState.selectedInversion = inversion;
 			musicState.pressedDegree = degree;
+
+			// Play chord audio
+			currentChordNotes = getChordNotesForDegree(degree);
+			if (currentChordNotes.length > 0) {
+				musicState.addPressedNotes(currentChordNotes);
+				playNotes(currentChordNotes);
+			}
 		}
 	}
 
 	function handleDegreeMouseEnter(degree: number) {
 		if (isDraggingDegree) {
+			// Stop previous chord and remove from state
+			if (currentChordNotes.length > 0) {
+				musicState.removePressedNotes(currentChordNotes);
+				for (const n of currentChordNotes) {
+					stopNote(n.note, n.octave);
+				}
+			}
+
 			// Clear previous degree key from pressed state
 			const newSet = new Set<string>();
 			newSet.add(degree.toString());
@@ -194,6 +315,13 @@
 				musicState.selectedChord = formatted;
 				musicState.selectedInversion = inversion;
 				musicState.pressedDegree = degree;
+
+				// Play new chord audio
+				currentChordNotes = getChordNotesForDegree(degree);
+				if (currentChordNotes.length > 0) {
+					musicState.addPressedNotes(currentChordNotes);
+					playNotes(currentChordNotes);
+				}
 			}
 		}
 	}
@@ -201,18 +329,36 @@
 	function handleNoteMouseDown(noteKey: string) {
 		isDraggingNote = true;
 		pressedKeys = new Set(pressedKeys).add(noteKey.toLowerCase());
-		musicState.pressedNoteKey = noteKey.toLowerCase();
+
+		// Play audio for the note
+		currentNoteInfo = getNoteForKey(noteKey);
+		if (currentNoteInfo) {
+			musicState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+			playNote(currentNoteInfo.note, currentNoteInfo.octave);
+		}
 	}
 
 	function handleNoteMouseEnter(noteKey: string) {
 		if (isDraggingNote) {
+			// Stop previous note and remove from state
+			if (currentNoteInfo) {
+				musicState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+				stopNote(currentNoteInfo.note, currentNoteInfo.octave);
+			}
+
 			// Clear previous note key from pressed state, add new one
 			const newSet = new Set(pressedKeys);
 			// Remove all piano key chars
 			pianoKeyChars.forEach(k => newSet.delete(k));
 			newSet.add(noteKey.toLowerCase());
 			pressedKeys = newSet;
-			musicState.pressedNoteKey = noteKey.toLowerCase();
+
+			// Play new note audio
+			currentNoteInfo = getNoteForKey(noteKey);
+			if (currentNoteInfo) {
+				musicState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+				playNote(currentNoteInfo.note, currentNoteInfo.octave);
+			}
 		}
 	}
 
@@ -223,13 +369,28 @@
 			numberRow.forEach(k => newSet.delete(k));
 			pressedKeys = newSet;
 			musicState.pressedDegree = null;
+
+			// Stop chord audio
+			if (currentChordNotes.length > 0) {
+				musicState.removePressedNotes(currentChordNotes);
+				for (const n of currentChordNotes) {
+					stopNote(n.note, n.octave);
+				}
+				currentChordNotes = [];
+			}
 		}
 		if (isDraggingNote) {
 			// Clear note key pressed states
 			const newSet = new Set(pressedKeys);
 			pianoKeyChars.forEach(k => newSet.delete(k));
 			pressedKeys = newSet;
-			musicState.pressedNoteKey = null;
+
+			// Stop note audio
+			if (currentNoteInfo) {
+				musicState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+				stopNote(currentNoteInfo.note, currentNoteInfo.octave);
+				currentNoteInfo = null;
+			}
 		}
 		isDraggingDegree = false;
 		isDraggingNote = false;
