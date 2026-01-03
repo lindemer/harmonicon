@@ -77,6 +77,23 @@ export const musicState = {
 		selectedInversion = value;
 	},
 
+	/**
+	 * Select a chord with optional inversion and toggle behavior.
+	 * Consolidates chord selection logic used across components.
+	 * @param chord - Chord symbol to select, or null to deselect
+	 * @param inversion - Inversion level (0, 1, or 2)
+	 * @param toggle - If true, deselects if the same chord/inversion is already selected
+	 */
+	selectChord(chord: string | null, inversion: 0 | 1 | 2 = 0, toggle = false) {
+		if (toggle && selectedChord === chord && selectedInversion === inversion) {
+			selectedChord = null;
+			selectedInversion = 0;
+		} else {
+			selectedChord = chord;
+			selectedInversion = inversion;
+		}
+	},
+
 	get timeSignatureTop() {
 		return timeSignatureTop;
 	},

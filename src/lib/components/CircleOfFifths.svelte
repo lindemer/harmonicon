@@ -2,7 +2,21 @@
 	import { Key, Chord } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
+	import {
+		clientToSvgCoords,
+		getDistanceFromCenter,
+		getAngleFromCenter,
+		polarToCartesian,
+		describeArc,
+		getSegmentFromAngle,
+		getRingFromDistance
+	} from '$lib/utils/geometry';
+	import { CIRCLE_DIMENSIONS, CIRCLE_RINGS, type RingType } from '$lib/constants/circle';
 	import RomanNumeral from './RomanNumeral.svelte';
+
+	const { viewBox, center, radii, fontSizes, segmentAngle, rotationOffset, centerPadding } = CIRCLE_DIMENSIONS;
+	const cx = center.x;
+	const cy = center.y;
 
 	function getChordRomanNumeral(): { numeral: string; isDiatonic: boolean } | null {
 		if (!musicState.selectedChord) return null;
@@ -11,7 +25,6 @@
 	}
 
 	// Build keys array from circle of fifths using Tonal
-	// Uses Tonal standard notation: C, Am, Bdim (uppercase root + quality suffix)
 	const keys = FormatUtil.CIRCLE_OF_FIFTHS.map((root) => {
 		const keyInfo = Key.majorKey(root);
 		const relativeMinor = keyInfo.minorRelative;
@@ -27,72 +40,44 @@
 		};
 	});
 
-	const cx = 200;
-	const cy = 200;
-
-	// Perspective-based ring sizing for tunnel effect
-	// Each ring appears progressively smaller as if receding into depth
-	const outerRadius = 185;
-	const midRadius = 135; // outer ring width: 50
-	const innerRadius = 95; // middle ring width: 40
-	const centerRadius = 65; // inner ring width: 30, center hole: 65
-
-	// Font sizes that scale with perspective
-	const majorFontSize = 18;
-	const minorFontSize = 14;
-	const dimFontSize = 11;
-
-	const segmentAngle = 360 / 12;
-	const rotationOffset = -15;
-
 	let isDragging = $state(false);
 	let isRightDragging = $state(false);
 	let rightDragMoved = $state(false);
-	let rightClickStart: { segment: number; ring: 'major' | 'minor' | 'dim' } | null = $state(null);
+	let rightClickStart: { segment: number; ring: RingType } | null = $state(null);
 	let svgElement: SVGSVGElement;
-	let hoveredSegment: { index: number; ring: 'major' | 'minor' | 'dim' } | null = $state(null);
+	let hoveredSegment: { index: number; ring: RingType } | null = $state(null);
 
-	function getSegmentFromPoint(clientX: number, clientY: number, svg: SVGSVGElement): number {
-		const rect = svg.getBoundingClientRect();
-		const x = clientX - rect.left;
-		const y = clientY - rect.top;
-
-		const svgX = (x / rect.width) * 400;
-		const svgY = (y / rect.height) * 400;
-
-		const dx = svgX - cx;
-		const dy = svgY - cy;
-		let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-		angle = (angle + 90 + 360) % 360;
-		angle = (angle - rotationOffset + 360) % 360;
-
-		return Math.floor(angle / segmentAngle);
+	function getSvgPoint(clientX: number, clientY: number) {
+		return clientToSvgCoords(clientX, clientY, svgElement, viewBox);
 	}
 
-	function getRingFromPoint(clientX: number, clientY: number, svg: SVGSVGElement): 'major' | 'minor' | 'dim' | null {
-		const rect = svg.getBoundingClientRect();
-		const x = clientX - rect.left;
-		const y = clientY - rect.top;
+	function getSegmentFromPoint(clientX: number, clientY: number): number {
+		const point = getSvgPoint(clientX, clientY);
+		const angle = getAngleFromCenter(point, center, rotationOffset);
+		return getSegmentFromAngle(angle, segmentAngle);
+	}
 
-		const svgX = (x / rect.width) * 400;
-		const svgY = (y / rect.height) * 400;
+	function getRingFromPoint(clientX: number, clientY: number): RingType | null {
+		const point = getSvgPoint(clientX, clientY);
+		const distance = getDistanceFromCenter(point, center);
 
-		const dx = svgX - cx;
-		const dy = svgY - cy;
-		const distance = Math.sqrt(dx * dx + dy * dy);
+		// Check if in center circle
+		if (distance < radii.center - centerPadding) return null;
 
-		if (distance < centerRadius - 5) return null; // Center circle
-		if (distance < innerRadius) return 'dim';
-		if (distance < midRadius) return 'minor';
-		if (distance < outerRadius) return 'major';
-		return null; // Outside the wheel
+		return getRingFromDistance(distance, CIRCLE_RINGS);
+	}
+
+	function isInCenterCircle(clientX: number, clientY: number): boolean {
+		const point = getSvgPoint(clientX, clientY);
+		const distance = getDistanceFromCenter(point, center);
+		return distance < radii.center - centerPadding;
 	}
 
 	function handleClick(segmentIndex: number) {
 		musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segmentIndex];
 	}
 
-	function getChordSymbol(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): string {
+	function getChordSymbol(segmentIndex: number, ring: RingType): string {
 		const key = keys[segmentIndex];
 		if (ring === 'major') return key.major;
 		if (ring === 'minor') return key.minor;
@@ -100,33 +85,24 @@
 	}
 
 	function getInversionFromEvent(e: MouseEvent): 0 | 1 | 2 {
-		// Note: Ctrl+click on macOS triggers right-click, so we use Alt for both inversions
-		// Alt/Option = 1st inversion, Alt+Shift = 2nd inversion
 		if (e.altKey && e.shiftKey) return 2;
 		if (e.altKey) return 1;
 		return 0;
 	}
 
-	function handleRightClick(clientX: number, clientY: number, toggle: boolean, inversion: 0 | 1 | 2 = 0) {
-		const ring = getRingFromPoint(clientX, clientY, svgElement);
+	function handleChordSelection(clientX: number, clientY: number, toggle: boolean, inversion: 0 | 1 | 2 = 0) {
+		const ring = getRingFromPoint(clientX, clientY);
 		if (!ring) return;
 
-		const segmentIndex = getSegmentFromPoint(clientX, clientY, svgElement);
+		const segmentIndex = getSegmentFromPoint(clientX, clientY);
 		const chordSymbol = getChordSymbol(segmentIndex, ring);
 
-		if (toggle && musicState.selectedChord === chordSymbol && musicState.selectedInversion === inversion) {
-			// Toggle off only on initial click, not during drag
-			musicState.selectedChord = null;
-		} else {
-			musicState.selectedChord = chordSymbol;
-			musicState.selectedInversion = inversion;
-		}
+		musicState.selectChord(chordSymbol, inversion, toggle);
 	}
 
-	// Get scale degree for wheel coloring - always uses major key (independent of mode toggle)
-	function getScaleDegree(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): number | null {
+	// Get scale degree for wheel coloring - always uses major key
+	function getScaleDegree(segmentIndex: number, ring: RingType): number | null {
 		const segment = keys[segmentIndex];
-		// Build chord symbol: 'C', 'Am', 'Bdim'
 		const chordSymbol =
 			ring === 'major'
 				? segment.majorNote
@@ -137,116 +113,59 @@
 		return FormatUtil.getChordDegreeInMajorKey(chordSymbol, musicState.selectedRoot);
 	}
 
-	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim', hover: boolean = false): string {
+	function getFillColor(segmentIndex: number, ring: RingType, hover: boolean = false): string {
 		const degree = getScaleDegree(segmentIndex, ring);
 		if (!degree) {
-			// Non-diatonic: match container background, subtle hover
-			return hover ? '#1f2937' : '#111827'; // gray-800 / gray-900
+			return hover ? '#1f2937' : '#111827';
 		}
 		return FormatUtil.getDegreeColor(degree, undefined, hover);
 	}
 
-	function isHovered(segmentIndex: number, ring: 'major' | 'minor' | 'dim'): boolean {
+	function isHovered(segmentIndex: number, ring: RingType): boolean {
 		return hoveredSegment?.index === segmentIndex && hoveredSegment?.ring === ring;
 	}
 
-	function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
-		const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
-		return {
-			x: centerX + radius * Math.cos(angleInRadians),
-			y: centerY + radius * Math.sin(angleInRadians)
-		};
-	}
-
-	function describeArc(
-		centerX: number,
-		centerY: number,
-		innerR: number,
-		outerR: number,
-		startAngle: number,
-		endAngle: number
-	) {
-		const outerStart = polarToCartesian(centerX, centerY, outerR, startAngle);
-		const outerEnd = polarToCartesian(centerX, centerY, outerR, endAngle);
-		const innerStart = polarToCartesian(centerX, centerY, innerR, startAngle);
-		const innerEnd = polarToCartesian(centerX, centerY, innerR, endAngle);
-
-		const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
-
-		return [
-			'M', outerStart.x, outerStart.y,
-			'A', outerR, outerR, 0, largeArcFlag, 1, outerEnd.x, outerEnd.y,
-			'L', innerEnd.x, innerEnd.y,
-			'A', innerR, innerR, 0, largeArcFlag, 0, innerStart.x, innerStart.y,
-			'Z'
-		].join(' ');
-	}
-
-	function getLabelPosition(centerX: number, centerY: number, radius: number, angle: number) {
-		return polarToCartesian(centerX, centerY, radius, angle);
-	}
-
-	function isInCenterCircle(clientX: number, clientY: number, svg: SVGSVGElement): boolean {
-		const rect = svg.getBoundingClientRect();
-		const x = clientX - rect.left;
-		const y = clientY - rect.top;
-
-		const svgX = (x / rect.width) * 400;
-		const svgY = (y / rect.height) * 400;
-
-		const dx = svgX - cx;
-		const dy = svgY - cy;
-		const distance = Math.sqrt(dx * dx + dy * dy);
-
-		return distance < centerRadius - 5;
+	function getLabelPosition(radius: number, angle: number) {
+		return polarToCartesian(cx, cy, radius, angle);
 	}
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
-	viewBox="0 0 400 400"
+	viewBox="0 0 {viewBox} {viewBox}"
 	class="h-full w-auto select-none"
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
 	oncontextmenu={(e) => e.preventDefault()}
 	onmousedown={(e) => {
-		if (isInCenterCircle(e.clientX, e.clientY, svgElement)) return;
+		if (isInCenterCircle(e.clientX, e.clientY)) return;
 
 		if (e.button === 0) {
-			// Left click - track start position for chord selection
-			const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
+			const ring = getRingFromPoint(e.clientX, e.clientY);
 			if (ring) {
 				isDragging = true;
 				rightDragMoved = false;
 				rightClickStart = {
-					segment: getSegmentFromPoint(e.clientX, e.clientY, svgElement),
+					segment: getSegmentFromPoint(e.clientX, e.clientY),
 					ring
 				};
 			}
 		} else if (e.button === 2) {
-			// Right click - root key selection
 			isRightDragging = true;
 		}
 	}}
 	onmouseup={(e) => {
 		if (e.button === 0) {
 			if (!rightDragMoved && rightClickStart) {
-				// Didn't drag - toggle the chord
 				const chordSymbol = getChordSymbol(rightClickStart.segment, rightClickStart.ring);
 				const inversion = getInversionFromEvent(e);
-				if (musicState.selectedChord === chordSymbol && musicState.selectedInversion === inversion) {
-					musicState.selectedChord = null;
-				} else {
-					musicState.selectedChord = chordSymbol;
-					musicState.selectedInversion = inversion;
-				}
+				musicState.selectChord(chordSymbol, inversion, true);
 			}
 			isDragging = false;
 			rightClickStart = null;
 		} else if (e.button === 2) {
-			// Right click - set root key
-			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
+			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY)];
 			isRightDragging = false;
 		}
 	}}
@@ -257,30 +176,24 @@
 		hoveredSegment = null;
 	}}
 	onmousemove={(e) => {
-		// Update hover state
-		const ring = getRingFromPoint(e.clientX, e.clientY, svgElement);
-		const segment = getSegmentFromPoint(e.clientX, e.clientY, svgElement);
-		if (ring) {
-			hoveredSegment = { index: segment, ring };
-		} else {
-			hoveredSegment = null;
-		}
+		const ring = getRingFromPoint(e.clientX, e.clientY);
+		const segment = getSegmentFromPoint(e.clientX, e.clientY);
+		hoveredSegment = ring ? { index: segment, ring } : null;
 
 		if (isRightDragging) {
-			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY, svgElement)];
+			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segment];
 		} else if (isDragging) {
-			// Check if we've moved to a different chord
 			if (ring && rightClickStart && (ring !== rightClickStart.ring || segment !== rightClickStart.segment)) {
 				rightDragMoved = true;
 			}
 			if (rightDragMoved) {
-				handleRightClick(e.clientX, e.clientY, false, getInversionFromEvent(e));
+				handleChordSelection(e.clientX, e.clientY, false, getInversionFromEvent(e));
 			}
 		}
 	}}
 	ontouchstart={(e) => {
 		const touch = e.touches[0];
-		if (!isInCenterCircle(touch.clientX, touch.clientY, svgElement)) {
+		if (!isInCenterCircle(touch.clientX, touch.clientY)) {
 			isDragging = true;
 		}
 	}}
@@ -288,7 +201,7 @@
 	ontouchmove={(e) => {
 		if (isDragging) {
 			const touch = e.touches[0];
-			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(touch.clientX, touch.clientY, svgElement)];
+			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(touch.clientX, touch.clientY)];
 		}
 	}}
 >
@@ -299,34 +212,34 @@
 
 		<!-- Outer ring (major keys) -->
 		<path
-			d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
+			d={describeArc(cx, cy, radii.mid, radii.outer, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.major ? 'white' : getFillColor(i, 'major', isHovered(i, 'major'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Middle ring (minor keys) -->
 		<path
-			d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
+			d={describeArc(cx, cy, radii.inner, radii.mid, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.minor ? 'white' : getFillColor(i, 'minor', isHovered(i, 'minor'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Inner ring (diminished chords) -->
 		<path
-			d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
+			d={describeArc(cx, cy, radii.center, radii.inner, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.dim ? 'white' : getFillColor(i, 'dim', isHovered(i, 'dim'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Major key label -->
-		{@const majorPos = getLabelPosition(cx, cy, (outerRadius + midRadius) / 2, midAngle)}
+		{@const majorPos = getLabelPosition((radii.outer + radii.mid) / 2, midAngle)}
 		{@const majorInKey = getScaleDegree(i, 'major') !== null}
 		<text
 			x={majorPos.x}
 			y={majorPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
-			font-size={majorFontSize}
+			font-size={fontSizes.major}
 			fill={musicState.selectedChord === key.major ? getFillColor(i, 'major') : undefined}
 			class="{musicState.selectedChord !== key.major ? (majorInKey || musicState.mode === 'major' ? 'fill-gray-100' : 'fill-gray-400') : ''} font-music pointer-events-none"
 		>
@@ -334,14 +247,14 @@
 		</text>
 
 		<!-- Minor key label -->
-		{@const minorPos = getLabelPosition(cx, cy, (midRadius + innerRadius) / 2, midAngle)}
+		{@const minorPos = getLabelPosition((radii.mid + radii.inner) / 2, midAngle)}
 		{@const minorInKey = getScaleDegree(i, 'minor') !== null}
 		<text
 			x={minorPos.x}
 			y={minorPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
-			font-size={minorFontSize}
+			font-size={fontSizes.minor}
 			fill={musicState.selectedChord === key.minor ? getFillColor(i, 'minor') : undefined}
 			class="{musicState.selectedChord !== key.minor ? (minorInKey || musicState.mode === 'minor' ? 'fill-gray-100' : 'fill-gray-400') : ''} font-music pointer-events-none"
 		>
@@ -349,14 +262,14 @@
 		</text>
 
 		<!-- Diminished chord label -->
-		{@const dimPos = getLabelPosition(cx, cy, (innerRadius + centerRadius) / 2, midAngle)}
+		{@const dimPos = getLabelPosition((radii.inner + radii.center) / 2, midAngle)}
 		{@const dimInKey = getScaleDegree(i, 'dim') !== null}
 		<text
 			x={dimPos.x}
 			y={dimPos.y}
 			text-anchor="middle"
 			dominant-baseline="middle"
-			font-size={dimFontSize}
+			font-size={fontSizes.dim}
 			fill={musicState.selectedChord === key.dim ? getFillColor(i, 'dim') : undefined}
 			class="{musicState.selectedChord !== key.dim ? (dimInKey ? 'fill-gray-100' : 'fill-gray-400') : ''} font-music pointer-events-none"
 		>
@@ -368,7 +281,7 @@
 	<circle
 		cx={cx}
 		cy={cy}
-		r={centerRadius - 5}
+		r={radii.center - centerPadding}
 		fill="#111827"
 		class="cursor-pointer"
 		onclick={() => musicState.toggleMode()}
