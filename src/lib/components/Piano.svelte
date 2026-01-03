@@ -107,10 +107,14 @@
 
 		// Determine expected octave for this chord note
 		if (bassChroma === undefined || noteChroma === undefined) return null;
-		let expectedOctave = baseOctave;
-		if (noteChroma < bassChroma) {
-			expectedOctave = baseOctave + 1;
-		}
+
+		// Place bass note closest to the base octave's C
+		// If chroma > 6 (F# to B), place in octave below (closer to C going down)
+		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
+		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
+
+		// Notes with chroma < bass go up an octave (voiced above bass)
+		const expectedOctave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
 
 		// Only show if this key matches the expected octave
 		if (noteOctave !== expectedOctave) return null;

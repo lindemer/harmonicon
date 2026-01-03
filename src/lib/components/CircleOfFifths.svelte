@@ -120,6 +120,7 @@
 	}
 
 	// Helper to get chord notes with octaves for audio playback
+	// Voices chord so root is closest to the base octave's C (above or below)
 	function getChordNotesForSymbol(chordSymbol: string, inv: 0 | 1 | 2 = 0): Array<{ note: string; octave: number }> {
 		const unformatted = FormatUtil.unformatNote(chordSymbol);
 		const chord = Chord.get(unformatted);
@@ -138,9 +139,16 @@
 			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
 		}
 
+		// Place bass note closest to the base octave's C
+		// If chroma > 6 (F# to B), place in octave below (closer to C going down)
+		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
+		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
+
 		return invertedNotes.map((noteName) => {
 			const noteChroma = Note.chroma(noteName);
-			const octave = noteChroma !== undefined && noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+			if (noteChroma === undefined) return { note: noteName, octave: bassOctave };
+			// Notes with chroma < bass go up an octave (voiced above bass)
+			const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
 			return { note: noteName, octave };
 		});
 	}

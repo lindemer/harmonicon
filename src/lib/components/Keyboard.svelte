@@ -85,12 +85,13 @@
 	function getNoteForKey(key: string): { note: string; octave: number } | null {
 		const keyInfo = KEY_TO_NOTE[key.toLowerCase()];
 		if (!keyInfo) return null;
-		// Single notes are 2 octaves higher than chord display (matching musicState)
-		const octave = musicState.chordDisplayOctave + 2 + keyInfo.octaveOffset;
+		// Single notes are 1 octave higher than chord display
+		const octave = musicState.chordDisplayOctave + 1 + keyInfo.octaveOffset;
 		return { note: keyInfo.note, octave };
 	}
 
 	// Helper to get chord notes for a degree
+	// Voices chord so root is closest to the base octave's C (above or below)
 	function getChordNotesForDegree(degree: number): Array<{ note: string; octave: number }> {
 		const chord = musicState.getChordForDegree(degree);
 		if (!chord || !chord.notes.length) return [];
@@ -108,9 +109,16 @@
 			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
 		}
 
+		// Place bass note closest to the base octave's C
+		// If chroma > 6 (F# to B), place in octave below (closer to C going down)
+		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
+		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
+
 		return invertedNotes.map((noteName) => {
 			const noteChroma = Note.chroma(noteName);
-			const octave = noteChroma !== undefined && noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+			if (noteChroma === undefined) return { note: noteName, octave: bassOctave };
+			// Notes with chroma < bass go up an octave (voiced above bass)
+			const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
 			return { note: noteName, octave };
 		});
 	}

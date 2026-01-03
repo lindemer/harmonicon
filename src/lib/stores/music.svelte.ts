@@ -154,11 +154,11 @@ export const musicState = {
 	},
 
 	incrementChordOctave() {
-		if (chordDisplayOctave < 4) chordDisplayOctave++;
+		if (chordDisplayOctave < 5) chordDisplayOctave++;
 	},
 
 	decrementChordOctave() {
-		if (chordDisplayOctave > 2) chordDisplayOctave--;
+		if (chordDisplayOctave > 3) chordDisplayOctave--;
 	},
 
 	// Get the root note for the current key
@@ -280,6 +280,7 @@ export const musicState = {
 
 	// Get the notes that should be highlighted on the piano based on pressed keys
 	// Returns array of {note, octave} objects
+	// Voices chords so root is closest to the base octave's C (above or below)
 	getHighlightedPianoNotes(): Array<{ note: string; octave: number }> {
 		const results: Array<{ note: string; octave: number }> = [];
 
@@ -296,14 +297,18 @@ export const musicState = {
 				const bassNote = invertedNotes[0];
 				const bassChroma = Note.chroma(bassNote);
 				if (bassChroma !== undefined) {
-					// Compute octave for each note
+					// Place bass note closest to the base octave's C
+					// If chroma > 6 (F# to B), place in octave below (closer to C going down)
+					// If chroma <= 6 (C to F), place in base octave (closer to C going up)
+					const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
+
 					for (const noteName of invertedNotes) {
 						const noteChroma = Note.chroma(noteName);
 						if (noteChroma === undefined) {
-							results.push({ note: noteName, octave: baseOctave });
+							results.push({ note: noteName, octave: bassOctave });
 						} else {
-							// Notes lower than bass go up an octave
-							const octave = noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+							// Notes with chroma < bass go up an octave (voiced above bass)
+							const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
 							results.push({ note: noteName, octave });
 						}
 					}
@@ -325,12 +330,15 @@ export const musicState = {
 				const bassNote = invertedNotes[0];
 				const bassChroma = Note.chroma(bassNote);
 				if (bassChroma !== undefined) {
+					// Place bass note closest to the base octave's C
+					const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
+
 					for (const noteName of invertedNotes) {
 						const noteChroma = Note.chroma(noteName);
 						if (noteChroma === undefined) {
-							results.push({ note: noteName, octave: baseOctave });
+							results.push({ note: noteName, octave: bassOctave });
 						} else {
-							const octave = noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+							const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
 							results.push({ note: noteName, octave });
 						}
 					}
