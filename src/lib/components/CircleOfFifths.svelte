@@ -130,8 +130,8 @@
 	function getFillColor(segmentIndex: number, ring: 'major' | 'minor' | 'dim', hover: boolean = false): string {
 		const degree = getScaleDegree(segmentIndex, ring);
 		if (!degree) {
-			// Non-diatonic: use gray with subtle hover
-			return hover ? '#374151' : '#1f2937'; // gray-700 / gray-800
+			// Non-diatonic: match container background, subtle hover
+			return hover ? '#1f2937' : '#111827'; // gray-800 / gray-900
 		}
 		return FormatUtil.getDegreeColor(degree, undefined, hover);
 	}
@@ -192,20 +192,10 @@
 	}
 </script>
 
-<div class="relative w-full max-w-lg">
-<button
-	class="absolute top-0 left-0 font-music text-lg cursor-pointer select-none z-10"
-	onclick={() => musicState.toggleMode()}
->
-	<span class="{musicState.mode === 'major' ? 'text-white' : 'text-gray-600'}">Δ</span>
-	<span class="text-gray-600">/</span>
-	<span class="{musicState.mode === 'minor' ? 'text-white' : 'text-gray-600'}">m</span>
-</button>
-
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
 	viewBox="0 0 400 400"
-	class="w-full select-none"
+	class="w-full max-w-lg select-none"
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
@@ -299,25 +289,26 @@
 		<path
 			d={describeArc(cx, cy, midRadius, outerRadius, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.major ? 'white' : getFillColor(i, 'major', isHovered(i, 'major'))}
-			class="cursor-pointer stroke-white stroke-1"
+			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Middle ring (minor keys) -->
 		<path
 			d={describeArc(cx, cy, innerRadius, midRadius, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.minor ? 'white' : getFillColor(i, 'minor', isHovered(i, 'minor'))}
-			class="cursor-pointer stroke-white stroke-1"
+			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Inner ring (diminished chords) -->
 		<path
 			d={describeArc(cx, cy, centerRadius, innerRadius, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.dim ? 'white' : getFillColor(i, 'dim', isHovered(i, 'dim'))}
-			class="cursor-pointer stroke-white stroke-1"
+			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Major key label -->
 		{@const majorPos = getLabelPosition(cx, cy, (outerRadius + midRadius) / 2, midAngle)}
+		{@const majorInKey = getScaleDegree(i, 'major') !== null}
 		<text
 			x={majorPos.x}
 			y={majorPos.y}
@@ -325,13 +316,14 @@
 			dominant-baseline="middle"
 			font-size={majorFontSize}
 			fill={musicState.selectedChord === key.major ? getFillColor(i, 'major') : undefined}
-			class="{musicState.selectedChord === key.major ? 'font-bold' : 'fill-gray-100'} font-music pointer-events-none"
+			class="{musicState.selectedChord !== key.major ? (majorInKey || musicState.mode === 'major' ? 'fill-gray-100' : 'fill-gray-400') : ''} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
 
 		<!-- Minor key label -->
 		{@const minorPos = getLabelPosition(cx, cy, (midRadius + innerRadius) / 2, midAngle)}
+		{@const minorInKey = getScaleDegree(i, 'minor') !== null}
 		<text
 			x={minorPos.x}
 			y={minorPos.y}
@@ -339,13 +331,14 @@
 			dominant-baseline="middle"
 			font-size={minorFontSize}
 			fill={musicState.selectedChord === key.minor ? getFillColor(i, 'minor') : undefined}
-			class="{musicState.selectedChord === key.minor ? 'font-bold' : 'fill-gray-100'} font-music pointer-events-none"
+			class="{musicState.selectedChord !== key.minor ? (minorInKey || musicState.mode === 'minor' ? 'fill-gray-100' : 'fill-gray-400') : ''} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
 
 		<!-- Diminished chord label -->
 		{@const dimPos = getLabelPosition(cx, cy, (innerRadius + centerRadius) / 2, midAngle)}
+		{@const dimInKey = getScaleDegree(i, 'dim') !== null}
 		<text
 			x={dimPos.x}
 			y={dimPos.y}
@@ -353,14 +346,25 @@
 			dominant-baseline="middle"
 			font-size={dimFontSize}
 			fill={musicState.selectedChord === key.dim ? getFillColor(i, 'dim') : undefined}
-			class="{musicState.selectedChord === key.dim ? 'font-bold' : 'fill-gray-100'} font-music pointer-events-none"
+			class="{musicState.selectedChord !== key.dim ? (dimInKey ? 'fill-gray-100' : 'fill-gray-400') : ''} font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>
 	{/each}
 
-	<!-- Center circle with roman numeral -->
-	<circle cx={cx} cy={cy} r={centerRadius - 5} fill="#111827" />
+	<!-- Center circle with roman numeral - click to toggle mode -->
+	<circle
+		cx={cx}
+		cy={cy}
+		r={centerRadius - 5}
+		fill="#111827"
+		class="cursor-pointer"
+		onclick={() => musicState.toggleMode()}
+		onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') musicState.toggleMode(); }}
+		role="button"
+		tabindex="0"
+		aria-label="Toggle major/minor mode"
+	/>
 	{#if musicState.selectedChord}
 		{@const result = getChordRomanNumeral()}
 		{#if result}
@@ -379,4 +383,3 @@
 	{/if}
 
 </svg>
-</div>
