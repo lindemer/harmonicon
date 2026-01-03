@@ -79,6 +79,10 @@
 			<CircleOfFifths />
 		</div>
 		<div class="right-half">
+			<div class="header">
+				<h1>Harmonicon</h1>
+				<a href="https://github.com/lindemer/harmonicon" target="_blank" rel="noopener noreferrer" aria-label="View source">&lt;/&gt;</a>
+			</div>
 			<Keyboard />
 		</div>
 	</div>
