@@ -2,9 +2,7 @@
 
 ![Harmonicon Screenshot](static/screenshot.png)
 
-An interactive music theory tool for exploring the relationships between notes and chords. Inspired by [Hooktheory](https://www.hooktheory.com/) and [David Bennett Piano](https://www.youtube.com/@DavidBennettPiano).
-
-The goal is to provide a visually engaging way to see harmonic relationships, aiding memorization, playing by ear, and brainstorming song ideas.
+An interactive music theory tool for exploring the relationships between notes and chords. Inspired by the great educational material from [Hooktheory](https://www.hooktheory.com/) and [David Bennett Piano](https://www.youtube.com/@DavidBennettPiano). The idea is to provide a visually engaging way to see harmonic relationships, aiding memorization, playing by ear, and brainstorming song ideas.
 
 ## Usage
 
@@ -19,7 +17,3 @@ The goal is to provide a visually engaging way to see harmonic relationships, ai
 bun install
 bun run dev
 ```
-
-## License
-
-MIT
