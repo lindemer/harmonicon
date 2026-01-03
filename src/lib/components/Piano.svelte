@@ -12,6 +12,10 @@
 	const { whiteKey, blackKey, octaves, octaveLabelHeight } = PIANO_DIMENSIONS;
 	const { width: svgWidth, height: svgHeight } = PIANO_SVG;
 
+	// Mouse drag state for glissando-style playing
+	let isDragging = $state(false);
+	let directPressedNote = $state<{ note: string; octave: number } | null>(null);
+
 	type KeyInfo = {
 		note: string;
 		octave: number;
@@ -70,13 +74,6 @@
 	// Get highlighted notes from pressed keys
 	const highlightedNotes = $derived(musicState.getHighlightedPianoNotes());
 
-	// Check if a piano key should be highlighted
-	function isKeyHighlighted(key: KeyInfo): boolean {
-		return highlightedNotes.some(
-			(hn) => Note.chroma(hn.note) === Note.chroma(key.note) && hn.octave === key.octave
-		);
-	}
-
 	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string } {
 		const majorDegree = musicState.getMajorDegree(key.note);
 		const inMajorScale = majorDegree !== null;
@@ -122,6 +119,38 @@
 
 		return FormatUtil.formatFiguredBassInterval(semitones);
 	}
+
+	// Mouse handlers for click/drag interaction
+	function handlePianoKeyMouseDown(key: KeyInfo) {
+		isDragging = true;
+		directPressedNote = { note: key.note, octave: key.octave };
+	}
+
+	function handlePianoKeyMouseEnter(key: KeyInfo) {
+		if (isDragging) {
+			directPressedNote = { note: key.note, octave: key.octave };
+		}
+	}
+
+	function handleMouseUp() {
+		isDragging = false;
+		directPressedNote = null;
+	}
+
+	// Check if a piano key should be highlighted (from musicState OR direct press)
+	function isKeyHighlightedOrPressed(key: KeyInfo): boolean {
+		// Direct press on this piano component
+		if (directPressedNote) {
+			if (Note.chroma(directPressedNote.note) === Note.chroma(key.note) &&
+				directPressedNote.octave === key.octave) {
+				return true;
+			}
+		}
+		// Highlights from musicState (keyboard, circle of fifths, etc.)
+		return highlightedNotes.some(
+			(hn) => Note.chroma(hn.note) === Note.chroma(key.note) && hn.octave === key.octave
+		);
+	}
 </script>
 
 {#snippet keyLabel(key: KeyInfo, isBlack: boolean)}
@@ -158,7 +187,15 @@
 	{/if}
 {/snippet}
 
-<svg viewBox="0 0 {svgWidth} {svgHeight}" class="w-full" preserveAspectRatio="xMidYMax meet">
+<svg
+	viewBox="0 0 {svgWidth} {svgHeight}"
+	class="w-full"
+	preserveAspectRatio="xMidYMax meet"
+	onmouseup={handleMouseUp}
+	onmouseleave={handleMouseUp}
+	role="application"
+	aria-label="Piano keyboard - click and drag to play notes"
+>
 	<!-- Clip path to crop top of keys -->
 	<defs>
 		<clipPath id="keyboard-clip">
@@ -189,42 +226,60 @@
 	<g clip-path="url(#keyboard-clip)" transform="translate(0, {octaveLabelHeight})">
 		<!-- White keys -->
 		{#each whiteKeys as key}
-			{@const highlighted = isKeyHighlighted(key)}
-			<rect
-				x={key.x + whiteKey.gap / 2}
-				y={-whiteKey.radius}
-				width={whiteKey.width - whiteKey.gap}
-				height={whiteKey.height + whiteKey.radius}
-				rx={whiteKey.radius}
-				ry={whiteKey.radius}
-				fill={highlighted ? '#fbbf24' : '#ffffff'}
-				class="cursor-pointer piano-key"
+			{@const highlighted = isKeyHighlightedOrPressed(key)}
+			{@const keyCenterX = key.x + whiteKey.width / 2}
+			<g
+				class="piano-key-group"
 				class:highlighted
-				role="button"
-				tabindex="0"
-				aria-label="{key.note}{key.octave}"
-			/>
-			{@render keyLabel(key, false)}
+				style:--key-center-x="{keyCenterX}px"
+				style:transform-origin="{keyCenterX}px 0"
+			>
+				<rect
+					x={key.x + whiteKey.gap / 2}
+					y={-whiteKey.radius}
+					width={whiteKey.width - whiteKey.gap}
+					height={whiteKey.height + whiteKey.radius}
+					rx={whiteKey.radius}
+					ry={whiteKey.radius}
+					fill={highlighted ? '#d1d5db' : '#ffffff'}
+					class="cursor-pointer piano-key white-piano-key"
+					role="button"
+					tabindex="0"
+					aria-label="{key.note}{key.octave}"
+					onmousedown={() => handlePianoKeyMouseDown(key)}
+					onmouseenter={() => handlePianoKeyMouseEnter(key)}
+				/>
+				{@render keyLabel(key, false)}
+			</g>
 		{/each}
 
 		<!-- Black keys (on top) -->
 		{#each blackKeys as key}
-			{@const highlighted = isKeyHighlighted(key)}
-			<rect
-				x={key.x}
-				y={-blackKey.radius}
-				width={blackKey.width}
-				height={blackKey.height + blackKey.radius}
-				rx={blackKey.radius}
-				ry={blackKey.radius}
-				fill={highlighted ? '#f59e0b' : '#1f2937'}
-				class="cursor-pointer piano-key"
+			{@const highlighted = isKeyHighlightedOrPressed(key)}
+			{@const keyCenterX = key.x + blackKey.width / 2}
+			<g
+				class="piano-key-group"
 				class:highlighted
-				role="button"
-				tabindex="0"
-				aria-label="{key.note}{key.octave}"
-			/>
-			{@render keyLabel(key, true)}
+				style:--key-center-x="{keyCenterX}px"
+				style:transform-origin="{keyCenterX}px 0"
+			>
+				<rect
+					x={key.x}
+					y={-blackKey.radius}
+					width={blackKey.width}
+					height={blackKey.height + blackKey.radius}
+					rx={blackKey.radius}
+					ry={blackKey.radius}
+					fill={highlighted ? '#374151' : '#1f2937'}
+					class="cursor-pointer piano-key black-piano-key"
+					role="button"
+					tabindex="0"
+					aria-label="{key.note}{key.octave}"
+					onmousedown={() => handlePianoKeyMouseDown(key)}
+					onmouseenter={() => handlePianoKeyMouseEnter(key)}
+				/>
+				{@render keyLabel(key, true)}
+			</g>
 		{/each}
 	</g>
 
@@ -233,15 +288,29 @@
 </svg>
 
 <style>
+	.piano-key-group {
+		transition: transform 0.08s ease;
+	}
+
 	.piano-key {
 		transition: fill 0.08s ease;
 	}
 
-	.piano-key:hover:not(.highlighted) {
+	.piano-key:hover {
 		filter: brightness(0.95);
 	}
 
-	.piano-key.highlighted {
-		filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
+	/* White key pressed animation - scale down and translate up so top stays fixed */
+	.piano-key-group.highlighted:has(.white-piano-key) {
+		transform: scale(0.97) translateY(-2px);
+	}
+
+	/* Black key pressed animation */
+	.piano-key-group.highlighted:has(.black-piano-key) {
+		transform: scale(0.95) translateY(-1.6px);
+	}
+
+	.piano-key-group.highlighted .piano-key {
+		filter: brightness(0.85);
 	}
 </style>

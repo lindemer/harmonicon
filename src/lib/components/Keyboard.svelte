@@ -1,18 +1,18 @@
 <script lang="ts">
+	import { Key } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
 	import RomanNumeral from './RomanNumeral.svelte';
 
 	// Get color for a degree key, accounting for inversion
-	// When inverted, the color reflects the bass note's degree instead
+	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
+	// (e.g., i chord in minor mode shows purple since it's degree 6 in the relative major)
 	function getDegreeColorForInversion(degree: number, inv: 0 | 1 | 2): string {
-		if (inv === 0) {
-			return FormatUtil.getDegreeColor(degree);
-		}
 		const chord = musicState.getChordForDegree(degree);
 		if (!chord || !chord.notes.length) {
 			return FormatUtil.getDegreeColor(degree);
 		}
+		// Always use the bass note's major degree for color
 		const bassNote = chord.notes[inv] ?? chord.notes[0];
 		const bassDegree = musicState.getMajorDegree(bassNote);
 		return FormatUtil.getDegreeColor(bassDegree ?? degree);
@@ -21,9 +21,20 @@
 	// Track modifier key states
 	let shiftPressed = $state(false);
 	let altPressed = $state(false);
+	let spacePressed = $state(false);
+
+	// Track mouse-clicked action keys (Z, X)
+	let clickedActionKey = $state<string | null>(null);
+
+	// Track mouse-clicked spacebar
+	let spaceClicked = $state(false);
 
 	// Track all pressed keys for visual feedback
 	let pressedKeys = $state<Set<string>>(new Set());
+
+	// Track mouse dragging state for glissando
+	let isDraggingDegree = $state(false);
+	let isDraggingNote = $state(false);
 
 	// Derived inversion level based on modifiers
 	// Alt = 1st inversion, Alt+Shift = 2nd inversion (shift alone does nothing)
@@ -34,6 +45,11 @@
 		return pressedKeys.has(key.toLowerCase());
 	}
 
+	// Helper to check if an action key is pressed (keyboard or mouse click)
+	function isActionKeyPressed(key: string): boolean {
+		return pressedKeys.has(key.toLowerCase()) || clickedActionKey === key;
+	}
+
 	// Piano keys that should trigger pressedNoteKey in musicState
 	const pianoKeyChars = new Set(['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', 'w', 'e', 't', 'y', 'u', 'o', 'p']);
 
@@ -42,17 +58,18 @@
 
 	// Piano keys layout - matches Logic Pro Musical Typing
 	// White keys on home row, black keys on top row (Q, R, I removed - no black key there)
+	// blackNote is the sharp of the PREVIOUS white key (black keys sit between white keys)
 	const pianoKeys = [
-		{ white: 'A', black: null, note: 'C' },
-		{ white: 'S', black: 'W', note: 'D' },
-		{ white: 'D', black: 'E', note: 'E' },
-		{ white: 'F', black: null, note: 'F' },
-		{ white: 'G', black: 'T', note: 'G' },
-		{ white: 'H', black: 'Y', note: 'A' },
-		{ white: 'J', black: 'U', note: 'B' },
-		{ white: 'K', black: null, note: 'C' },
-		{ white: 'L', black: 'O', note: 'D' },
-		{ white: ';', black: 'P', note: 'E' }
+		{ white: 'A', black: null, note: 'C', blackNote: null },
+		{ white: 'S', black: 'W', note: 'D', blackNote: 'C#' },
+		{ white: 'D', black: 'E', note: 'E', blackNote: 'D#' },
+		{ white: 'F', black: null, note: 'F', blackNote: null },
+		{ white: 'G', black: 'T', note: 'G', blackNote: 'F#' },
+		{ white: 'H', black: 'Y', note: 'A', blackNote: 'G#' },
+		{ white: 'J', black: 'U', note: 'B', blackNote: 'A#' },
+		{ white: 'K', black: null, note: 'C', blackNote: null },
+		{ white: 'L', black: 'O', note: 'D', blackNote: 'C#' },
+		{ white: ';', black: 'P', note: 'E', blackNote: 'D#' }
 	];
 
 	// Bottom row actions
@@ -75,8 +92,9 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Shift') shiftPressed = true;
 		if (e.key === 'Alt') altPressed = true;
-		if (e.key === ' ') {
+		if (e.key === ' ' && !e.repeat) {
 			e.preventDefault();
+			spacePressed = true;
 			musicState.toggleMode();
 		}
 
@@ -104,6 +122,7 @@
 	function handleKeyup(e: KeyboardEvent) {
 		if (e.key === 'Shift') shiftPressed = false;
 		if (e.key === 'Alt') altPressed = false;
+		if (e.key === ' ') spacePressed = false;
 
 		// Use code-based lookup to handle Alt+key on macOS
 		const mappedKey = codeToKey[e.code];
@@ -132,11 +151,94 @@
 	function getRomanNumeral(degree: number): string {
 		return FormatUtil.getDiatonicRomanNumeral(degree, musicState.mode);
 	}
+
+	// Get color for a note based on its position in the major scale
+	function getNoteColor(noteName: string): string | undefined {
+		const degree = musicState.getMajorDegree(noteName);
+		if (degree === null) return undefined;
+		return FormatUtil.getDegreeColor(degree);
+	}
+
+	// Mouse handlers for glissando-style playing
+	function handleDegreeMouseDown(degree: number) {
+		isDraggingDegree = true;
+		pressedKeys = new Set(pressedKeys).add(degree.toString());
+
+		// Trigger chord selection (mirror +layout.svelte keydown logic)
+		const triads = musicState.mode === 'major'
+			? Key.majorKey(musicState.selectedRoot).triads
+			: Key.minorKey(Key.majorKey(musicState.selectedRoot).minorRelative).natural.triads;
+		const chord = triads[degree - 1];
+		if (chord) {
+			const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+			musicState.selectedChord = formatted;
+			musicState.selectedInversion = inversion;
+			musicState.pressedDegree = degree;
+		}
+	}
+
+	function handleDegreeMouseEnter(degree: number) {
+		if (isDraggingDegree) {
+			// Clear previous degree key from pressed state
+			const newSet = new Set<string>();
+			newSet.add(degree.toString());
+			pressedKeys = newSet;
+
+			// Select new chord
+			const triads = musicState.mode === 'major'
+				? Key.majorKey(musicState.selectedRoot).triads
+				: Key.minorKey(Key.majorKey(musicState.selectedRoot).minorRelative).natural.triads;
+			const chord = triads[degree - 1];
+			if (chord) {
+				const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+				musicState.selectedChord = formatted;
+				musicState.selectedInversion = inversion;
+				musicState.pressedDegree = degree;
+			}
+		}
+	}
+
+	function handleNoteMouseDown(noteKey: string) {
+		isDraggingNote = true;
+		pressedKeys = new Set(pressedKeys).add(noteKey.toLowerCase());
+		musicState.pressedNoteKey = noteKey.toLowerCase();
+	}
+
+	function handleNoteMouseEnter(noteKey: string) {
+		if (isDraggingNote) {
+			// Clear previous note key from pressed state, add new one
+			const newSet = new Set(pressedKeys);
+			// Remove all piano key chars
+			pianoKeyChars.forEach(k => newSet.delete(k));
+			newSet.add(noteKey.toLowerCase());
+			pressedKeys = newSet;
+			musicState.pressedNoteKey = noteKey.toLowerCase();
+		}
+	}
+
+	function handleMouseUp() {
+		if (isDraggingDegree) {
+			// Clear degree key pressed states
+			const newSet = new Set(pressedKeys);
+			numberRow.forEach(k => newSet.delete(k));
+			pressedKeys = newSet;
+			musicState.pressedDegree = null;
+		}
+		if (isDraggingNote) {
+			// Clear note key pressed states
+			const newSet = new Set(pressedKeys);
+			pianoKeyChars.forEach(k => newSet.delete(k));
+			pressedKeys = newSet;
+			musicState.pressedNoteKey = null;
+		}
+		isDraggingDegree = false;
+		isDraggingNote = false;
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 
-<div class="keyboard-container">
+<div class="keyboard-container" onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application">
 	<div class="keyboard">
 		<!-- Number row -->
 		<div class="row number-row">
@@ -146,6 +248,10 @@
 					class="key degree-key"
 					class:pressed={isKeyPressed(key)}
 					style:background-color={degree ? getDegreeColorForInversion(degree, inversion) : undefined}
+					onmousedown={() => degree && handleDegreeMouseDown(degree)}
+					onmouseenter={() => degree && handleDegreeMouseEnter(degree)}
+					role="button"
+					tabindex="0"
 				>
 					<span class="key-label">{key}</span>
 					{#if degree}
@@ -158,19 +264,37 @@
 		<!-- Piano keys section -->
 		<div class="piano-section">
 			{#each pianoKeys as pk, i}
+				{@const whiteNoteColor = getNoteColor(pk.note)}
+				{@const blackNoteColor = pk.blackNote ? getNoteColor(pk.blackNote) : undefined}
 				<!-- White key (tall, extends from home row up) -->
-				<div class="white-key" class:pressed={isKeyPressed(pk.white)} style:--key-index={i}>
+				<div
+					class="white-key"
+					class:pressed={isKeyPressed(pk.white)}
+					style:--key-index={i}
+					onmousedown={() => handleNoteMouseDown(pk.white)}
+					onmouseenter={() => handleNoteMouseEnter(pk.white)}
+					role="button"
+					tabindex="0"
+				>
 					<div class="white-key-top"></div>
 					<div class="white-key-bottom">
 						<span class="key-label">{pk.white}</span>
-						<span class="key-function font-music">{pk.note}</span>
+						<span class="key-function font-music" style:color={whiteNoteColor ?? '#f3f4f6'}>{pk.note}</span>
 					</div>
 				</div>
 				<!-- Black key (if present) -->
-				{#if pk.black}
-					<div class="black-key" class:pressed={isKeyPressed(pk.black)} style:--key-index={i}>
+				{#if pk.black && pk.blackNote}
+					<div
+						class="black-key"
+						class:pressed={isKeyPressed(pk.black)}
+						style:--key-index={i}
+						onmousedown={() => pk.black && handleNoteMouseDown(pk.black)}
+						onmouseenter={() => pk.black && handleNoteMouseEnter(pk.black)}
+						role="button"
+						tabindex="0"
+					>
 						<span class="key-label">{pk.black}</span>
-						<span class="key-function font-music">{pk.note}♯</span>
+						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}>{FormatUtil.formatNote(pk.blackNote)}</span>
 					</div>
 				{/if}
 			{/each}
@@ -186,7 +310,19 @@
 
 			{#each bottomRow as key}
 				{@const action = actionMap[key]}
-				<div class="key action-key" class:pressed={isKeyPressed(key)}>
+				<div
+					class="key action-key"
+					class:pressed={isActionKeyPressed(key)}
+					onmousedown={() => {
+						clickedActionKey = key;
+						if (key === 'Z') musicState.decrementChordOctave();
+						else musicState.incrementChordOctave();
+					}}
+					onmouseup={() => clickedActionKey = null}
+					onmouseleave={() => clickedActionKey = null}
+					role="button"
+					tabindex="0"
+				>
 					<span class="key-label">{key}</span>
 					{#if action}
 						<span class="key-function font-music">{action.text}<sup>{action.sup}</sup></span>
@@ -197,20 +333,26 @@
 
 		<!-- Modifier row -->
 		<div class="row">
-			<div class="key modifier-key">
+			<div class="key modifier-key disabled-key">
 				<span class="key-label">ctrl</span>
 			</div>
 			<div class="key modifier-key" class:pressed={altPressed}>
 				<span class="key-label">⌥</span>
 				<span class="key-function font-music">1<sup>st</sup></span>
 			</div>
-			<div class="key modifier-key">
+			<div class="key modifier-key disabled-key">
 				<span class="key-label">⌘</span>
 			</div>
 			<div
 				class="key space-key"
-				onclick={() => musicState.toggleMode()}
-				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); musicState.toggleMode(); } }}
+				class:pressed={spacePressed || spaceClicked}
+				onmousedown={() => {
+					spaceClicked = true;
+					musicState.toggleMode();
+				}}
+				onmouseup={() => spaceClicked = false}
+				onmouseleave={() => spaceClicked = false}
+				onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); musicState.toggleMode(); } }}
 				role="button"
 				tabindex="0"
 			>
@@ -404,7 +546,7 @@
 	}
 
 	.action-key .key-function {
-		color: #fbbf24;
+		color: #f3f4f6;
 	}
 
 	.action-key.pressed {
@@ -415,19 +557,34 @@
 	/* Modifier keys */
 	.modifier-key {
 		background: #1f2937;
+		cursor: default;
 	}
 
+	.modifier-key:hover {
+		filter: none;
+	}
+
+	.modifier-key .key-label,
 	.modifier-key .key-function {
-		color: #9ca3af;
+		color: #f3f4f6;
 	}
 
 	.modifier-key.pressed {
-		background: #4b5563;
+		transform: scale(0.95) translateY(-1.6px);
+		filter: brightness(0.8);
 	}
 
-	.modifier-key.pressed .key-label,
-	.modifier-key.pressed .key-function {
-		color: #fbbf24;
+	/* Disabled keys (ctrl, cmd) - no function */
+	.disabled-key {
+		cursor: default;
+	}
+
+	.disabled-key:hover {
+		filter: none;
+	}
+
+	.disabled-key .key-label {
+		color: #4b5563;
 	}
 
 	/* Wide keys */
@@ -438,6 +595,11 @@
 	.space-key {
 		min-width: 320px;
 		background: #374151;
+	}
+
+	.space-key.pressed {
+		transform: scale(0.98) translateY(-1px);
+		filter: brightness(0.8);
 	}
 
 	.mode-toggle {

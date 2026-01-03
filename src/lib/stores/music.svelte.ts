@@ -51,6 +51,7 @@ let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 let pressedDegree = $state<number | null>(null);
 let pressedNoteKey = $state<string | null>(null);
+let isChordPressed = $state(false);
 
 export const musicState = {
 	get selectedRoot() {
@@ -258,45 +259,85 @@ export const musicState = {
 		pressedNoteKey = value;
 	},
 
+	get isChordPressed() {
+		return isChordPressed;
+	},
+
+	set isChordPressed(value: boolean) {
+		isChordPressed = value;
+	},
+
 	// Get the notes that should be highlighted on the piano based on pressed keys
 	// Returns array of {note, octave} objects
 	getHighlightedPianoNotes(): Array<{ note: string; octave: number }> {
+		const results: Array<{ note: string; octave: number }> = [];
+
 		// Chord highlighting from degree key (1-7)
 		if (pressedDegree !== null) {
 			const chord = this.getChordForDegree(pressedDegree);
-			if (!chord || !chord.notes.length) return [];
+			if (chord && chord.notes.length) {
+				const chordNotes = chord.notes;
+				const inversion = selectedInversion;
+				const baseOctave = chordDisplayOctave;
 
-			const chordNotes = chord.notes;
-			const inversion = selectedInversion;
-			const baseOctave = chordDisplayOctave;
+				// Reorder notes based on inversion
+				const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
+				const bassNote = invertedNotes[0];
+				const bassChroma = Note.chroma(bassNote);
+				if (bassChroma !== undefined) {
+					// Compute octave for each note
+					for (const noteName of invertedNotes) {
+						const noteChroma = Note.chroma(noteName);
+						if (noteChroma === undefined) {
+							results.push({ note: noteName, octave: baseOctave });
+						} else {
+							// Notes lower than bass go up an octave
+							const octave = noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+							results.push({ note: noteName, octave });
+						}
+					}
+				}
+			}
+		}
 
-			// Reorder notes based on inversion
-			const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
-			const bassNote = invertedNotes[0];
-			const bassChroma = Note.chroma(bassNote);
-			if (bassChroma === undefined) return [];
+		// Chord highlighting from Circle of Fifths mouse interaction
+		if (isChordPressed && selectedChord) {
+			const chordSymbol = FormatUtil.unformatNote(selectedChord);
+			const chord = Chord.get(chordSymbol);
+			if (!chord.empty && chord.notes.length) {
+				const chordNotes = chord.notes;
+				const inversion = selectedInversion;
+				const baseOctave = chordDisplayOctave;
 
-			// Compute octave for each note
-			return invertedNotes.map((noteName) => {
-				const noteChroma = Note.chroma(noteName);
-				if (noteChroma === undefined) return { note: noteName, octave: baseOctave };
-
-				// Notes lower than bass go up an octave
-				const octave = noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
-				return { note: noteName, octave };
-			});
+				// Reorder notes based on inversion
+				const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
+				const bassNote = invertedNotes[0];
+				const bassChroma = Note.chroma(bassNote);
+				if (bassChroma !== undefined) {
+					for (const noteName of invertedNotes) {
+						const noteChroma = Note.chroma(noteName);
+						if (noteChroma === undefined) {
+							results.push({ note: noteName, octave: baseOctave });
+						} else {
+							const octave = noteChroma < bassChroma ? baseOctave + 1 : baseOctave;
+							results.push({ note: noteName, octave });
+						}
+					}
+				}
+			}
 		}
 
 		// Single note highlighting from piano key (A-L, WETYUOP)
+		// Runs alongside chord highlighting, not as else branch
 		if (pressedNoteKey !== null) {
 			const keyInfo = KEY_TO_NOTE[pressedNoteKey.toLowerCase()];
-			if (!keyInfo) return [];
-
-			// Single notes are 2 octaves higher than chord display
-			const octave = chordDisplayOctave + 2 + keyInfo.octaveOffset;
-			return [{ note: keyInfo.note, octave }];
+			if (keyInfo) {
+				// Single notes are 2 octaves higher than chord display
+				const octave = chordDisplayOctave + 2 + keyInfo.octaveOffset;
+				results.push({ note: keyInfo.note, octave });
+			}
 		}
 
-		return [];
+		return results;
 	}
 };

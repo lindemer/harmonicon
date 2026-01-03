@@ -150,6 +150,7 @@
 					segment: getSegmentFromPoint(e.clientX, e.clientY),
 					ring
 				};
+				musicState.isChordPressed = true;
 			}
 		} else if (e.button === 2) {
 			isRightDragging = true;
@@ -164,6 +165,7 @@
 			}
 			isDragging = false;
 			rightClickStart = null;
+			musicState.isChordPressed = false;
 		} else if (e.button === 2) {
 			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY)];
 			isRightDragging = false;
@@ -174,6 +176,7 @@
 		isRightDragging = false;
 		rightClickStart = null;
 		hoveredSegment = null;
+		musicState.isChordPressed = false;
 	}}
 	onmousemove={(e) => {
 		const ring = getRingFromPoint(e.clientX, e.clientY);
@@ -195,9 +198,16 @@
 		const touch = e.touches[0];
 		if (!isInCenterCircle(touch.clientX, touch.clientY)) {
 			isDragging = true;
+			const ring = getRingFromPoint(touch.clientX, touch.clientY);
+			if (ring) {
+				musicState.isChordPressed = true;
+			}
 		}
 	}}
-	ontouchend={() => (isDragging = false)}
+	ontouchend={() => {
+		isDragging = false;
+		musicState.isChordPressed = false;
+	}}
 	ontouchmove={(e) => {
 		if (isDragging) {
 			const touch = e.touches[0];
