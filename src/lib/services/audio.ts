@@ -3,11 +3,11 @@ import * as Tone from 'tone';
 // Track currently playing notes to handle start/stop correctly
 const playingNotes = new Set<string>();
 
-// Lazy-initialized synth (created on first user interaction)
-let synth: Tone.PolySynth | null = null;
+// Lazy-initialized sampler (created on first user interaction)
+let sampler: Tone.Sampler | null = null;
 
 /**
- * Initialize the audio context and synth.
+ * Initialize the audio context and sampler.
  * Must be called from a user gesture (click, keydown) due to browser autoplay policy.
  */
 async function ensureAudioReady(): Promise<void> {
@@ -15,22 +15,51 @@ async function ensureAudioReady(): Promise<void> {
 		await Tone.start();
 	}
 
-	if (!synth) {
-		synth = new Tone.PolySynth(Tone.Synth, {
-			oscillator: {
-				type: 'triangle'
-			},
-			envelope: {
-				attack: 0.02,
-				decay: 0.3,
-				sustain: 0.2,
-				release: 0.8
-			}
-		}).toDestination();
+	if (!sampler) {
+		// Create a promise that resolves when samples are loaded
+		await new Promise<void>((resolve) => {
+			sampler = new Tone.Sampler({
+				urls: {
+					A0: 'A0.mp3',
+					C1: 'C1.mp3',
+					'D#1': 'Ds1.mp3',
+					'F#1': 'Fs1.mp3',
+					A1: 'A1.mp3',
+					C2: 'C2.mp3',
+					'D#2': 'Ds2.mp3',
+					'F#2': 'Fs2.mp3',
+					A2: 'A2.mp3',
+					C3: 'C3.mp3',
+					'D#3': 'Ds3.mp3',
+					'F#3': 'Fs3.mp3',
+					A3: 'A3.mp3',
+					C4: 'C4.mp3',
+					'D#4': 'Ds4.mp3',
+					'F#4': 'Fs4.mp3',
+					A4: 'A4.mp3',
+					C5: 'C5.mp3',
+					'D#5': 'Ds5.mp3',
+					'F#5': 'Fs5.mp3',
+					A5: 'A5.mp3',
+					C6: 'C6.mp3',
+					'D#6': 'Ds6.mp3',
+					'F#6': 'Fs6.mp3',
+					A6: 'A6.mp3',
+					C7: 'C7.mp3',
+					'D#7': 'Ds7.mp3',
+					'F#7': 'Fs7.mp3',
+					A7: 'A7.mp3',
+					C8: 'C8.mp3'
+				},
+				release: 1,
+				baseUrl: 'https://tonejs.github.io/audio/salamander/',
+				onload: () => {
+					resolve();
+				}
+			}).toDestination();
 
-		// Configure polyphony and volume
-		synth.maxPolyphony = 16;
-		synth.volume.value = -6;
+			sampler.volume.value = -6;
+		});
 	}
 }
 
@@ -50,7 +79,7 @@ function formatNote(note: string, octave: number): string {
  */
 export async function playNote(note: string, octave: number): Promise<void> {
 	await ensureAudioReady();
-	if (!synth) return;
+	if (!sampler) return;
 
 	const noteStr = formatNote(note, octave);
 
@@ -58,7 +87,7 @@ export async function playNote(note: string, octave: number): Promise<void> {
 	if (playingNotes.has(noteStr)) return;
 
 	playingNotes.add(noteStr);
-	synth.triggerAttack(noteStr, Tone.now());
+	sampler.triggerAttack(noteStr, Tone.now());
 }
 
 /**
@@ -67,13 +96,13 @@ export async function playNote(note: string, octave: number): Promise<void> {
  * @param octave - Octave number (e.g., 4)
  */
 export function stopNote(note: string, octave: number): void {
-	if (!synth) return;
+	if (!sampler) return;
 
 	const noteStr = formatNote(note, octave);
 
 	if (playingNotes.has(noteStr)) {
 		playingNotes.delete(noteStr);
-		synth.triggerRelease(noteStr, Tone.now());
+		sampler.triggerRelease(noteStr, Tone.now());
 	}
 }
 
@@ -83,7 +112,7 @@ export function stopNote(note: string, octave: number): void {
  */
 export async function playNotes(notes: Array<{ note: string; octave: number }>): Promise<void> {
 	await ensureAudioReady();
-	if (!synth) return;
+	if (!sampler) return;
 
 	const noteStrings = notes.map((n) => formatNote(n.note, n.octave));
 
@@ -92,7 +121,7 @@ export async function playNotes(notes: Array<{ note: string; octave: number }>):
 
 	if (newNotes.length > 0) {
 		newNotes.forEach((n) => playingNotes.add(n));
-		synth.triggerAttack(newNotes, Tone.now());
+		sampler.triggerAttack(newNotes, Tone.now());
 	}
 }
 
@@ -101,14 +130,14 @@ export async function playNotes(notes: Array<{ note: string; octave: number }>):
  * @param notes - Array of {note, octave} objects
  */
 export function stopNotes(notes: Array<{ note: string; octave: number }>): void {
-	if (!synth) return;
+	if (!sampler) return;
 
 	const noteStrings = notes.map((n) => formatNote(n.note, n.octave));
 	const notesToStop = noteStrings.filter((n) => playingNotes.has(n));
 
 	if (notesToStop.length > 0) {
 		notesToStop.forEach((n) => playingNotes.delete(n));
-		synth.triggerRelease(notesToStop, Tone.now());
+		sampler.triggerRelease(notesToStop, Tone.now());
 	}
 }
 
@@ -116,10 +145,10 @@ export function stopNotes(notes: Array<{ note: string; octave: number }>): void 
  * Stop all currently playing notes.
  */
 export function stopAllNotes(): void {
-	if (!synth) return;
+	if (!sampler) return;
 
 	if (playingNotes.size > 0) {
-		synth.triggerRelease(Array.from(playingNotes), Tone.now());
+		sampler.triggerRelease(Array.from(playingNotes), Tone.now());
 		playingNotes.clear();
 	}
 }

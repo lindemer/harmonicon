@@ -37,6 +37,10 @@
 	let isDraggingDegree = $state(false);
 	let isDraggingNote = $state(false);
 
+	// Track playing degree notes - stores the exact notes played per degree key
+	// This ensures we stop the same notes we started, regardless of inversion changes
+	let playingDegreeNotes = new Map<number, Array<{ note: string; octave: number }>>();
+
 	// Derived inversion level based on modifiers
 	// Alt = 1st inversion, Alt+Shift = 2nd inversion (shift alone does nothing)
 	let inversion: 0 | 1 | 2 = $derived(altPressed && shiftPressed ? 2 : altPressed ? 1 : 0);
@@ -189,9 +193,10 @@
 
 		// Handle degree keys (1-7) for chord playback
 		const degree = getDegree(mappedKey);
-		if (degree && !e.repeat) {
+		if (degree && !e.repeat && !playingDegreeNotes.has(degree)) {
 			const chordNotes = getChordNotesForDegree(degree);
 			if (chordNotes.length > 0) {
+				playingDegreeNotes.set(degree, chordNotes); // Store exact notes played
 				musicState.addPressedNotes(chordNotes);
 				playNotes(chordNotes);
 			}
@@ -229,17 +234,33 @@
 			}
 		}
 
-		// Handle degree key release - stop chord notes
+		// Handle degree key release - stop chord notes using stored notes
 		const degree = getDegree(mappedKey);
-		if (degree) {
-			const chordNotes = getChordNotesForDegree(degree);
-			if (chordNotes.length > 0) {
-				musicState.removePressedNotes(chordNotes);
-				for (const n of chordNotes) {
-					stopNote(n.note, n.octave);
-				}
+		if (degree && playingDegreeNotes.has(degree)) {
+			const chordNotes = playingDegreeNotes.get(degree)!; // Get stored notes
+			playingDegreeNotes.delete(degree);
+			musicState.removePressedNotes(chordNotes);
+			for (const n of chordNotes) {
+				stopNote(n.note, n.octave);
 			}
 		}
+	}
+
+	// Handle window blur - stop all notes to prevent stuck keys
+	function handleBlur() {
+		stopAllNotes();
+		pressedKeys = new Set();
+		pressedPianoKeys = new Set();
+		playingDegreeNotes.clear();
+		currentChordNotes = [];
+		currentNoteInfo = null;
+		musicState.pressedDegree = null;
+		musicState.clearPressedNotes();
+		shiftPressed = false;
+		altPressed = false;
+		spacePressed = false;
+		isDraggingDegree = false;
+		isDraggingNote = false;
 	}
 
 	// Get degree for a number key (1-7)
@@ -397,7 +418,7 @@
 	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
+<svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} onblur={handleBlur} />
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="keyboard-container" onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application">
