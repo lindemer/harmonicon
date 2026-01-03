@@ -59,6 +59,12 @@
 			e.preventDefault();
 			musicState.toggleMode();
 		}
+		if (e.key === 'z' || e.key === 'Z') {
+			musicState.decrementChordOctave();
+		}
+		if (e.key === 'x' || e.key === 'X') {
+			musicState.incrementChordOctave();
+		}
 	}
 
 	function handleKeyup(e: KeyboardEvent) {

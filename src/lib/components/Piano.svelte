@@ -85,16 +85,14 @@
 
 	// Get degree and color for a note
 	// Color and circle visibility are based on major key degree (stays consistent)
-	// Roman numeral is based on current mode's diatonic notes (hidden in 'none' mode)
-	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string; roman: string } {
+	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string } {
 		const majorDegree = musicState.getMajorDegree(key.note);
 		const inMajorScale = majorDegree !== null;
-		const roman = musicState.getNoteRomanNumeral(key.note) ?? '';
 		const color = FormatUtil.getDegreeColor(majorDegree, '#4b5563'); // gray-600 for chromatic
-		return { inMajorScale, color, roman };
+		return { inMajorScale, color };
 	}
 
-	function getChordInterval(noteName: string): string | null {
+	function getChordInterval(noteName: string, noteOctave: number): string | null {
 		if (!musicState.selectedChord) return null;
 		// Convert formatted chord (F♯, B♭°) to Tonal notation (F#, Bbdim)
 		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
@@ -103,6 +101,7 @@
 
 		const chordNotes = chord.notes; // e.g., ['C', 'E', 'G'] for C major
 		const inversion = musicState.selectedInversion;
+		const baseOctave = musicState.chordDisplayOctave;
 
 		// Reorder notes based on inversion
 		// 0: [C, E, G] -> bass=C
@@ -113,15 +112,25 @@
 			...chordNotes.slice(0, inversion)
 		];
 		const bassNote = invertedNotes[0];
+		const bassChroma = Note.chroma(bassNote);
 
 		// Check if this note is in the chord
 		const noteChroma = Note.chroma(noteName);
-		const noteIndex = invertedNotes.findIndex(n => Note.chroma(n) === noteChroma);
+		const noteIndex = invertedNotes.findIndex((n) => Note.chroma(n) === noteChroma);
 		if (noteIndex === -1) return null;
 
-		// Calculate interval from bass note to this note
-		const bassChroma = Note.chroma(bassNote);
+		// Determine expected octave for this chord note
+		// Bass note is in baseOctave, notes with lower chroma wrap to next octave
 		if (bassChroma === undefined || noteChroma === undefined) return null;
+		let expectedOctave = baseOctave;
+		if (noteChroma < bassChroma) {
+			expectedOctave = baseOctave + 1;
+		}
+
+		// Only show if this key matches the expected octave
+		if (noteOctave !== expectedOctave) return null;
+
+		// Calculate interval from bass note to this note
 		const semitones = (noteChroma - bassChroma + 12) % 12;
 
 		return FormatUtil.formatFiguredBassInterval(semitones);
@@ -160,7 +169,7 @@
 	<!-- White keys -->
 	{#each whiteKeys as key}
 		{@const info = getNoteInfo(key)}
-		{@const interval = getChordInterval(key.note)}
+		{@const interval = getChordInterval(key.note, key.octave)}
 		{@const labelX = key.x + whiteKeyWidth / 2}
 		{@const labelY = whiteKeyHeight - 18}
 		<rect
@@ -185,50 +194,16 @@
 				fill={info.color}
 				class="pointer-events-none"
 			/>
-			{#if info.roman}
-				<!-- Show roman numeral above (hidden in 'none' mode) -->
-				<text
-					x={labelX}
-					y={labelY - whiteLabelRadius - 8}
-					text-anchor="middle"
-					dominant-baseline="middle"
-					font-size="11"
-					fill="#374151"
-					class="font-music pointer-events-none"
-				>
-					{info.roman}
-				</text>
-			{/if}
-			{#if interval}
-				<!-- Interval inside the circle -->
-				<text
-					x={labelX}
-					y={labelY}
-					text-anchor="middle"
-					dominant-baseline="middle"
-					font-size="8"
-					fill="#ffffff"
-					class="font-music pointer-events-none"
-				>
-					{interval}
-				</text>
-			{/if}
-		{:else if interval}
-			<!-- Non-diatonic chord note: show gray circle with interval -->
-			<circle
-				cx={labelX}
-				cy={labelY}
-				r={whiteLabelRadius}
-				fill="#4b5563"
-				class="pointer-events-none"
-			/>
+		{/if}
+		{#if interval}
+			<!-- Interval: above circle if in scale, at circle position if not -->
 			<text
 				x={labelX}
-				y={labelY}
+				y={info.inMajorScale ? labelY - whiteLabelRadius - 8 : labelY}
 				text-anchor="middle"
 				dominant-baseline="middle"
-				font-size="8"
-				fill="#ffffff"
+				font-size="11"
+				fill="#374151"
 				class="font-music pointer-events-none"
 			>
 				{interval}
@@ -239,7 +214,7 @@
 	<!-- Black keys (on top) -->
 	{#each blackKeys as key}
 		{@const info = getNoteInfo(key)}
-		{@const interval = getChordInterval(key.note)}
+		{@const interval = getChordInterval(key.note, key.octave)}
 		{@const labelX = key.x + blackKeyWidth / 2}
 		{@const labelY = blackKeyHeight - 10}
 		<rect
@@ -264,50 +239,16 @@
 				fill={info.color}
 				class="pointer-events-none"
 			/>
-			{#if info.roman}
-				<!-- Show roman numeral above (hidden in 'none' mode) -->
-				<text
-					x={labelX}
-					y={labelY - blackLabelRadius - 6}
-					text-anchor="middle"
-					dominant-baseline="middle"
-					font-size="9"
-					fill="#e5e7eb"
-					class="font-music pointer-events-none"
-				>
-					{info.roman}
-				</text>
-			{/if}
-			{#if interval}
-				<!-- Interval inside the circle -->
-				<text
-					x={labelX}
-					y={labelY}
-					text-anchor="middle"
-					dominant-baseline="middle"
-					font-size="6"
-					fill="#ffffff"
-					class="font-music pointer-events-none"
-				>
-					{interval}
-				</text>
-			{/if}
-		{:else if interval}
-			<!-- Non-diatonic chord note: show gray circle with interval -->
-			<circle
-				cx={labelX}
-				cy={labelY}
-				r={blackLabelRadius}
-				fill="#4b5563"
-				class="pointer-events-none"
-			/>
+		{/if}
+		{#if interval}
+			<!-- Interval: above circle if in scale, at circle position if not -->
 			<text
 				x={labelX}
-				y={labelY}
+				y={info.inMajorScale ? labelY - blackLabelRadius - 6 : labelY}
 				text-anchor="middle"
 				dominant-baseline="middle"
-				font-size="6"
-				fill="#ffffff"
+				font-size="9"
+				fill="#e5e7eb"
 				class="font-music pointer-events-none"
 			>
 				{interval}

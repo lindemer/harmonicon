@@ -25,6 +25,7 @@ let timeSignatureBottom = $state(4);
 let timeSignatureTop = $state(4);
 let clef = $state<Clef>('treble');
 let pianoStartOctave = $state(2);
+let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 
 export const musicState = {
 	get selectedRoot() {
@@ -124,6 +125,18 @@ export const musicState = {
 
 	set pianoStartOctave(value: number) {
 		pianoStartOctave = value;
+	},
+
+	get chordDisplayOctave() {
+		return chordDisplayOctave;
+	},
+
+	incrementChordOctave() {
+		if (chordDisplayOctave < 5) chordDisplayOctave++;
+	},
+
+	decrementChordOctave() {
+		if (chordDisplayOctave > 2) chordDisplayOctave--;
 	},
 
 	// Get the root note for the current key
