@@ -245,7 +245,7 @@ export class FormatUtil {
 	 */
 	static formatFiguredBassInterval(semitones: number): string {
 		const intervals: Record<number, string> = {
-			0: '1',
+			0: 'P1',
 			1: 'm2',
 			2: 'M2',
 			3: 'm3',

@@ -8,27 +8,21 @@
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
 
-	// Map Alt+number key codes to degrees (macOS produces special characters)
+	// Map special characters produced by Alt+number on macOS to degrees
 	const altKeyCodeToDegree: Record<string, number> = {
-		'¡': 1, '™': 2, '£': 3, '¢': 4, '∞': 5, '§': 6, '¶': 7
-	};
-	// Map Alt+Shift+number key codes (macOS produces different special characters)
-	const altShiftKeyCodeToDegree: Record<string, number> = {
-		'⁄': 1, '€': 2, '‹': 3, '›': 4, 'fi': 5, '‡': 6, '·': 7
+		'¡': 1, '™': 2, '£': 3, '¢': 4, '∞': 5, '§': 6, '¶': 7,  // Alt+1-7
+		'⁄': 1, '€': 2, '‹': 3, '›': 4, 'ﬁ': 5, 'ﬂ': 6, '‡': 7   // Alt+Shift+1-7
 	};
 
 	function handleKeydown(e: KeyboardEvent) {
 		let degree: number;
 		let inversion: 0 | 1 | 2 = 0;
 
-		// Check for Alt+Shift+number (macOS produces special characters) - 2nd inversion
-		if (e.altKey && e.shiftKey && altShiftKeyCodeToDegree[e.key]) {
-			degree = altShiftKeyCodeToDegree[e.key];
-			inversion = 2;
-		// Check for Alt+number (macOS produces special characters) - 1st inversion
-		} else if (e.altKey && altKeyCodeToDegree[e.key]) {
+		// Check for Alt+number (macOS produces special characters)
+		if (e.altKey && altKeyCodeToDegree[e.key]) {
 			degree = altKeyCodeToDegree[e.key];
-			inversion = 1;
+			// Shift determines inversion: Alt = 1st, Alt+Shift = 2nd
+			inversion = e.shiftKey ? 2 : 1;
 		} else {
 			degree = parseInt(e.key);
 			if (degree === 0) {
