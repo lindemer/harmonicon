@@ -204,7 +204,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
 	viewBox="0 0 400 400"
-	class="w-full max-w-lg select-none"
+	class="h-full w-auto select-none"
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
