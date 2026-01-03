@@ -23,6 +23,7 @@ let selectedChord = $state<string | null>(null);
 let timeSignatureBottom = $state(4);
 let timeSignatureTop = $state(4);
 let clef = $state<Clef>('treble');
+let pianoStartOctave = $state(2);
 
 export const musicState = {
 	get selectedRoot() {
@@ -105,6 +106,14 @@ export const musicState = {
 
 	toggleClef() {
 		clef = clef === 'treble' ? 'bass' : 'treble';
+	},
+
+	get pianoStartOctave() {
+		return pianoStartOctave;
+	},
+
+	set pianoStartOctave(value: number) {
+		pianoStartOctave = value;
 	},
 
 	// Get the root note for the current key

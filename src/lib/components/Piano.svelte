@@ -14,18 +14,18 @@
 	const whiteKeyHeight = 120;
 	const blackKeyWidth = 16;
 	const blackKeyHeight = 72;
-	// 61 keys: C2 to C7 (5 octaves + final C)
+	// 61 keys: 5 octaves + final C (e.g., C2 to C7)
 	const octaves = 5;
-	const startOctave = 2;
 	const whiteLabelRadius = 10;
 	const blackLabelRadius = 7;
 	const whiteKeyRadius = 3;
 	const blackKeyRadius = 3;
+	const octaveLabelHeight = 16;
 
 	// 36 white keys: 5 octaves × 7 + 1 (C7)
 	const totalWhiteKeys = whiteNotes.length * octaves + 1;
 	const svgWidth = totalWhiteKeys * whiteKeyWidth;
-	const svgHeight = whiteKeyHeight;
+	const svgHeight = whiteKeyHeight + octaveLabelHeight;
 
 	type KeyInfo = {
 		note: string;
@@ -36,7 +36,7 @@
 	};
 
 	// Build all keys
-	function buildKeys(): KeyInfo[] {
+	function buildKeys(startOctave: number): KeyInfo[] {
 		const keys: KeyInfo[] = [];
 
 		// White keys first (rendered below black keys)
@@ -52,7 +52,7 @@
 				});
 			});
 		}
-		// Add the final C7 white key
+		// Add the final C (e.g., C7) white key
 		keys.push({
 			note: 'C',
 			octave: startOctave + octaves,
@@ -79,9 +79,9 @@
 		return keys;
 	}
 
-	const keys = buildKeys();
-	const whiteKeys = keys.filter((k) => !k.isBlack);
-	const blackKeys = keys.filter((k) => k.isBlack);
+	const keys = $derived(buildKeys(musicState.pianoStartOctave));
+	const whiteKeys = $derived(keys.filter((k) => !k.isBlack));
+	const blackKeys = $derived(keys.filter((k) => k.isBlack));
 
 	// Get degree and color for a note
 	// Color and circle visibility are based on major key degree (stays consistent)
@@ -118,11 +118,31 @@
 	<!-- Clip path to crop top of keys (hides top rounded corners) -->
 	<defs>
 		<clipPath id="keyboard-clip">
-			<rect x="0" y="0" width={svgWidth} height={svgHeight} />
+			<rect x="0" y="0" width={svgWidth} height={whiteKeyHeight} />
 		</clipPath>
 	</defs>
 
-	<g clip-path="url(#keyboard-clip)">
+	<!-- Background matching CircleOfFifths -->
+	<rect x="0" y="0" width={svgWidth} height={octaveLabelHeight} fill="#111827" />
+
+	<!-- Octave labels above keyboard -->
+	{#each whiteKeys as key}
+		{#if key.note === 'C'}
+			<text
+				x={key.x + whiteKeyWidth / 2}
+				y={octaveLabelHeight / 2}
+				text-anchor="middle"
+				dominant-baseline="middle"
+				font-size="8"
+				fill="#9ca3af"
+				class="font-music pointer-events-none"
+			>
+				C{key.octave}
+			</text>
+		{/if}
+	{/each}
+
+	<g clip-path="url(#keyboard-clip)" transform="translate(0, {octaveLabelHeight})">
 	<!-- White keys -->
 	{#each whiteKeys as key}
 		{@const info = getNoteInfo(key)}
@@ -281,4 +301,7 @@
 		{/if}
 	{/each}
 	</g>
+
+	<!-- Thin border on top of keys to cover zoom artifacts -->
+	<rect x="0" y={octaveLabelHeight} width={svgWidth} height="1" fill="#111827" />
 </svg>
