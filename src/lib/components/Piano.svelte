@@ -310,6 +310,7 @@
 
 	.piano-key {
 		transition: fill 0.08s ease;
+		outline: none;
 	}
 
 	.piano-key:hover {

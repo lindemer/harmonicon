@@ -605,6 +605,10 @@
 		filter: brightness(1.15);
 	}
 
+	.key:focus {
+		outline: none;
+	}
+
 	.key-label {
 		font-size: 10px;
 		color: #9ca3af;
@@ -643,6 +647,10 @@
 
 	.white-key:hover {
 		filter: brightness(1.15);
+	}
+
+	.white-key:focus {
+		outline: none;
 	}
 
 	.white-key.pressed {
@@ -697,6 +705,10 @@
 
 	.black-key:hover {
 		filter: brightness(1.25);
+	}
+
+	.black-key:focus {
+		outline: none;
 	}
 
 	.black-key.pressed {

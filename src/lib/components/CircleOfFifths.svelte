@@ -357,7 +357,7 @@
 		cy={cy}
 		r={radii.center - centerPadding}
 		fill="#111827"
-		class="cursor-pointer"
+		class="cursor-pointer outline-none"
 		onclick={() => musicState.toggleMode()}
 		onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') musicState.toggleMode(); }}
 		role="button"
