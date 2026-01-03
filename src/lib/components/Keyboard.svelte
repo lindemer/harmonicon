@@ -9,9 +9,6 @@
 	// Derived inversion level based on modifiers
 	let inversion = $derived(shiftPressed ? 2 : altPressed ? 1 : 0);
 
-	// Figured bass annotations for inversions
-	const inversionAnnotation = $derived(inversion === 1 ? '⁶' : inversion === 2 ? '⁶₄' : '');
-
 	// Number row for chord degrees
 	const numberRow = ['1', '2', '3', '4', '5', '6', '7'];
 
@@ -75,7 +72,7 @@
 				>
 					<span class="key-label">{key}</span>
 					{#if degree}
-						<span class="key-function font-music">{getRomanNumeral(degree)}{inversionAnnotation}</span>
+						<span class="key-function font-music">{getRomanNumeral(degree)}{#if inversion > 0}<span class="inversion-indicator"><span>⁶</span>{#if inversion === 2}<span>₄</span>{/if}</span>{/if}</span>
 					{/if}
 				</div>
 			{/each}
@@ -266,6 +263,27 @@
 	.degree-key .key-function {
 		color: white;
 		font-weight: 500;
+	}
+
+	.inversion-indicator {
+		position: relative;
+		display: inline-block;
+		font-size: 0.85em;
+		vertical-align: baseline;
+		margin-left: 4px;
+		width: 0.5em;
+	}
+
+	.inversion-indicator span:first-child {
+		position: absolute;
+		bottom: 0em;
+		left: 0;
+	}
+
+	.inversion-indicator span:last-child:not(:first-child) {
+		position: absolute;
+		bottom: -0.35em;
+		left: 0;
 	}
 
 	/* Action keys (Z, X for octave) */
