@@ -3,6 +3,26 @@ import * as Tone from 'tone';
 // Track currently playing notes to handle start/stop correctly
 const playingNotes = new Set<string>();
 
+// Mute state - muted by default
+let muted = true;
+
+/**
+ * Set mute state. When muting, stops all currently playing notes.
+ */
+export function setMuted(value: boolean): void {
+	if (value) {
+		stopAllNotes();
+	}
+	muted = value;
+}
+
+/**
+ * Check if audio is currently muted.
+ */
+export function isMuted(): boolean {
+	return muted;
+}
+
 // Lazy-initialized sampler (created on first user interaction)
 let sampler: Tone.Sampler | null = null;
 
@@ -78,6 +98,7 @@ function formatNote(note: string, octave: number): string {
  * @param octave - Octave number (e.g., 4)
  */
 export async function playNote(note: string, octave: number): Promise<void> {
+	if (muted) return;
 	await ensureAudioReady();
 	if (!sampler) return;
 
@@ -111,6 +132,7 @@ export function stopNote(note: string, octave: number): void {
  * @param notes - Array of {note, octave} objects
  */
 export async function playNotes(notes: Array<{ note: string; octave: number }>): Promise<void> {
+	if (muted) return;
 	await ensureAudioReady();
 	if (!sampler) return;
 
