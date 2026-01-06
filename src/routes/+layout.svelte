@@ -13,7 +13,11 @@
 	<title>Harmonicon</title>
 </svelte:head>
 <div class="app-layout">
-	<button class="mute-button" onclick={() => appState.toggleMuted()} aria-label={appState.isMuted ? 'Unmute' : 'Mute'}>
+	<button
+		class="mute-button"
+		onclick={() => appState.toggleMuted()}
+		aria-label={appState.isMuted ? 'Unmute' : 'Mute'}
+	>
 		{#if appState.isMuted}
 			<svg
 				xmlns="http://www.w3.org/2000/svg"

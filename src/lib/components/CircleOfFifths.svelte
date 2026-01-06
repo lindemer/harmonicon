@@ -28,9 +28,21 @@
 	type RingType = 'major' | 'minor' | 'dim';
 
 	const CIRCLE_RINGS: Array<{ name: RingType; innerRadius: number; outerRadius: number }> = [
-		{ name: 'dim', innerRadius: CIRCLE_DIMENSIONS.radii.center, outerRadius: CIRCLE_DIMENSIONS.radii.inner },
-		{ name: 'minor', innerRadius: CIRCLE_DIMENSIONS.radii.inner, outerRadius: CIRCLE_DIMENSIONS.radii.mid },
-		{ name: 'major', innerRadius: CIRCLE_DIMENSIONS.radii.mid, outerRadius: CIRCLE_DIMENSIONS.radii.outer }
+		{
+			name: 'dim',
+			innerRadius: CIRCLE_DIMENSIONS.radii.center,
+			outerRadius: CIRCLE_DIMENSIONS.radii.inner
+		},
+		{
+			name: 'minor',
+			innerRadius: CIRCLE_DIMENSIONS.radii.inner,
+			outerRadius: CIRCLE_DIMENSIONS.radii.mid
+		},
+		{
+			name: 'major',
+			innerRadius: CIRCLE_DIMENSIONS.radii.mid,
+			outerRadius: CIRCLE_DIMENSIONS.radii.outer
+		}
 	];
 
 	const { viewBox, center, radii, fontSizes, segmentAngle, rotationOffset, centerPadding } =

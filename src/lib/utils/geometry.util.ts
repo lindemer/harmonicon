@@ -130,7 +130,11 @@ export class GeometryUtil {
 	 */
 	static getRingFromDistance<T extends string>(
 		distance: number,
-		rings: readonly { readonly name: T; readonly innerRadius: number; readonly outerRadius: number }[]
+		rings: readonly {
+			readonly name: T;
+			readonly innerRadius: number;
+			readonly outerRadius: number;
+		}[]
 	): T | null {
 		for (const ring of rings) {
 			if (distance >= ring.innerRadius && distance < ring.outerRadius) {

@@ -97,7 +97,6 @@ let spaceClicked = $state(false);
 let isDraggingDegree = $state(false);
 let isDraggingNote = $state(false);
 let mouseInBlackKeyZone = $state(false); // For realistic glissando behavior
-let lastMouseX = 0; // Track X position for zone transitions
 
 // Audio tracking (internal)
 const playingDegreeNotes = new SvelteMap<number, Array<{ note: string; octave: number }>>();
@@ -439,7 +438,6 @@ export const keyboardState = {
 		const wasInBlackZone = mouseInBlackKeyZone;
 		const nowInBlackZone = relativeY <= 64;
 		mouseInBlackKeyZone = nowInBlackZone;
-		lastMouseX = relativeX;
 
 		// If we crossed zones vertically, trigger the appropriate key under the cursor
 		if (wasInBlackZone !== nowInBlackZone) {

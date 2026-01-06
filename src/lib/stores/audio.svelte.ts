@@ -2,12 +2,13 @@
  * Internal audio module - only imported by app.svelte.ts
  * Handles Tone.js sampler and audio playback
  */
+import { SvelteSet } from 'svelte/reactivity';
 import * as Tone from 'tone';
 
 // ============ Private State ============
 
 let sampler: Tone.Sampler | null = null;
-const playingNotes = new Set<string>();
+const playingNotes = new SvelteSet<string>();
 let muted = $state(true);
 
 // ============ Private Helpers ============
