@@ -19,7 +19,7 @@ let isChordPressed = $state(false);
 // Track all currently pressed notes as "{note}{octave}" strings (e.g., "C4", "F#3")
 const pressedNotes = new SvelteSet<string>();
 
-export const musicState = {
+export const appState = {
 	get selectedRoot() {
 		return selectedRoot;
 	},

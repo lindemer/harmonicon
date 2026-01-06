@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Key, Chord } from 'tonal';
-	import { musicState } from '$lib/stores/music.svelte';
+	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { GeometryUtil } from '$lib/utils/geometry.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
@@ -14,9 +14,9 @@
 	const cy = center.y;
 
 	function getChordRomanNumeral(): { numeral: string; isDiatonic: boolean } | null {
-		if (!musicState.selectedChord) return null;
-		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
-		return FormatUtil.getChordRomanNumeral(chordSymbol, musicState.selectedRoot, musicState.mode);
+		if (!appState.selectedChord) return null;
+		const chordSymbol = FormatUtil.unformatNote(appState.selectedChord);
+		return FormatUtil.getChordRomanNumeral(chordSymbol, appState.selectedRoot, appState.mode);
 	}
 
 	// Build keys array from circle of fifths using Tonal
@@ -90,7 +90,7 @@
 					? segment.minorNote + 'm'
 					: segment.dimNote + 'dim';
 
-		return FormatUtil.getChordDegreeInMajorKey(chordSymbol, musicState.selectedRoot);
+		return FormatUtil.getChordDegreeInMajorKey(chordSymbol, appState.selectedRoot);
 	}
 
 	function getFillColor(segmentIndex: number, ring: RingType, hover: boolean = false): string {
@@ -116,7 +116,7 @@
 		const notes = VoicingUtil.getVoicedNotesFromSymbol(
 			unformatted,
 			inv,
-			musicState.chordDisplayOctave
+			appState.chordDisplayOctave
 		);
 		if (notes.length > 0) {
 			AudioService.instance.playNotes(notes);
@@ -141,12 +141,12 @@
 				isDragging = true;
 				const segment = getSegmentFromPoint(e.clientX, e.clientY);
 				currentDragSegment = { segment, ring };
-				musicState.isChordPressed = true;
+				appState.isChordPressed = true;
 
 				// Select and play chord
 				const chordSymbol = getChordSymbol(segment, ring);
 				const inversion = getInversionFromEvent(e);
-				musicState.selectChord(chordSymbol, inversion, false);
+				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
 			}
 		} else if (e.button === 2) {
@@ -157,12 +157,12 @@
 		if (e.button === 0) {
 			isDragging = false;
 			currentDragSegment = null;
-			musicState.isChordPressed = false;
+			appState.isChordPressed = false;
 
 			// Stop chord audio (selection persists)
 			AudioService.instance.stopAllNotes();
 		} else if (e.button === 2) {
-			musicState.selectedRoot =
+			appState.selectedRoot =
 				FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY)];
 			isRightDragging = false;
 		}
@@ -172,7 +172,7 @@
 		isRightDragging = false;
 		currentDragSegment = null;
 		hoveredSegment = null;
-		musicState.isChordPressed = false;
+		appState.isChordPressed = false;
 
 		// Stop chord audio when leaving
 		AudioService.instance.stopAllNotes();
@@ -183,7 +183,7 @@
 		hoveredSegment = ring ? { index: segment, ring } : null;
 
 		if (isRightDragging) {
-			musicState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segment];
+			appState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segment];
 		} else if (isDragging && ring) {
 			// Only update if segment or ring changed
 			if (
@@ -197,7 +197,7 @@
 				AudioService.instance.stopAllNotes();
 				const chordSymbol = getChordSymbol(segment, ring);
 				const inversion = getInversionFromEvent(e);
-				musicState.selectChord(chordSymbol, inversion, false);
+				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
 			}
 		}
@@ -210,11 +210,11 @@
 				isDragging = true;
 				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
 				currentDragSegment = { segment, ring };
-				musicState.isChordPressed = true;
+				appState.isChordPressed = true;
 
 				// Select and play chord
 				const chordSymbol = getChordSymbol(segment, ring);
-				musicState.selectChord(chordSymbol, 0, false);
+				appState.selectChord(chordSymbol, 0, false);
 				playChordForSegment(segment, ring, 0);
 			}
 		}
@@ -222,7 +222,7 @@
 	ontouchend={() => {
 		isDragging = false;
 		currentDragSegment = null;
-		musicState.isChordPressed = false;
+		appState.isChordPressed = false;
 		// Stop chord audio
 		AudioService.instance.stopAllNotes();
 	}}
@@ -244,7 +244,7 @@
 				// Stop previous chord and play new one
 				AudioService.instance.stopAllNotes();
 				const chordSymbol = getChordSymbol(segment, ring);
-				musicState.selectChord(chordSymbol, 0, false);
+				appState.selectChord(chordSymbol, 0, false);
 				playChordForSegment(segment, ring, 0);
 			}
 		}
@@ -258,7 +258,7 @@
 		<!-- Outer ring (major keys) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.mid, radii.outer, startAngle, endAngle)}
-			fill={musicState.selectedChord === key.major
+			fill={appState.selectedChord === key.major
 				? 'white'
 				: getFillColor(i, 'major', isHovered(i, 'major'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
@@ -267,7 +267,7 @@
 		<!-- Middle ring (minor keys) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.inner, radii.mid, startAngle, endAngle)}
-			fill={musicState.selectedChord === key.minor
+			fill={appState.selectedChord === key.minor
 				? 'white'
 				: getFillColor(i, 'minor', isHovered(i, 'minor'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
@@ -276,7 +276,7 @@
 		<!-- Inner ring (diminished chords) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.center, radii.inner, startAngle, endAngle)}
-			fill={musicState.selectedChord === key.dim
+			fill={appState.selectedChord === key.dim
 				? 'white'
 				: getFillColor(i, 'dim', isHovered(i, 'dim'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
@@ -291,9 +291,9 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={fontSizes.major}
-			fill={musicState.selectedChord === key.major ? getFillColor(i, 'major') : undefined}
-			class="{musicState.selectedChord !== key.major
-				? majorInKey || musicState.mode === 'major'
+			fill={appState.selectedChord === key.major ? getFillColor(i, 'major') : undefined}
+			class="{appState.selectedChord !== key.major
+				? majorInKey || appState.mode === 'major'
 					? 'fill-gray-100'
 					: 'fill-gray-400'
 				: ''} font-music pointer-events-none"
@@ -310,9 +310,9 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={fontSizes.minor}
-			fill={musicState.selectedChord === key.minor ? getFillColor(i, 'minor') : undefined}
-			class="{musicState.selectedChord !== key.minor
-				? minorInKey || musicState.mode === 'minor'
+			fill={appState.selectedChord === key.minor ? getFillColor(i, 'minor') : undefined}
+			class="{appState.selectedChord !== key.minor
+				? minorInKey || appState.mode === 'minor'
 					? 'fill-gray-100'
 					: 'fill-gray-400'
 				: ''} font-music pointer-events-none"
@@ -329,8 +329,8 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={fontSizes.dim}
-			fill={musicState.selectedChord === key.dim ? getFillColor(i, 'dim') : undefined}
-			class="{musicState.selectedChord !== key.dim
+			fill={appState.selectedChord === key.dim ? getFillColor(i, 'dim') : undefined}
+			class="{appState.selectedChord !== key.dim
 				? dimInKey
 					? 'fill-gray-100'
 					: 'fill-gray-400'
@@ -347,23 +347,23 @@
 		r={radii.center - centerPadding}
 		fill="#111827"
 		class="cursor-pointer outline-none"
-		onclick={() => musicState.toggleMode()}
+		onclick={() => appState.toggleMode()}
 		onkeydown={(e) => {
-			if (e.key === 'Enter' || e.key === ' ') musicState.toggleMode();
+			if (e.key === 'Enter' || e.key === ' ') appState.toggleMode();
 		}}
 		role="button"
 		tabindex="0"
 		aria-label="Toggle major/minor mode"
 	/>
-	{#if musicState.selectedChord}
+	{#if appState.selectedChord}
 		{@const result = getChordRomanNumeral()}
 		{#if result}
-			{@const inversion = musicState.selectedInversion}
-			{@const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord)}
+			{@const inversion = appState.selectedInversion}
+			{@const chordSymbol = FormatUtil.unformatNote(appState.selectedChord)}
 			{@const chord = Chord.get(chordSymbol)}
 			{@const chordNotes = chord.notes}
 			{@const bassNote = chordNotes[inversion] ?? chordNotes[0]}
-			{@const bassDegree = FormatUtil.getNoteDegreeInMajorKey(bassNote, musicState.selectedRoot)}
+			{@const bassDegree = FormatUtil.getNoteDegreeInMajorKey(bassNote, appState.selectedRoot)}
 			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
 			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
 				<div class="center-numeral">

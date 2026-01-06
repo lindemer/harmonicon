@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Chord, Note } from 'tonal';
-	import { musicState } from '$lib/stores/music.svelte';
+	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import {
@@ -69,31 +69,31 @@
 		return keys;
 	}
 
-	const keys = $derived(buildKeys(musicState.pianoStartOctave));
+	const keys = $derived(buildKeys(appState.pianoStartOctave));
 	const whiteKeys = $derived(keys.filter((k) => !k.isBlack));
 	const blackKeys = $derived(keys.filter((k) => k.isBlack));
 
 	// Get highlighted notes from pressed keys
-	const highlightedNotes = $derived(musicState.getHighlightedPianoNotes());
+	const highlightedNotes = $derived(appState.getHighlightedPianoNotes());
 
 	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string } {
-		const majorDegree = FormatUtil.getNoteDegreeInMajorKey(key.note, musicState.selectedRoot);
+		const majorDegree = FormatUtil.getNoteDegreeInMajorKey(key.note, appState.selectedRoot);
 		const inMajorScale = majorDegree !== null;
 		const color = FormatUtil.getDegreeColor(majorDegree, '#4b5563');
 		return { inMajorScale, color };
 	}
 
 	function getChordInterval(noteName: string, noteOctave: number): string | null {
-		if (!musicState.selectedChord) return null;
-		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
+		if (!appState.selectedChord) return null;
+		const chordSymbol = FormatUtil.unformatNote(appState.selectedChord);
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty) return null;
 
 		// Get voiced notes using VoicingUtil
 		const voicedNotes = VoicingUtil.getVoicedNotes(
 			chord.notes,
-			musicState.selectedInversion,
-			musicState.chordDisplayOctave
+			appState.selectedInversion,
+			appState.chordDisplayOctave
 		);
 
 		// Check if this piano key matches any voiced chord note
@@ -138,7 +138,7 @@
 		AudioService.instance.stopAllNotes();
 	}
 
-	// Check if a piano key should be highlighted (from musicState OR direct press)
+	// Check if a piano key should be highlighted (from appState OR direct press)
 	function isKeyHighlightedOrPressed(key: KeyInfo): boolean {
 		// Direct press on this piano component
 		if (directPressedNote) {
@@ -149,7 +149,7 @@
 				return true;
 			}
 		}
-		// Highlights from musicState (keyboard, circle of fifths, etc.)
+		// Highlights from appState (keyboard, circle of fifths, etc.)
 		return highlightedNotes.some(
 			(hn) => Note.chroma(hn.note) === Note.chroma(key.note) && hn.octave === key.octave
 		);
