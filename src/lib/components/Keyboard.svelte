@@ -79,7 +79,6 @@
 							><RomanNumeral
 								numeral={getRomanNumeral(degree)}
 								inversion={kb.inversion}
-								centered
 							/></span
 						>
 					{/if}

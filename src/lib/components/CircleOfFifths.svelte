@@ -485,7 +485,6 @@
 						{inversion}
 						color={numeralColor}
 						size="lg"
-						centered
 					/>
 				</div>
 			</foreignObject>
