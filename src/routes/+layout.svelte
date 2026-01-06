@@ -6,14 +6,14 @@
 	import { Key } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
-	import { setMuted } from '$lib/services/audio';
+	import { AudioService } from '$lib/services/audio.service';
 	import type { Snippet } from 'svelte';
 
 	let muted = $state(true);
 
 	function toggleMute() {
 		muted = !muted;
-		setMuted(muted);
+		AudioService.instance.setMuted(muted);
 	}
 
 	let { children }: { children: Snippet } = $props();

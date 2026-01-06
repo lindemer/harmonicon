@@ -6,7 +6,7 @@
 	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import { CIRCLE_DIMENSIONS, CIRCLE_RINGS, type RingType } from '$lib/constants/circle';
 	import RomanNumeral from './RomanNumeral.svelte';
-	import { playNotes, stopAllNotes } from '$lib/services/audio';
+	import { AudioService } from '$lib/services/audio.service';
 
 	const { viewBox, center, radii, fontSizes, segmentAngle, rotationOffset, centerPadding } =
 		CIRCLE_DIMENSIONS;
@@ -119,7 +119,7 @@
 			musicState.chordDisplayOctave
 		);
 		if (notes.length > 0) {
-			playNotes(notes);
+			AudioService.instance.playNotes(notes);
 		}
 	}
 </script>
@@ -160,7 +160,7 @@
 			musicState.isChordPressed = false;
 
 			// Stop chord audio (selection persists)
-			stopAllNotes();
+			AudioService.instance.stopAllNotes();
 		} else if (e.button === 2) {
 			musicState.selectedRoot =
 				FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY)];
@@ -175,7 +175,7 @@
 		musicState.isChordPressed = false;
 
 		// Stop chord audio when leaving
-		stopAllNotes();
+		AudioService.instance.stopAllNotes();
 	}}
 	onmousemove={(e) => {
 		const ring = getRingFromPoint(e.clientX, e.clientY);
@@ -194,7 +194,7 @@
 				currentDragSegment = { segment, ring };
 
 				// Stop previous chord and play new one
-				stopAllNotes();
+				AudioService.instance.stopAllNotes();
 				const chordSymbol = getChordSymbol(segment, ring);
 				const inversion = getInversionFromEvent(e);
 				musicState.selectChord(chordSymbol, inversion, false);
@@ -224,7 +224,7 @@
 		currentDragSegment = null;
 		musicState.isChordPressed = false;
 		// Stop chord audio
-		stopAllNotes();
+		AudioService.instance.stopAllNotes();
 	}}
 	ontouchmove={(e) => {
 		if (isDragging) {
@@ -242,7 +242,7 @@
 				currentDragSegment = { segment, ring };
 
 				// Stop previous chord and play new one
-				stopAllNotes();
+				AudioService.instance.stopAllNotes();
 				const chordSymbol = getChordSymbol(segment, ring);
 				musicState.selectChord(chordSymbol, 0, false);
 				playChordForSegment(segment, ring, 0);

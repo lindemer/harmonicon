@@ -5,7 +5,7 @@
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import RomanNumeral from './RomanNumeral.svelte';
-	import { playNote, stopNote, playNotes, stopAllNotes } from '$lib/services/audio';
+	import { AudioService } from '$lib/services/audio.service';
 
 	// Get color for a degree key, accounting for inversion
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
@@ -209,7 +209,7 @@
 				const noteInfo = getNoteForKey(mappedKey);
 				if (noteInfo) {
 					musicState.addPressedNote(noteInfo.note, noteInfo.octave);
-					playNote(noteInfo.note, noteInfo.octave);
+					AudioService.instance.playNote(noteInfo.note, noteInfo.octave);
 				}
 			}
 		}
@@ -221,7 +221,7 @@
 			if (chordNotes.length > 0) {
 				playingDegreeNotes.set(degree, chordNotes); // Store exact notes played
 				musicState.addPressedNotes(chordNotes);
-				playNotes(chordNotes);
+				AudioService.instance.playNotes(chordNotes);
 			}
 		}
 	}
@@ -248,7 +248,7 @@
 				const noteInfo = getNoteForKey(mappedKey);
 				if (noteInfo) {
 					musicState.removePressedNote(noteInfo.note, noteInfo.octave);
-					stopNote(noteInfo.note, noteInfo.octave);
+					AudioService.instance.stopNote(noteInfo.note, noteInfo.octave);
 				}
 			}
 		}
@@ -260,14 +260,14 @@
 			playingDegreeNotes.delete(degree);
 			musicState.removePressedNotes(chordNotes);
 			for (const n of chordNotes) {
-				stopNote(n.note, n.octave);
+				AudioService.instance.stopNote(n.note, n.octave);
 			}
 		}
 	}
 
 	// Handle window blur - stop all notes to prevent stuck keys
 	function handleBlur() {
-		stopAllNotes();
+		AudioService.instance.stopAllNotes();
 		pressedKeys.clear();
 		pressedPianoKeys.clear();
 		playingDegreeNotes.clear();
@@ -326,7 +326,7 @@
 			currentChordNotes = getChordNotesForDegree(degree);
 			if (currentChordNotes.length > 0) {
 				musicState.addPressedNotes(currentChordNotes);
-				playNotes(currentChordNotes);
+				AudioService.instance.playNotes(currentChordNotes);
 			}
 		}
 	}
@@ -337,7 +337,7 @@
 			if (currentChordNotes.length > 0) {
 				musicState.removePressedNotes(currentChordNotes);
 				for (const n of currentChordNotes) {
-					stopNote(n.note, n.octave);
+					AudioService.instance.stopNote(n.note, n.octave);
 				}
 			}
 
@@ -361,7 +361,7 @@
 				currentChordNotes = getChordNotesForDegree(degree);
 				if (currentChordNotes.length > 0) {
 					musicState.addPressedNotes(currentChordNotes);
-					playNotes(currentChordNotes);
+					AudioService.instance.playNotes(currentChordNotes);
 				}
 			}
 		}
@@ -375,7 +375,7 @@
 		currentNoteInfo = getNoteForKey(noteKey);
 		if (currentNoteInfo) {
 			musicState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-			playNote(currentNoteInfo.note, currentNoteInfo.octave);
+			AudioService.instance.playNote(currentNoteInfo.note, currentNoteInfo.octave);
 		}
 	}
 
@@ -384,7 +384,7 @@
 			// Stop previous note and remove from state
 			if (currentNoteInfo) {
 				musicState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				stopNote(currentNoteInfo.note, currentNoteInfo.octave);
+				AudioService.instance.stopNote(currentNoteInfo.note, currentNoteInfo.octave);
 			}
 
 			// Clear previous note key from pressed state, add new one
@@ -395,7 +395,7 @@
 			currentNoteInfo = getNoteForKey(noteKey);
 			if (currentNoteInfo) {
 				musicState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				playNote(currentNoteInfo.note, currentNoteInfo.octave);
+				AudioService.instance.playNote(currentNoteInfo.note, currentNoteInfo.octave);
 			}
 		}
 	}
@@ -410,7 +410,7 @@
 			if (currentChordNotes.length > 0) {
 				musicState.removePressedNotes(currentChordNotes);
 				for (const n of currentChordNotes) {
-					stopNote(n.note, n.octave);
+					AudioService.instance.stopNote(n.note, n.octave);
 				}
 				currentChordNotes = [];
 			}
@@ -422,7 +422,7 @@
 			// Stop note audio
 			if (currentNoteInfo) {
 				musicState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				stopNote(currentNoteInfo.note, currentNoteInfo.octave);
+				AudioService.instance.stopNote(currentNoteInfo.note, currentNoteInfo.octave);
 				currentNoteInfo = null;
 			}
 		}
