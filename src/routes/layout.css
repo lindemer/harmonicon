@@ -73,7 +73,7 @@
 
 .header h1 {
 	font-family: var(--font-music);
-	font-size: 1.5rem;
+	font-size: 1.1rem;
 	font-weight: 400;
 	color: #e5e7eb; /* gray-200 */
 	margin: 0;
@@ -93,8 +93,8 @@
 }
 
 .header a svg {
-	width: 28px;
-	height: 28px;
+	width: 24px;
+	height: 24px;
 }
 
 .mute-button {
@@ -114,8 +114,8 @@
 }
 
 .mute-button svg {
-	width: 28px;
-	height: 28px;
+	width: 24px;
+	height: 24px;
 }
 
 .bottom-area {
@@ -125,11 +125,7 @@
 
 /* Hide all mobile elements by default */
 .mobile-top-bar,
-.mobile-inversion-row,
-.mobile-left-col,
-.mobile-circle,
-.mobile-right-col,
-.mobile-bottom-bar {
+.mobile-circle {
 	display: none;
 }
 
@@ -161,14 +157,6 @@
 	letter-spacing: 0.05em;
 }
 
-.mobile-title-landscape {
-	font-family: var(--font-music);
-	font-size: 1rem;
-	font-weight: 400;
-	color: #e5e7eb;
-	margin: 0;
-	letter-spacing: 0.05em;
-}
 
 /* ============================================
    MOBILE LAYOUT (below 1024px)
@@ -181,17 +169,9 @@
 	.mute-button {
 		display: none;
 	}
-}
 
-/* ============================================
-   PORTRAIT MODE
-   Layout: top bar (inversion + title + icons)
-           circle (centered)
-           bottom bar (chord buttons)
-   ============================================ */
-@media (max-width: 1023px) and (orientation: portrait) {
+	/* Default mobile layout - portrait style as fallback */
 	.app-layout {
-		--portrait-btn-size: min(calc((100vw - 1.5rem - 24px) / 7), 3.5rem);
 		display: flex;
 		flex-direction: column;
 		height: 100dvh;
@@ -199,13 +179,6 @@
 		gap: 0.75rem;
 	}
 
-	/* Hide landscape elements */
-	.mobile-left-col,
-	.mobile-right-col {
-		display: none;
-	}
-
-	/* Top bar: title | icons */
 	.mobile-top-bar {
 		display: flex;
 		align-items: center;
@@ -219,14 +192,6 @@
 		gap: 0.75rem;
 	}
 
-	/* Inversion row: below header */
-	.mobile-inversion-row {
-		display: flex;
-		flex-shrink: 0;
-		height: 2.5rem;
-	}
-
-	/* Circle area - fills remaining space */
 	.mobile-circle {
 		display: flex;
 		flex: 1;
@@ -236,72 +201,4 @@
 		overflow: hidden;
 	}
 
-	/* Bottom bar: chord buttons */
-	.mobile-bottom-bar {
-		display: flex;
-		flex-shrink: 0;
-	}
-}
-
-/* ============================================
-   LANDSCAPE MODE
-   Layout: left col (title + inversion) | circle | right col (icons + chords)
-   ============================================ */
-@media (max-width: 1023px) and (orientation: landscape) {
-	.app-layout {
-		/* Button size: height / 7 buttons, minus gaps and padding */
-		--landscape-btn-size: min(calc((100dvh - 1rem - 24px - 1.5rem) / 7), 3.5rem);
-		display: flex;
-		flex-direction: row;
-		height: 100dvh;
-		padding: 0.5rem;
-		gap: 0.5rem;
-	}
-
-	/* Hide portrait elements */
-	.mobile-top-bar,
-	.mobile-inversion-row,
-	.mobile-bottom-bar {
-		display: none;
-	}
-
-	/* Left column: title on top, inversion buttons below */
-	.mobile-left-col {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		height: 100%;
-		flex-shrink: 0;
-	}
-
-	.mobile-title-landscape {
-		flex-shrink: 0;
-		line-height: 24px; /* Match icon height */
-	}
-
-	/* Circle area - fills remaining space */
-	.mobile-circle {
-		display: flex;
-		flex: 1;
-		align-items: center;
-		justify-content: center;
-		min-width: 0;
-		overflow: hidden;
-	}
-
-	/* Right column: icons header + chord buttons */
-	.mobile-right-col {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		height: 100%;
-		flex-shrink: 0;
-	}
-
-	.mobile-right-header {
-		display: flex;
-		gap: 0.5rem;
-		justify-content: flex-end;
-		flex-shrink: 0;
-	}
 }
