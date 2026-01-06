@@ -40,6 +40,7 @@
 	let currentDragSegment: { segment: number; ring: RingType } | null = $state(null);
 	let svgElement: SVGSVGElement;
 	let hoveredSegment: { index: number; ring: RingType } | null = $state(null);
+	let currentChordNotes: Array<{ note: string; octave: number }> = [];
 
 	function getSvgPoint(clientX: number, clientY: number) {
 		return GeometryUtil.clientToSvgCoords(clientX, clientY, svgElement, viewBox);
@@ -119,6 +120,8 @@
 			appState.chordDisplayOctave
 		);
 		if (notes.length > 0) {
+			currentChordNotes = notes;
+			appState.addPressedNotes(notes);
 			AudioService.instance.playNotes(notes);
 		}
 	}
@@ -165,7 +168,11 @@
 			appState.isChordPressed = false;
 			appState.pressedDegree = null;
 
-			// Stop chord audio (selection persists)
+			// Clear pressed notes and stop audio (selection persists)
+			if (currentChordNotes.length > 0) {
+				appState.removePressedNotes(currentChordNotes);
+				currentChordNotes = [];
+			}
 			AudioService.instance.stopAllNotes();
 		} else if (e.button === 2) {
 			appState.selectedRoot =
@@ -181,7 +188,11 @@
 		appState.isChordPressed = false;
 		appState.pressedDegree = null;
 
-		// Stop chord audio when leaving
+		// Clear pressed notes and stop audio when leaving
+		if (currentChordNotes.length > 0) {
+			appState.removePressedNotes(currentChordNotes);
+			currentChordNotes = [];
+		}
 		AudioService.instance.stopAllNotes();
 	}}
 	onmousemove={(e) => {
@@ -200,8 +211,14 @@
 			) {
 				currentDragSegment = { segment, ring };
 
-				// Stop previous chord and play new one
+				// Clear previous pressed notes and stop audio
+				if (currentChordNotes.length > 0) {
+					appState.removePressedNotes(currentChordNotes);
+					currentChordNotes = [];
+				}
 				AudioService.instance.stopAllNotes();
+
+				// Select and play new chord
 				const chordSymbol = getChordSymbol(segment, ring);
 				const inversion = getInversionFromEvent(e);
 				appState.selectChord(chordSymbol, inversion, false);
@@ -241,7 +258,11 @@
 		currentDragSegment = null;
 		appState.isChordPressed = false;
 		appState.pressedDegree = null;
-		// Stop chord audio
+		// Clear pressed notes and stop audio
+		if (currentChordNotes.length > 0) {
+			appState.removePressedNotes(currentChordNotes);
+			currentChordNotes = [];
+		}
 		AudioService.instance.stopAllNotes();
 	}}
 	ontouchmove={(e) => {
@@ -259,8 +280,14 @@
 			) {
 				currentDragSegment = { segment, ring };
 
-				// Stop previous chord and play new one
+				// Clear previous pressed notes and stop audio
+				if (currentChordNotes.length > 0) {
+					appState.removePressedNotes(currentChordNotes);
+					currentChordNotes = [];
+				}
 				AudioService.instance.stopAllNotes();
+
+				// Select and play new chord
 				const chordSymbol = getChordSymbol(segment, ring);
 				appState.selectChord(chordSymbol, 0, false);
 				playChordForSegment(segment, ring, 0);
