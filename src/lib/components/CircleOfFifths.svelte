@@ -79,6 +79,12 @@
 	let hoveredSegment: { index: number; ring: RingType } | null = $state(null);
 	let currentChordNotes: Array<{ note: string; octave: number }> = [];
 
+	// Touch-specific state for tap/drag differentiation
+	let touchStartPos: { x: number; y: number } | null = $state(null);
+	let touchStartSegment: { segment: number; ring: RingType | null } | null = $state(null);
+	let isTouchDragging = $state(false);
+	const TOUCH_DRAG_THRESHOLD = 10;
+
 	function getSvgPoint(clientX: number, clientY: number) {
 		return GeometryUtil.clientToSvgCoords(clientX, clientY, svgElement, viewBox);
 	}
@@ -113,7 +119,7 @@
 	}
 
 	function getInversionFromEvent(e: MouseEvent): 0 | 1 | 2 {
-		if (e.altKey && e.shiftKey) return 2;
+		if (e.shiftKey) return 2;
 		if (e.altKey) return 1;
 		return 0;
 	}
@@ -266,68 +272,64 @@
 	}}
 	ontouchstart={(e) => {
 		const touch = e.touches[0];
-		if (!isInCenterCircle(touch.clientX, touch.clientY)) {
-			const ring = getRingFromPoint(touch.clientX, touch.clientY);
-			if (ring) {
-				isDragging = true;
-				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
-				currentDragSegment = { segment, ring };
-				appState.isChordPressed = true;
+		// Record start position for tap/drag detection
+		touchStartPos = { x: touch.clientX, y: touch.clientY };
+		const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
+		const ring = getRingFromPoint(touch.clientX, touch.clientY);
+		touchStartSegment = { segment, ring };
+		isTouchDragging = false;
+	}}
+	ontouchend={(e) => {
+		if (!touchStartPos || !touchStartSegment) {
+			touchStartPos = null;
+			touchStartSegment = null;
+			isTouchDragging = false;
+			return;
+		}
 
-				// Select and play chord
+		// If it was a tap (not a drag), select and play chord
+		if (!isTouchDragging) {
+			const touch = e.changedTouches[0];
+			const ring = getRingFromPoint(touch.clientX, touch.clientY);
+
+			if (isInCenterCircle(touch.clientX, touch.clientY)) {
+				// Tap on center circle toggles mode
+				appState.toggleMode();
+			} else if (ring) {
+				// Tap on a chord segment - select and play briefly
+				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
 				const chordSymbol = getChordSymbol(segment, ring);
 				appState.selectChord(chordSymbol, 0, false);
-				playChordForSegment(segment, ring, 0);
 
-				// Set pressedDegree if chord is diatonic
-				const unformatted = FormatUtil.unformatNote(chordSymbol);
-				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
-				appState.pressedDegree = degree;
+				// Play chord briefly then stop
+				playChordForSegment(segment, ring, 0);
+				setTimeout(() => {
+					if (currentChordNotes.length > 0) {
+						appState.removePressedNotes(currentChordNotes);
+						currentChordNotes = [];
+					}
+				}, 300);
 			}
 		}
-	}}
-	ontouchend={() => {
-		isDragging = false;
-		currentDragSegment = null;
-		appState.isChordPressed = false;
-		appState.pressedDegree = null;
-		// Clear pressed notes
-		if (currentChordNotes.length > 0) {
-			appState.removePressedNotes(currentChordNotes);
-			currentChordNotes = [];
-		}
+
+		// Reset touch state
+		touchStartPos = null;
+		touchStartSegment = null;
+		isTouchDragging = false;
 	}}
 	ontouchmove={(e) => {
-		if (isDragging) {
-			const touch = e.touches[0];
+		if (!touchStartPos) return;
+
+		const touch = e.touches[0];
+		const dx = touch.clientX - touchStartPos.x;
+		const dy = touch.clientY - touchStartPos.y;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+
+		// If movement exceeds threshold, switch to drag mode (change root key)
+		if (distance > TOUCH_DRAG_THRESHOLD) {
+			isTouchDragging = true;
 			const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
-			const ring = getRingFromPoint(touch.clientX, touch.clientY);
-
-			// Only update if segment or ring changed
-			if (
-				ring &&
-				(!currentDragSegment ||
-					currentDragSegment.segment !== segment ||
-					currentDragSegment.ring !== ring)
-			) {
-				currentDragSegment = { segment, ring };
-
-				// Clear previous pressed notes
-				if (currentChordNotes.length > 0) {
-					appState.removePressedNotes(currentChordNotes);
-					currentChordNotes = [];
-				}
-
-				// Select and play new chord
-				const chordSymbol = getChordSymbol(segment, ring);
-				appState.selectChord(chordSymbol, 0, false);
-				playChordForSegment(segment, ring, 0);
-
-				// Update pressedDegree if chord is diatonic
-				const unformatted = FormatUtil.unformatNote(chordSymbol);
-				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
-				appState.pressedDegree = degree;
-			}
+			appState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segment];
 		}
 	}}
 >

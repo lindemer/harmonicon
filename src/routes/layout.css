@@ -122,3 +122,90 @@
 	width: 100%;
 	background-color: #1f2937; /* gray-800 */
 }
+
+/* Mobile layout (below 1024px) */
+@media (max-width: 1023px) {
+	.top-area {
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.left-half {
+		flex: 1;
+		width: 100%;
+		max-width: 100vmin;
+	}
+
+	.right-half,
+	.bottom-area,
+	.header,
+	.mute-button {
+		display: none;
+	}
+
+	.mobile-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		position: absolute;
+		top: 1rem;
+		left: 1rem;
+		right: 1rem;
+	}
+
+	.mobile-header h1 {
+		font-family: var(--font-music);
+		font-size: 1.25rem;
+		font-weight: 400;
+		color: #e5e7eb;
+		margin: 0;
+		letter-spacing: 0.05em;
+	}
+
+	.mobile-header-buttons {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.mobile-mute-button {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		color: #9ca3af;
+		transition: color 0.2s ease;
+	}
+
+	.mobile-mute-button:hover {
+		color: #e5e7eb;
+	}
+
+	.mobile-mute-button svg {
+		width: 24px;
+		height: 24px;
+	}
+
+	.mobile-header a {
+		color: #9ca3af;
+		text-decoration: none;
+		transition: color 0.2s ease;
+	}
+
+	.mobile-header a:hover {
+		color: #e5e7eb;
+	}
+
+	.mobile-header a svg {
+		width: 24px;
+		height: 24px;
+	}
+}
+
+/* Desktop layout (1024px and above) */
+@media (min-width: 1024px) {
+	.mobile-header {
+		display: none;
+	}
+}
