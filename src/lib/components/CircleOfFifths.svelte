@@ -167,6 +167,93 @@
 			appState.addPressedNotes(notes);
 		}
 	}
+
+	// Touch event handlers (need to be non-passive for preventDefault to work)
+	function handleTouchStart(e: TouchEvent) {
+		e.preventDefault();
+		const touch = e.touches[0];
+		touchStartPos = { x: touch.clientX, y: touch.clientY };
+		const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
+		const ring = getRingFromPoint(touch.clientX, touch.clientY);
+		touchStartSegment = { segment, ring };
+		isTouchDragging = false;
+	}
+
+	function handleTouchEnd(e: TouchEvent) {
+		e.preventDefault();
+		if (!touchStartPos || !touchStartSegment) {
+			touchStartPos = null;
+			touchStartSegment = null;
+			isTouchDragging = false;
+			return;
+		}
+
+		// If it was a tap (not a drag), select and play chord
+		if (!isTouchDragging) {
+			const touch = e.changedTouches[0];
+			const ring = getRingFromPoint(touch.clientX, touch.clientY);
+
+			if (isInCenterCircle(touch.clientX, touch.clientY)) {
+				appState.toggleMode();
+			} else if (ring) {
+				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
+				const chordSymbol = getChordSymbol(segment, ring);
+
+				// If same chord is already selected, cycle through inversions
+				const nextInversion =
+					appState.selectedChord === chordSymbol
+						? (((appState.selectedInversion + 1) % 3) as 0 | 1 | 2)
+						: 0;
+
+				appState.selectChord(chordSymbol, nextInversion, false);
+
+				// Play chord briefly then stop
+				playChordForSegment(segment, ring, nextInversion);
+				setTimeout(() => {
+					if (currentChordNotes.length > 0) {
+						appState.removePressedNotes(currentChordNotes);
+						currentChordNotes = [];
+					}
+				}, 250);
+			}
+		}
+
+		// Reset touch state
+		touchStartPos = null;
+		touchStartSegment = null;
+		isTouchDragging = false;
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		e.preventDefault();
+		if (!touchStartPos) return;
+
+		const touch = e.touches[0];
+		const dx = touch.clientX - touchStartPos.x;
+		const dy = touch.clientY - touchStartPos.y;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+
+		if (distance > TOUCH_DRAG_THRESHOLD) {
+			isTouchDragging = true;
+			const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
+			appState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segment];
+		}
+	}
+
+	// Action to attach non-passive touch listeners
+	const nonPassiveTouch = (node: SVGSVGElement) => {
+		node.addEventListener('touchstart', handleTouchStart as EventListener, { passive: false });
+		node.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false });
+		node.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+
+		return {
+			destroy() {
+				node.removeEventListener('touchstart', handleTouchStart as EventListener);
+				node.removeEventListener('touchend', handleTouchEnd as EventListener);
+				node.removeEventListener('touchmove', handleTouchMove as EventListener);
+			}
+		};
+	};
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -176,6 +263,7 @@
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
+	use:nonPassiveTouch
 	oncontextmenu={(e) => e.preventDefault()}
 	onmousedown={(e) => {
 		if (isInCenterCircle(e.clientX, e.clientY)) return;
@@ -273,69 +361,6 @@
 				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
 				appState.pressedDegree = degree;
 			}
-		}
-	}}
-	ontouchstart={(e) => {
-		const touch = e.touches[0];
-		// Record start position for tap/drag detection
-		touchStartPos = { x: touch.clientX, y: touch.clientY };
-		const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
-		const ring = getRingFromPoint(touch.clientX, touch.clientY);
-		touchStartSegment = { segment, ring };
-		isTouchDragging = false;
-	}}
-	ontouchend={(e) => {
-		if (!touchStartPos || !touchStartSegment) {
-			touchStartPos = null;
-			touchStartSegment = null;
-			isTouchDragging = false;
-			return;
-		}
-
-		// If it was a tap (not a drag), select and play chord
-		if (!isTouchDragging) {
-			const touch = e.changedTouches[0];
-			const ring = getRingFromPoint(touch.clientX, touch.clientY);
-
-			if (isInCenterCircle(touch.clientX, touch.clientY)) {
-				// Tap on center circle toggles mode
-				e.preventDefault(); // Prevent synthetic mouse events
-				appState.toggleMode();
-			} else if (ring) {
-				// Tap on a chord segment - select and play briefly
-				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
-				const chordSymbol = getChordSymbol(segment, ring);
-				appState.selectChord(chordSymbol, 0, false);
-
-				// Play chord briefly then stop
-				playChordForSegment(segment, ring, 0);
-				setTimeout(() => {
-					if (currentChordNotes.length > 0) {
-						appState.removePressedNotes(currentChordNotes);
-						currentChordNotes = [];
-					}
-				}, 300);
-			}
-		}
-
-		// Reset touch state
-		touchStartPos = null;
-		touchStartSegment = null;
-		isTouchDragging = false;
-	}}
-	ontouchmove={(e) => {
-		if (!touchStartPos) return;
-
-		const touch = e.touches[0];
-		const dx = touch.clientX - touchStartPos.x;
-		const dy = touch.clientY - touchStartPos.y;
-		const distance = Math.sqrt(dx * dx + dy * dy);
-
-		// If movement exceeds threshold, switch to drag mode (change root key)
-		if (distance > TOUCH_DRAG_THRESHOLD) {
-			isTouchDragging = true;
-			const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
-			appState.selectedRoot = FormatUtil.CIRCLE_OF_FIFTHS[segment];
 		}
 	}}
 >
