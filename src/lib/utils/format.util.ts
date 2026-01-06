@@ -1,6 +1,5 @@
-import { Key, Chord, Note } from 'tonal';
-
-export type Mode = 'major' | 'minor';
+import type { Mode } from '$lib/types';
+import { Key, Chord, Note, Progression } from 'tonal';
 
 /**
  * Centralized utility class for music notation formatting and theory computations.
@@ -226,6 +225,19 @@ export class FormatUtil {
 		}
 
 		return { numeral: base, isDiatonic: false };
+	}
+
+	// === Roman Numeral via Progression ===
+
+	/**
+	 * Get roman numeral for a chord using Tonal's Progression API.
+	 * @param chordSymbol - Chord symbol (e.g., 'C', 'Dm', 'F#m')
+	 * @param keyRoot - Root note of the key
+	 * @returns Roman numeral string or null if not found
+	 */
+	static getProgressionRomanNumeral(chordSymbol: string, keyRoot: string): string | null {
+		const result = Progression.toRomanNumerals(keyRoot, [chordSymbol]);
+		return result[0] || null;
 	}
 
 	// === Color ===

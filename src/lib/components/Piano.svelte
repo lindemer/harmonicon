@@ -1,21 +1,39 @@
 <script lang="ts">
 	import { Chord, Note } from 'tonal';
-	import { musicState } from '$lib/stores/music.svelte';
-	import { FormatUtil } from '$lib/utils/format';
-	import {
-		PIANO_DIMENSIONS,
-		PIANO_SVG,
-		WHITE_NOTES,
-		BLACK_KEY_POSITIONS
-	} from '$lib/constants/piano';
-	import { playNote, stopNote, stopAllNotes } from '$lib/services/audio';
+	import { appState } from '$lib/stores/app.svelte';
+	import { FormatUtil } from '$lib/utils/format.util';
+	import { VoicingUtil } from '$lib/utils/voicing.util';
+
+	const PIANO_DIMENSIONS = {
+		whiteKey: {
+			width: 24,
+			height: 120,
+			gap: 1,
+			radius: 3,
+			labelRadius: 10
+		},
+		blackKey: {
+			width: 16,
+			height: 72,
+			radius: 3,
+			labelRadius: 7
+		},
+		octaves: 5,
+		octaveLabelHeight: 16
+	};
+
+	const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
+	const BLACK_KEY_POSITIONS = [0, 1, 3, 4, 5] as const;
 
 	const { whiteKey, blackKey, octaves, octaveLabelHeight } = PIANO_DIMENSIONS;
-	const { width: svgWidth, height: svgHeight } = PIANO_SVG;
+	const totalWhiteKeys = WHITE_NOTES.length * octaves + 1;
+	const svgWidth = totalWhiteKeys * whiteKey.width;
+	const svgHeight = whiteKey.height + octaveLabelHeight;
 
 	// Mouse drag state for glissando-style playing
 	let isDragging = $state(false);
 	let directPressedNote = $state<{ note: string; octave: number } | null>(null);
+	let mouseY = $state(0); // Y position relative to keyboard area (for realistic glissando)
 
 	type KeyInfo = {
 		note: string;
@@ -68,55 +86,43 @@
 		return keys;
 	}
 
-	const keys = $derived(buildKeys(musicState.pianoStartOctave));
+	const keys = $derived(buildKeys(appState.pianoStartOctave));
 	const whiteKeys = $derived(keys.filter((k) => !k.isBlack));
 	const blackKeys = $derived(keys.filter((k) => k.isBlack));
 
 	// Get highlighted notes from pressed keys
-	const highlightedNotes = $derived(musicState.getHighlightedPianoNotes());
+	const highlightedNotes = $derived(appState.getHighlightedPianoNotes());
 
 	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string } {
-		const majorDegree = musicState.getMajorDegree(key.note);
+		const majorDegree = FormatUtil.getNoteDegreeInMajorKey(key.note, appState.selectedRoot);
 		const inMajorScale = majorDegree !== null;
 		const color = FormatUtil.getDegreeColor(majorDegree, '#4b5563');
 		return { inMajorScale, color };
 	}
 
 	function getChordInterval(noteName: string, noteOctave: number): string | null {
-		if (!musicState.selectedChord) return null;
-		const chordSymbol = FormatUtil.unformatNote(musicState.selectedChord);
+		if (!appState.selectedChord) return null;
+		const chordSymbol = FormatUtil.unformatNote(appState.selectedChord);
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty) return null;
 
-		const chordNotes = chord.notes;
-		const inversion = musicState.selectedInversion;
-		const baseOctave = musicState.chordDisplayOctave;
+		// Get voiced notes using VoicingUtil
+		const voicedNotes = VoicingUtil.getVoicedNotes(
+			chord.notes,
+			appState.selectedInversion,
+			appState.chordDisplayOctave
+		);
 
-		// Reorder notes based on inversion
-		const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
-		const bassNote = invertedNotes[0];
-		const bassChroma = Note.chroma(bassNote);
-
-		// Check if this note is in the chord
+		// Check if this piano key matches any voiced chord note
 		const noteChroma = Note.chroma(noteName);
-		const noteIndex = invertedNotes.findIndex((n) => Note.chroma(n) === noteChroma);
-		if (noteIndex === -1) return null;
-
-		// Determine expected octave for this chord note
-		if (bassChroma === undefined || noteChroma === undefined) return null;
-
-		// Place bass note closest to the base octave's C
-		// If chroma > 6 (F# to B), place in octave below (closer to C going down)
-		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
-		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
-
-		// Notes with chroma < bass go up an octave (voiced above bass)
-		const expectedOctave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
-
-		// Only show if this key matches the expected octave
-		if (noteOctave !== expectedOctave) return null;
+		const matchedNote = voicedNotes.find(
+			(vn) => Note.chroma(vn.note) === noteChroma && vn.octave === noteOctave
+		);
+		if (!matchedNote) return null;
 
 		// Calculate interval from bass note to this note
+		const bassChroma = Note.chroma(voicedNotes[0].note);
+		if (bassChroma === undefined || noteChroma === undefined) return null;
 		const semitones = (noteChroma - bassChroma + 12) % 12;
 
 		return FormatUtil.formatFiguredBassInterval(semitones);
@@ -126,30 +132,81 @@
 	function handlePianoKeyMouseDown(key: KeyInfo) {
 		isDragging = true;
 		directPressedNote = { note: key.note, octave: key.octave };
-		playNote(key.note, key.octave);
+		appState.addPressedNote(key.note, key.octave);
 	}
 
 	function handlePianoKeyMouseEnter(key: KeyInfo) {
 		if (isDragging) {
+			// During glissando, white keys only trigger below black key level (realistic piano behavior)
+			if (!key.isBlack && mouseY <= blackKey.height) {
+				return;
+			}
 			// Stop previous note before playing new one (glissando)
 			if (directPressedNote) {
-				stopNote(directPressedNote.note, directPressedNote.octave);
+				appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
 			}
 			directPressedNote = { note: key.note, octave: key.octave };
-			playNote(key.note, key.octave);
+			appState.addPressedNote(key.note, key.octave);
 		}
+	}
+
+	function handleMouseMove(e: MouseEvent) {
+		if (!isDragging) return;
+		const svg = e.currentTarget as SVGSVGElement;
+		const rect = svg.getBoundingClientRect();
+		const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
+		const newMouseY = svgY - octaveLabelHeight; // Y relative to keyboard area
+
+		// Check if we crossed the black key threshold
+		const wasInBlackZone = mouseY <= blackKey.height;
+		const nowInBlackZone = newMouseY <= blackKey.height;
+		mouseY = newMouseY;
+
+		// If we crossed zones vertically, trigger the appropriate key under the cursor
+		if (wasInBlackZone !== nowInBlackZone) {
+			const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+			const keyUnderCursor = findKeyAtPosition(mouseX, newMouseY);
+			if (keyUnderCursor && keyUnderCursor !== directPressedNote) {
+				// Only trigger if the key matches the zone we're now in
+				const shouldTrigger = keyUnderCursor.isBlack ? nowInBlackZone : !nowInBlackZone;
+				if (shouldTrigger) {
+					if (directPressedNote) {
+						appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
+					}
+					directPressedNote = { note: keyUnderCursor.note, octave: keyUnderCursor.octave };
+					appState.addPressedNote(keyUnderCursor.note, keyUnderCursor.octave);
+				}
+			}
+		}
+	}
+
+	function findKeyAtPosition(x: number, y: number): KeyInfo | null {
+		// Check black keys first (they're on top)
+		if (y <= blackKey.height) {
+			for (const key of blackKeys) {
+				if (x >= key.x && x <= key.x + blackKey.width) {
+					return key;
+				}
+			}
+		}
+		// Check white keys
+		for (const key of whiteKeys) {
+			if (x >= key.x && x <= key.x + whiteKey.width) {
+				return key;
+			}
+		}
+		return null;
 	}
 
 	function handleMouseUp() {
 		isDragging = false;
 		if (directPressedNote) {
-			stopNote(directPressedNote.note, directPressedNote.octave);
+			appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
 		}
 		directPressedNote = null;
-		stopAllNotes();
 	}
 
-	// Check if a piano key should be highlighted (from musicState OR direct press)
+	// Check if a piano key should be highlighted (from appState OR direct press)
 	function isKeyHighlightedOrPressed(key: KeyInfo): boolean {
 		// Direct press on this piano component
 		if (directPressedNote) {
@@ -160,7 +217,7 @@
 				return true;
 			}
 		}
-		// Highlights from musicState (keyboard, circle of fifths, etc.)
+		// Highlights from appState (keyboard, circle of fifths, etc.)
 		return highlightedNotes.some(
 			(hn) => Note.chroma(hn.note) === Note.chroma(key.note) && hn.octave === key.octave
 		);
@@ -202,6 +259,7 @@
 	preserveAspectRatio="xMidYMax meet"
 	onmouseup={handleMouseUp}
 	onmouseleave={handleMouseUp}
+	onmousemove={handleMouseMove}
 	role="application"
 	aria-label="Piano keyboard - click and drag to play notes"
 >
@@ -224,7 +282,7 @@
 				text-anchor="middle"
 				dominant-baseline="middle"
 				font-size="8"
-				fill="#9ca3af"
+				fill={key.octave === appState.chordDisplayOctave ? '#f59e0b' : '#9ca3af'}
 				class="font-music pointer-events-none"
 			>
 				C{key.octave}
