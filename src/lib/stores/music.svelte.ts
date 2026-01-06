@@ -1,10 +1,10 @@
-import { Key, Chord, Progression, Note } from 'tonal';
+import { Chord } from 'tonal';
 import { SvelteSet } from 'svelte/reactivity';
-import { FormatUtil, type Mode } from '$lib/utils/format';
+import { FormatUtil, type Mode } from '$lib/utils/format.util';
+import { VoicingUtil } from '$lib/utils/voicing.util';
 
 // Re-export types
 export type { Mode };
-export type ChordType = ReturnType<typeof Chord.get>;
 
 // The selected key root note (e.g., 'C', 'G', 'F#')
 let selectedRoot = $state('C');
@@ -94,66 +94,6 @@ export const musicState = {
 		if (chordDisplayOctave > 3) chordDisplayOctave--;
 	},
 
-	// Get the root note for the current key
-	// In major mode: selectedRoot (e.g., C)
-	// In minor mode: relative minor of selectedRoot (e.g., Am for C)
-	get tonicRoot(): string {
-		return FormatUtil.getTonicRoot(selectedRoot, mode);
-	},
-
-	// Get the roman numeral for a chord in the current key
-	// Accepts chord symbols like 'C', 'Dm', 'F#m', 'Bdim'
-	getRomanNumeral(chordSymbol: string): string | null {
-		const result = Progression.toRomanNumerals(selectedRoot, [chordSymbol]);
-		return result[0] || null;
-	},
-
-	// Get the scale degree (1-7) for a chord in the current key, or null if not diatonic
-	// Accepts chord symbols like 'C', 'Dm', 'F#m', 'Bdim'
-	getScaleDegree(chordSymbol: string): number | null {
-		return FormatUtil.getChordDegree(chordSymbol, selectedRoot, mode);
-	},
-
-	// Get the chord for a given scale degree in the current key
-	// Returns Tonal Chord object
-	getChordForDegree(degree: number): ChordType | null {
-		if (degree < 1 || degree > 7) return null;
-
-		// Get triads based on current mode
-		// In minor mode, use the relative minor (e.g., Am for C)
-		const triads =
-			mode === 'major'
-				? Key.majorKey(selectedRoot).triads
-				: Key.minorKey(Key.majorKey(selectedRoot).minorRelative).natural.triads;
-
-		const triad = triads[degree - 1];
-		return Chord.get(triad);
-	},
-
-	// Get the scale degree (1-7) for a single note in the MAJOR key
-	// Always uses selectedRoot regardless of mode - used for consistent coloring
-	// Returns null if not in the major scale
-	getMajorDegree(noteName: string): number | null {
-		return FormatUtil.getNoteDegreeInMajorKey(noteName, selectedRoot);
-	},
-
-	// Get the scale degree (1-7) for a single note in the current key
-	// Returns null if not in the scale
-	// Uses tonicRoot so minor mode is relative to the relative minor
-	getNoteDegree(noteName: string): number | null {
-		return FormatUtil.getNoteDegree(noteName, selectedRoot, mode);
-	},
-
-	// Get the roman numeral for a note in the current key
-	// Returns properly formatted numeral (e.g., 'I', 'ii', '♭III', 'vii°')
-	getNoteRomanNumeral(noteName: string): string | null {
-		const degree = this.getNoteDegree(noteName);
-		if (degree) {
-			return FormatUtil.getDiatonicRomanNumeral(degree, mode);
-		}
-		return null;
-	},
-
 	// Pressed key state for visual feedback
 	get pressedDegree() {
 		return pressedDegree;
@@ -205,39 +145,16 @@ export const musicState = {
 
 	// Get the notes that should be highlighted on the piano based on pressed keys
 	// Returns array of {note, octave} objects
-	// Voices chords so root is closest to the base octave's C (above or below)
 	getHighlightedPianoNotes(): Array<{ note: string; octave: number }> {
 		const results: Array<{ note: string; octave: number }> = [];
 
 		// Chord highlighting from degree key (1-7)
 		if (pressedDegree !== null) {
-			const chord = this.getChordForDegree(pressedDegree);
+			const chord = VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
 			if (chord && chord.notes.length) {
-				const chordNotes = chord.notes;
-				const inversion = selectedInversion;
-				const baseOctave = chordDisplayOctave;
-
-				// Reorder notes based on inversion
-				const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
-				const bassNote = invertedNotes[0];
-				const bassChroma = Note.chroma(bassNote);
-				if (bassChroma !== undefined) {
-					// Place bass note closest to the base octave's C
-					// If chroma > 6 (F# to B), place in octave below (closer to C going down)
-					// If chroma <= 6 (C to F), place in base octave (closer to C going up)
-					const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
-
-					for (const noteName of invertedNotes) {
-						const noteChroma = Note.chroma(noteName);
-						if (noteChroma === undefined) {
-							results.push({ note: noteName, octave: bassOctave });
-						} else {
-							// Notes with chroma < bass go up an octave (voiced above bass)
-							const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
-							results.push({ note: noteName, octave });
-						}
-					}
-				}
+				results.push(
+					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave)
+				);
 			}
 		}
 
@@ -246,28 +163,9 @@ export const musicState = {
 			const chordSymbol = FormatUtil.unformatNote(selectedChord);
 			const chord = Chord.get(chordSymbol);
 			if (!chord.empty && chord.notes.length) {
-				const chordNotes = chord.notes;
-				const inversion = selectedInversion;
-				const baseOctave = chordDisplayOctave;
-
-				// Reorder notes based on inversion
-				const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
-				const bassNote = invertedNotes[0];
-				const bassChroma = Note.chroma(bassNote);
-				if (bassChroma !== undefined) {
-					// Place bass note closest to the base octave's C
-					const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
-
-					for (const noteName of invertedNotes) {
-						const noteChroma = Note.chroma(noteName);
-						if (noteChroma === undefined) {
-							results.push({ note: noteName, octave: bassOctave });
-						} else {
-							const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
-							results.push({ note: noteName, octave });
-						}
-					}
-				}
+				results.push(
+					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave)
+				);
 			}
 		}
 

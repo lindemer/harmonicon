@@ -5,7 +5,7 @@
 	import Keyboard from '$lib/components/Keyboard.svelte';
 	import { Key } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
-	import { FormatUtil } from '$lib/utils/format';
+	import { FormatUtil } from '$lib/utils/format.util';
 	import { setMuted } from '$lib/services/audio';
 	import type { Snippet } from 'svelte';
 

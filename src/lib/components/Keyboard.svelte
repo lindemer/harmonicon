@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Key, Note } from 'tonal';
+	import { Key } from 'tonal';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { musicState } from '$lib/stores/music.svelte';
-	import { FormatUtil } from '$lib/utils/format';
+	import { FormatUtil } from '$lib/utils/format.util';
+	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import RomanNumeral from './RomanNumeral.svelte';
 	import { playNote, stopNote, playNotes, stopAllNotes } from '$lib/services/audio';
 
@@ -10,13 +11,13 @@
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
 	// (e.g., i chord in minor mode shows purple since it's degree 6 in the relative major)
 	function getDegreeColorForInversion(degree: number, inv: 0 | 1 | 2): string {
-		const chord = musicState.getChordForDegree(degree);
+		const chord = VoicingUtil.getChordForDegree(degree, musicState.selectedRoot, musicState.mode);
 		if (!chord || !chord.notes.length) {
 			return FormatUtil.getDegreeColor(degree);
 		}
 		// Always use the bass note's major degree for color
 		const bassNote = chord.notes[inv] ?? chord.notes[0];
-		const bassDegree = musicState.getMajorDegree(bassNote);
+		const bassDegree = FormatUtil.getNoteDegreeInMajorKey(bassNote, musicState.selectedRoot);
 		return FormatUtil.getDegreeColor(bassDegree ?? degree);
 	}
 
@@ -110,36 +111,10 @@
 	}
 
 	// Helper to get chord notes for a degree
-	// Voices chord so root is closest to the base octave's C (above or below)
 	function getChordNotesForDegree(degree: number): Array<{ note: string; octave: number }> {
-		const chord = musicState.getChordForDegree(degree);
+		const chord = VoicingUtil.getChordForDegree(degree, musicState.selectedRoot, musicState.mode);
 		if (!chord || !chord.notes.length) return [];
-
-		const baseOctave = musicState.chordDisplayOctave;
-		const chordNotes = chord.notes;
-
-		// Reorder notes based on current inversion
-		const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
-
-		const bassNote = invertedNotes[0];
-		const bassChroma = Note.chroma(bassNote);
-
-		if (bassChroma === undefined) {
-			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
-		}
-
-		// Place bass note closest to the base octave's C
-		// If chroma > 6 (F# to B), place in octave below (closer to C going down)
-		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
-		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
-
-		return invertedNotes.map((noteName) => {
-			const noteChroma = Note.chroma(noteName);
-			if (noteChroma === undefined) return { note: noteName, octave: bassOctave };
-			// Notes with chroma < bass go up an octave (voiced above bass)
-			const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
-			return { note: noteName, octave };
-		});
+		return VoicingUtil.getVoicedNotes(chord.notes, inversion, musicState.chordDisplayOctave);
 	}
 
 	// Number row for chord degrees
@@ -321,7 +296,7 @@
 
 	// Get color for a note based on its position in the major scale
 	function getNoteColor(noteName: string): string | undefined {
-		const degree = musicState.getMajorDegree(noteName);
+		const degree = FormatUtil.getNoteDegreeInMajorKey(noteName, musicState.selectedRoot);
 		if (degree === null) return undefined;
 		return FormatUtil.getDegreeColor(degree);
 	}

@@ -1,16 +1,9 @@
 <script lang="ts">
-	import { Key, Chord, Note } from 'tonal';
+	import { Key, Chord } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
-	import { FormatUtil } from '$lib/utils/format';
-	import {
-		clientToSvgCoords,
-		getDistanceFromCenter,
-		getAngleFromCenter,
-		polarToCartesian,
-		describeArc,
-		getSegmentFromAngle,
-		getRingFromDistance
-	} from '$lib/utils/geometry';
+	import { FormatUtil } from '$lib/utils/format.util';
+	import { GeometryUtil } from '$lib/utils/geometry.util';
+	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import { CIRCLE_DIMENSIONS, CIRCLE_RINGS, type RingType } from '$lib/constants/circle';
 	import RomanNumeral from './RomanNumeral.svelte';
 	import { playNotes, stopAllNotes } from '$lib/services/audio';
@@ -49,28 +42,28 @@
 	let hoveredSegment: { index: number; ring: RingType } | null = $state(null);
 
 	function getSvgPoint(clientX: number, clientY: number) {
-		return clientToSvgCoords(clientX, clientY, svgElement, viewBox);
+		return GeometryUtil.clientToSvgCoords(clientX, clientY, svgElement, viewBox);
 	}
 
 	function getSegmentFromPoint(clientX: number, clientY: number): number {
 		const point = getSvgPoint(clientX, clientY);
-		const angle = getAngleFromCenter(point, center, rotationOffset);
-		return getSegmentFromAngle(angle, segmentAngle);
+		const angle = GeometryUtil.getAngleFromCenter(point, center, rotationOffset);
+		return GeometryUtil.getSegmentFromAngle(angle, segmentAngle);
 	}
 
 	function getRingFromPoint(clientX: number, clientY: number): RingType | null {
 		const point = getSvgPoint(clientX, clientY);
-		const distance = getDistanceFromCenter(point, center);
+		const distance = GeometryUtil.getDistanceFromCenter(point, center);
 
 		// Check if in center circle
 		if (distance < radii.center - centerPadding) return null;
 
-		return getRingFromDistance(distance, CIRCLE_RINGS);
+		return GeometryUtil.getRingFromDistance(distance, CIRCLE_RINGS);
 	}
 
 	function isInCenterCircle(clientX: number, clientY: number): boolean {
 		const point = getSvgPoint(clientX, clientY);
-		const distance = getDistanceFromCenter(point, center);
+		const distance = GeometryUtil.getDistanceFromCenter(point, center);
 		return distance < radii.center - centerPadding;
 	}
 
@@ -113,50 +106,18 @@
 	}
 
 	function getLabelPosition(radius: number, angle: number) {
-		return polarToCartesian(cx, cy, radius, angle);
-	}
-
-	// Helper to get chord notes with octaves for audio playback
-	// Voices chord so root is closest to the base octave's C (above or below)
-	function getChordNotesForSymbol(
-		chordSymbol: string,
-		inv: 0 | 1 | 2 = 0
-	): Array<{ note: string; octave: number }> {
-		const unformatted = FormatUtil.unformatNote(chordSymbol);
-		const chord = Chord.get(unformatted);
-		if (chord.empty || !chord.notes.length) return [];
-
-		const baseOctave = musicState.chordDisplayOctave;
-		const chordNotes = chord.notes;
-
-		// Reorder notes based on inversion
-		const invertedNotes = [...chordNotes.slice(inv), ...chordNotes.slice(0, inv)];
-
-		const bassNote = invertedNotes[0];
-		const bassChroma = Note.chroma(bassNote);
-
-		if (bassChroma === undefined) {
-			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
-		}
-
-		// Place bass note closest to the base octave's C
-		// If chroma > 6 (F# to B), place in octave below (closer to C going down)
-		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
-		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
-
-		return invertedNotes.map((noteName) => {
-			const noteChroma = Note.chroma(noteName);
-			if (noteChroma === undefined) return { note: noteName, octave: bassOctave };
-			// Notes with chroma < bass go up an octave (voiced above bass)
-			const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
-			return { note: noteName, octave };
-		});
+		return GeometryUtil.polarToCartesian(cx, cy, radius, angle);
 	}
 
 	// Play chord audio for a segment
 	function playChordForSegment(segmentIndex: number, ring: RingType, inv: 0 | 1 | 2 = 0) {
 		const chordSymbol = getChordSymbol(segmentIndex, ring);
-		const notes = getChordNotesForSymbol(chordSymbol, inv);
+		const unformatted = FormatUtil.unformatNote(chordSymbol);
+		const notes = VoicingUtil.getVoicedNotesFromSymbol(
+			unformatted,
+			inv,
+			musicState.chordDisplayOctave
+		);
 		if (notes.length > 0) {
 			playNotes(notes);
 		}
@@ -296,7 +257,7 @@
 
 		<!-- Outer ring (major keys) -->
 		<path
-			d={describeArc(cx, cy, radii.mid, radii.outer, startAngle, endAngle)}
+			d={GeometryUtil.describeArc(cx, cy, radii.mid, radii.outer, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.major
 				? 'white'
 				: getFillColor(i, 'major', isHovered(i, 'major'))}
@@ -305,7 +266,7 @@
 
 		<!-- Middle ring (minor keys) -->
 		<path
-			d={describeArc(cx, cy, radii.inner, radii.mid, startAngle, endAngle)}
+			d={GeometryUtil.describeArc(cx, cy, radii.inner, radii.mid, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.minor
 				? 'white'
 				: getFillColor(i, 'minor', isHovered(i, 'minor'))}
@@ -314,7 +275,7 @@
 
 		<!-- Inner ring (diminished chords) -->
 		<path
-			d={describeArc(cx, cy, radii.center, radii.inner, startAngle, endAngle)}
+			d={GeometryUtil.describeArc(cx, cy, radii.center, radii.inner, startAngle, endAngle)}
 			fill={musicState.selectedChord === key.dim
 				? 'white'
 				: getFillColor(i, 'dim', isHovered(i, 'dim'))}
@@ -402,7 +363,7 @@
 			{@const chord = Chord.get(chordSymbol)}
 			{@const chordNotes = chord.notes}
 			{@const bassNote = chordNotes[inversion] ?? chordNotes[0]}
-			{@const bassDegree = musicState.getMajorDegree(bassNote)}
+			{@const bassDegree = FormatUtil.getNoteDegreeInMajorKey(bassNote, musicState.selectedRoot)}
 			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
 			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
 				<div class="center-numeral">

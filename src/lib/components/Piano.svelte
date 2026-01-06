@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Chord, Note } from 'tonal';
 	import { musicState } from '$lib/stores/music.svelte';
-	import { FormatUtil } from '$lib/utils/format';
+	import { FormatUtil } from '$lib/utils/format.util';
+	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import {
 		PIANO_DIMENSIONS,
 		PIANO_SVG,
@@ -76,7 +77,7 @@
 	const highlightedNotes = $derived(musicState.getHighlightedPianoNotes());
 
 	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string } {
-		const majorDegree = musicState.getMajorDegree(key.note);
+		const majorDegree = FormatUtil.getNoteDegreeInMajorKey(key.note, musicState.selectedRoot);
 		const inMajorScale = majorDegree !== null;
 		const color = FormatUtil.getDegreeColor(majorDegree, '#4b5563');
 		return { inMajorScale, color };
@@ -88,35 +89,23 @@
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty) return null;
 
-		const chordNotes = chord.notes;
-		const inversion = musicState.selectedInversion;
-		const baseOctave = musicState.chordDisplayOctave;
+		// Get voiced notes using VoicingUtil
+		const voicedNotes = VoicingUtil.getVoicedNotes(
+			chord.notes,
+			musicState.selectedInversion,
+			musicState.chordDisplayOctave
+		);
 
-		// Reorder notes based on inversion
-		const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
-		const bassNote = invertedNotes[0];
-		const bassChroma = Note.chroma(bassNote);
-
-		// Check if this note is in the chord
+		// Check if this piano key matches any voiced chord note
 		const noteChroma = Note.chroma(noteName);
-		const noteIndex = invertedNotes.findIndex((n) => Note.chroma(n) === noteChroma);
-		if (noteIndex === -1) return null;
-
-		// Determine expected octave for this chord note
-		if (bassChroma === undefined || noteChroma === undefined) return null;
-
-		// Place bass note closest to the base octave's C
-		// If chroma > 6 (F# to B), place in octave below (closer to C going down)
-		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
-		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
-
-		// Notes with chroma < bass go up an octave (voiced above bass)
-		const expectedOctave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
-
-		// Only show if this key matches the expected octave
-		if (noteOctave !== expectedOctave) return null;
+		const matchedNote = voicedNotes.find(
+			(vn) => Note.chroma(vn.note) === noteChroma && vn.octave === noteOctave
+		);
+		if (!matchedNote) return null;
 
 		// Calculate interval from bass note to this note
+		const bassChroma = Note.chroma(voicedNotes[0].note);
+		if (bassChroma === undefined || noteChroma === undefined) return null;
 		const semitones = (noteChroma - bassChroma + 12) % 12;
 
 		return FormatUtil.formatFiguredBassInterval(semitones);
