@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Key, Note } from 'tonal';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { musicState } from '$lib/stores/music.svelte';
 	import { FormatUtil } from '$lib/utils/format';
 	import RomanNumeral from './RomanNumeral.svelte';
@@ -31,7 +32,7 @@
 	let spaceClicked = $state(false);
 
 	// Track all pressed keys for visual feedback
-	let pressedKeys = $state<Set<string>>(new Set());
+	let pressedKeys = new SvelteSet<string>();
 
 	// Track mouse dragging state for glissando
 	let isDraggingDegree = $state(false);
@@ -39,7 +40,7 @@
 
 	// Track playing degree notes - stores the exact notes played per degree key
 	// This ensures we stop the same notes we started, regardless of inversion changes
-	let playingDegreeNotes = new Map<number, Array<{ note: string; octave: number }>>();
+	let playingDegreeNotes = new SvelteMap<number, Array<{ note: string; octave: number }>>();
 
 	// Derived inversion level based on modifiers
 	// Alt = 1st inversion, Alt+Shift = 2nd inversion (shift alone does nothing)
@@ -56,7 +57,25 @@
 	}
 
 	// Piano keys that should trigger pressedNoteKey in musicState
-	const pianoKeyChars = new Set(['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', 'w', 'e', 't', 'y', 'u', 'o', 'p']);
+	const pianoKeyChars = new Set([
+		'a',
+		's',
+		'd',
+		'f',
+		'g',
+		'h',
+		'j',
+		'k',
+		'l',
+		';',
+		'w',
+		'e',
+		't',
+		'y',
+		'u',
+		'o',
+		'p'
+	]);
 
 	// Keyboard key to note mapping (for audio playback)
 	const KEY_TO_NOTE: Record<string, { note: string; octaveOffset: number }> = {
@@ -151,15 +170,36 @@
 
 	// Map KeyboardEvent.code to our key characters (handles Alt+key on macOS)
 	const codeToKey: Record<string, string> = {
-		KeyA: 'a', KeyS: 's', KeyD: 'd', KeyF: 'f', KeyG: 'g', KeyH: 'h', KeyJ: 'j', KeyK: 'k', KeyL: 'l',
+		KeyA: 'a',
+		KeyS: 's',
+		KeyD: 'd',
+		KeyF: 'f',
+		KeyG: 'g',
+		KeyH: 'h',
+		KeyJ: 'j',
+		KeyK: 'k',
+		KeyL: 'l',
 		Semicolon: ';',
-		KeyW: 'w', KeyE: 'e', KeyT: 't', KeyY: 'y', KeyU: 'u', KeyO: 'o', KeyP: 'p',
-		Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', Digit5: '5', Digit6: '6', Digit7: '7',
-		KeyZ: 'z', KeyX: 'x'
+		KeyW: 'w',
+		KeyE: 'e',
+		KeyT: 't',
+		KeyY: 'y',
+		KeyU: 'u',
+		KeyO: 'o',
+		KeyP: 'p',
+		Digit1: '1',
+		Digit2: '2',
+		Digit3: '3',
+		Digit4: '4',
+		Digit5: '5',
+		Digit6: '6',
+		Digit7: '7',
+		KeyZ: 'z',
+		KeyX: 'x'
 	};
 
 	// Track currently pressed piano keys for proper multi-key handling
-	let pressedPianoKeys = new Set<string>();
+	let pressedPianoKeys = new SvelteSet<string>();
 
 	// Handle keydown/keyup for modifier tracking, key press tracking, and spacebar toggle
 	function handleKeydown(e: KeyboardEvent) {
@@ -183,14 +223,14 @@
 
 		// Track pressed key for visual feedback (use mapped key for consistency)
 		if (mappedKey) {
-			pressedKeys = new Set(pressedKeys).add(mappedKey);
+			pressedKeys.add(mappedKey);
 		}
 
 		// Handle piano keys (A-L, W-P)
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
 			// Play audio for the note (track to handle multi-key)
 			if (!e.repeat && !pressedPianoKeys.has(mappedKey)) {
-				pressedPianoKeys = new Set(pressedPianoKeys).add(mappedKey);
+				pressedPianoKeys.add(mappedKey);
 				const noteInfo = getNoteForKey(mappedKey);
 				if (noteInfo) {
 					musicState.addPressedNote(noteInfo.note, noteInfo.octave);
@@ -221,18 +261,14 @@
 
 		// Clear pressed key
 		if (mappedKey) {
-			const newSet = new Set(pressedKeys);
-			newSet.delete(mappedKey);
-			pressedKeys = newSet;
+			pressedKeys.delete(mappedKey);
 		}
 
 		// Handle piano key release
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
 			// Remove from pressed piano keys and stop audio
 			if (pressedPianoKeys.has(mappedKey)) {
-				const newPianoKeys = new Set(pressedPianoKeys);
-				newPianoKeys.delete(mappedKey);
-				pressedPianoKeys = newPianoKeys;
+				pressedPianoKeys.delete(mappedKey);
 
 				const noteInfo = getNoteForKey(mappedKey);
 				if (noteInfo) {
@@ -257,8 +293,8 @@
 	// Handle window blur - stop all notes to prevent stuck keys
 	function handleBlur() {
 		stopAllNotes();
-		pressedKeys = new Set();
-		pressedPianoKeys = new Set();
+		pressedKeys.clear();
+		pressedPianoKeys.clear();
 		playingDegreeNotes.clear();
 		currentChordNotes = [];
 		currentNoteInfo = null;
@@ -297,12 +333,13 @@
 	// Mouse handlers for glissando-style playing
 	function handleDegreeMouseDown(degree: number) {
 		isDraggingDegree = true;
-		pressedKeys = new Set(pressedKeys).add(degree.toString());
+		pressedKeys.add(degree.toString());
 
 		// Trigger chord selection (mirror +layout.svelte keydown logic)
-		const triads = musicState.mode === 'major'
-			? Key.majorKey(musicState.selectedRoot).triads
-			: Key.minorKey(Key.majorKey(musicState.selectedRoot).minorRelative).natural.triads;
+		const triads =
+			musicState.mode === 'major'
+				? Key.majorKey(musicState.selectedRoot).triads
+				: Key.minorKey(Key.majorKey(musicState.selectedRoot).minorRelative).natural.triads;
 		const chord = triads[degree - 1];
 		if (chord) {
 			const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
@@ -330,14 +367,14 @@
 			}
 
 			// Clear previous degree key from pressed state
-			const newSet = new Set<string>();
-			newSet.add(degree.toString());
-			pressedKeys = newSet;
+			numberRow.forEach((k) => pressedKeys.delete(k));
+			pressedKeys.add(degree.toString());
 
 			// Select new chord
-			const triads = musicState.mode === 'major'
-				? Key.majorKey(musicState.selectedRoot).triads
-				: Key.minorKey(Key.majorKey(musicState.selectedRoot).minorRelative).natural.triads;
+			const triads =
+				musicState.mode === 'major'
+					? Key.majorKey(musicState.selectedRoot).triads
+					: Key.minorKey(Key.majorKey(musicState.selectedRoot).minorRelative).natural.triads;
 			const chord = triads[degree - 1];
 			if (chord) {
 				const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
@@ -357,7 +394,7 @@
 
 	function handleNoteMouseDown(noteKey: string) {
 		isDraggingNote = true;
-		pressedKeys = new Set(pressedKeys).add(noteKey.toLowerCase());
+		pressedKeys.add(noteKey.toLowerCase());
 
 		// Play audio for the note
 		currentNoteInfo = getNoteForKey(noteKey);
@@ -376,11 +413,8 @@
 			}
 
 			// Clear previous note key from pressed state, add new one
-			const newSet = new Set(pressedKeys);
-			// Remove all piano key chars
-			pianoKeyChars.forEach(k => newSet.delete(k));
-			newSet.add(noteKey.toLowerCase());
-			pressedKeys = newSet;
+			pianoKeyChars.forEach((k) => pressedKeys.delete(k));
+			pressedKeys.add(noteKey.toLowerCase());
 
 			// Play new note audio
 			currentNoteInfo = getNoteForKey(noteKey);
@@ -394,9 +428,7 @@
 	function handleMouseUp() {
 		if (isDraggingDegree) {
 			// Clear degree key pressed states
-			const newSet = new Set(pressedKeys);
-			numberRow.forEach(k => newSet.delete(k));
-			pressedKeys = newSet;
+			numberRow.forEach((k) => pressedKeys.delete(k));
 			musicState.pressedDegree = null;
 
 			// Stop chord audio
@@ -410,9 +442,7 @@
 		}
 		if (isDraggingNote) {
 			// Clear note key pressed states
-			const newSet = new Set(pressedKeys);
-			pianoKeyChars.forEach(k => newSet.delete(k));
-			pressedKeys = newSet;
+			pianoKeyChars.forEach((k) => pressedKeys.delete(k));
 
 			// Stop note audio
 			if (currentNoteInfo) {
@@ -429,16 +459,23 @@
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} onblur={handleBlur} />
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div class="keyboard-container" onmouseup={handleMouseUp} onmouseleave={handleMouseUp} role="application">
+<div
+	class="keyboard-container"
+	onmouseup={handleMouseUp}
+	onmouseleave={handleMouseUp}
+	role="application"
+>
 	<div class="keyboard">
 		<!-- Number row -->
 		<div class="row number-row">
-			{#each numberRow as key}
+			{#each numberRow as key (key)}
 				{@const degree = getDegree(key)}
 				<div
 					class="key degree-key"
 					class:pressed={isKeyPressed(key)}
-					style:background-color={degree ? getDegreeColorForInversion(degree, inversion) : undefined}
+					style:background-color={degree
+						? getDegreeColorForInversion(degree, inversion)
+						: undefined}
 					onmousedown={() => degree && handleDegreeMouseDown(degree)}
 					onmouseenter={() => degree && handleDegreeMouseEnter(degree)}
 					role="button"
@@ -446,7 +483,9 @@
 				>
 					<span class="key-label">{key}</span>
 					{#if degree}
-						<span class="key-function"><RomanNumeral numeral={getRomanNumeral(degree)} inversion={inversion} /></span>
+						<span class="key-function"
+							><RomanNumeral numeral={getRomanNumeral(degree)} {inversion} /></span
+						>
 					{/if}
 				</div>
 			{/each}
@@ -454,7 +493,7 @@
 
 		<!-- Piano keys section -->
 		<div class="piano-section">
-			{#each pianoKeys as pk, i}
+			{#each pianoKeys as pk, i (pk.white)}
 				{@const whiteNoteColor = getNoteColor(pk.note)}
 				{@const blackNoteColor = pk.blackNote ? getNoteColor(pk.blackNote) : undefined}
 				<!-- White key (tall, extends from home row up) -->
@@ -470,7 +509,9 @@
 					<div class="white-key-top"></div>
 					<div class="white-key-bottom">
 						<span class="key-label">{pk.white}</span>
-						<span class="key-function font-music" style:color={whiteNoteColor ?? '#f3f4f6'}>{pk.note}</span>
+						<span class="key-function font-music" style:color={whiteNoteColor ?? '#f3f4f6'}
+							>{pk.note}</span
+						>
 					</div>
 				</div>
 				<!-- Black key (if present) -->
@@ -485,7 +526,9 @@
 						tabindex="0"
 					>
 						<span class="key-label">{pk.black}</span>
-						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}>{FormatUtil.formatNote(pk.blackNote)}</span>
+						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}
+							>{FormatUtil.formatNote(pk.blackNote)}</span
+						>
 					</div>
 				{/if}
 			{/each}
@@ -499,7 +542,7 @@
 				<span class="key-function font-music">2<sup>nd</sup></span>
 			</div>
 
-			{#each bottomRow as key}
+			{#each bottomRow as key (key)}
 				{@const action = actionMap[key]}
 				<div
 					class="key action-key"
@@ -509,8 +552,8 @@
 						if (key === 'Z') musicState.decrementChordOctave();
 						else musicState.incrementChordOctave();
 					}}
-					onmouseup={() => clickedActionKey = null}
-					onmouseleave={() => clickedActionKey = null}
+					onmouseup={() => (clickedActionKey = null)}
+					onmouseleave={() => (clickedActionKey = null)}
 					role="button"
 					tabindex="0"
 				>
@@ -541,16 +584,27 @@
 					spaceClicked = true;
 					musicState.toggleMode();
 				}}
-				onmouseup={() => spaceClicked = false}
-				onmouseleave={() => spaceClicked = false}
-				onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); musicState.toggleMode(); } }}
+				onmouseup={() => (spaceClicked = false)}
+				onmouseleave={() => (spaceClicked = false)}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						musicState.toggleMode();
+					}
+				}}
 				role="button"
 				tabindex="0"
 			>
 				<span class="key-function mode-toggle font-music">
-					<span class:active-mode={musicState.mode === 'major'} class:inactive-mode={musicState.mode !== 'major'}>Δ</span>
+					<span
+						class:active-mode={musicState.mode === 'major'}
+						class:inactive-mode={musicState.mode !== 'major'}>Δ</span
+					>
 					<span class="mode-separator">/</span>
-					<span class:active-mode={musicState.mode === 'minor'} class:inactive-mode={musicState.mode !== 'minor'}>m</span>
+					<span
+						class:active-mode={musicState.mode === 'minor'}
+						class:inactive-mode={musicState.mode !== 'minor'}>m</span
+					>
 				</span>
 			</div>
 		</div>

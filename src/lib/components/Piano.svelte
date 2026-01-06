@@ -93,10 +93,7 @@
 		const baseOctave = musicState.chordDisplayOctave;
 
 		// Reorder notes based on inversion
-		const invertedNotes = [
-			...chordNotes.slice(inversion),
-			...chordNotes.slice(0, inversion)
-		];
+		const invertedNotes = [...chordNotes.slice(inversion), ...chordNotes.slice(0, inversion)];
 		const bassNote = invertedNotes[0];
 		const bassChroma = Note.chroma(bassNote);
 
@@ -156,8 +153,10 @@
 	function isKeyHighlightedOrPressed(key: KeyInfo): boolean {
 		// Direct press on this piano component
 		if (directPressedNote) {
-			if (Note.chroma(directPressedNote.note) === Note.chroma(key.note) &&
-				directPressedNote.octave === key.octave) {
+			if (
+				Note.chroma(directPressedNote.note) === Note.chroma(key.note) &&
+				directPressedNote.octave === key.octave
+			) {
 				return true;
 			}
 		}
@@ -179,13 +178,7 @@
 	{@const intervalOffset = isBlack ? labelRadius + 6 : labelRadius + 8}
 
 	{#if info.inMajorScale}
-		<circle
-			cx={labelX}
-			cy={labelY}
-			r={labelRadius}
-			fill={info.color}
-			class="pointer-events-none"
-		/>
+		<circle cx={labelX} cy={labelY} r={labelRadius} fill={info.color} class="pointer-events-none" />
 	{/if}
 	{#if interval}
 		<text
@@ -223,7 +216,7 @@
 	<rect x="0" y="0" width={svgWidth} height={octaveLabelHeight} fill="#111827" />
 
 	<!-- Octave labels above keyboard -->
-	{#each whiteKeys as key}
+	{#each whiteKeys as key (`${key.note}${key.octave}`)}
 		{#if key.note === 'C'}
 			<text
 				x={key.x + whiteKey.width / 2}
@@ -241,7 +234,7 @@
 
 	<g clip-path="url(#keyboard-clip)" transform="translate(0, {octaveLabelHeight})">
 		<!-- White keys -->
-		{#each whiteKeys as key}
+		{#each whiteKeys as key (`${key.note}${key.octave}`)}
 			{@const highlighted = isKeyHighlightedOrPressed(key)}
 			{@const keyCenterX = key.x + whiteKey.width / 2}
 			<g
@@ -258,7 +251,7 @@
 					rx={whiteKey.radius}
 					ry={whiteKey.radius}
 					fill={highlighted ? '#d1d5db' : '#ffffff'}
-					class="cursor-pointer piano-key white-piano-key"
+					class="piano-key white-piano-key cursor-pointer"
 					role="button"
 					tabindex="0"
 					aria-label="{key.note}{key.octave}"
@@ -270,7 +263,7 @@
 		{/each}
 
 		<!-- Black keys (on top) -->
-		{#each blackKeys as key}
+		{#each blackKeys as key (`${key.note}${key.octave}`)}
 			{@const highlighted = isKeyHighlightedOrPressed(key)}
 			{@const keyCenterX = key.x + blackKey.width / 2}
 			<g
@@ -287,7 +280,7 @@
 					rx={blackKey.radius}
 					ry={blackKey.radius}
 					fill={highlighted ? '#374151' : '#1f2937'}
-					class="cursor-pointer piano-key black-piano-key"
+					class="piano-key black-piano-key cursor-pointer"
 					role="button"
 					tabindex="0"
 					aria-label="{key.note}{key.octave}"

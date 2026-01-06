@@ -10,7 +10,9 @@
 </script>
 
 <span class="roman-numeral {size} font-music" style:color>
-	{numeral}{#if inversion > 0}<span class="inversion"><span>⁶</span>{#if inversion === 2}<span>₄</span>{/if}</span>{/if}
+	{numeral}{#if inversion > 0}<span class="inversion"
+			><span>⁶</span>{#if inversion === 2}<span>₄</span>{/if}</span
+		>{/if}
 </span>
 
 <style>

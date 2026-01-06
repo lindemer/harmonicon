@@ -1,4 +1,5 @@
 import { Key, Chord, Progression, Note } from 'tonal';
+import { SvelteSet } from 'svelte/reactivity';
 import { FormatUtil, type Mode } from '$lib/utils/format';
 
 // Re-export types
@@ -12,8 +13,6 @@ const TIME_SIG_TOPS_BY_BOTTOM: Record<number, number[]> = {
 	4: [2, 3, 4, 5, 7], // sorted least to greatest
 	8: [6, 9, 12] // sorted least to greatest
 };
-
-const BOTTOM_OPTIONS = [4, 8];
 
 // The selected key root note (e.g., 'C', 'G', 'F#')
 let selectedRoot = $state('C');
@@ -30,7 +29,7 @@ let pressedDegree = $state<number | null>(null);
 let isChordPressed = $state(false);
 
 // Track all currently pressed notes as "{note}{octave}" strings (e.g., "C4", "F#3")
-let pressedNotes = $state<Set<string>>(new Set());
+const pressedNotes = new SvelteSet<string>();
 
 export const musicState = {
 	get selectedRoot() {
@@ -236,38 +235,30 @@ export const musicState = {
 
 	// Add a note to the pressed set (format: "C4", "F#3", etc.)
 	addPressedNote(note: string, octave: number) {
-		const noteStr = `${note}${octave}`;
-		pressedNotes = new Set(pressedNotes).add(noteStr);
+		pressedNotes.add(`${note}${octave}`);
 	},
 
 	// Remove a note from the pressed set
 	removePressedNote(note: string, octave: number) {
-		const noteStr = `${note}${octave}`;
-		const newSet = new Set(pressedNotes);
-		newSet.delete(noteStr);
-		pressedNotes = newSet;
+		pressedNotes.delete(`${note}${octave}`);
 	},
 
 	// Add multiple notes at once (for chords)
 	addPressedNotes(notes: Array<{ note: string; octave: number }>) {
-		const newSet = new Set(pressedNotes);
 		for (const n of notes) {
-			newSet.add(`${n.note}${n.octave}`);
+			pressedNotes.add(`${n.note}${n.octave}`);
 		}
-		pressedNotes = newSet;
 	},
 
 	// Remove multiple notes at once (for chords)
 	removePressedNotes(notes: Array<{ note: string; octave: number }>) {
-		const newSet = new Set(pressedNotes);
 		for (const n of notes) {
-			newSet.delete(`${n.note}${n.octave}`);
+			pressedNotes.delete(`${n.note}${n.octave}`);
 		}
-		pressedNotes = newSet;
 	},
 
 	clearPressedNotes() {
-		pressedNotes = new Set();
+		pressedNotes.clear();
 	},
 
 	get isChordPressed() {
