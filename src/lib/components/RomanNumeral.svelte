@@ -12,7 +12,8 @@
 
 <span class="roman-numeral {size} font-music" class:centered style:color>
 	{numeral}{#if inversion > 0}<span class="inversion"
-			><span class="inv-digit">⁶</span>{#if inversion === 2}<span class="inv-digit">₄</span>{/if}</span
+			><span class="inv-digit">⁶</span>{#if inversion === 2}<span class="inv-digit">₄</span
+				>{/if}</span
 		>{/if}
 </span>
 

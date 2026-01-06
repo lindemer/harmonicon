@@ -480,7 +480,13 @@
 			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
 			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
 				<div class="center-numeral">
-					<RomanNumeral numeral={result.numeral} {inversion} color={numeralColor} size="lg" centered />
+					<RomanNumeral
+						numeral={result.numeral}
+						{inversion}
+						color={numeralColor}
+						size="lg"
+						centered
+					/>
 				</div>
 			</foreignObject>
 		{/if}
