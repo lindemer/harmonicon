@@ -13,7 +13,9 @@
 	const CONTAINER_PADDING = 32;
 
 	const keyboardScale = $derived(
-		containerWidth > 0 ? Math.min(1, (containerWidth - CONTAINER_PADDING) / KEYBOARD_NATURAL_WIDTH) : 1
+		containerWidth > 0
+			? Math.min(1, (containerWidth - CONTAINER_PADDING) / KEYBOARD_NATURAL_WIDTH)
+			: 1
 	);
 
 	// Get color for a degree key, accounting for inversion
@@ -51,7 +53,11 @@
 	onmouseleave={kb.handleMouseUp}
 	role="application"
 >
-	<div class="keyboard" style:transform="scale({keyboardScale})" style:transform-origin="center center">
+	<div
+		class="keyboard"
+		style:transform="scale({keyboardScale})"
+		style:transform-origin="center center"
+	>
 		<!-- Number row -->
 		<div class="row number-row">
 			{#each kb.numberRow as key (key)}
