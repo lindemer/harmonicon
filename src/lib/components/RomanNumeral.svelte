@@ -34,17 +34,26 @@
 	}
 
 	.inversion {
-		display: inline-flex;
-		flex-direction: column;
-		align-items: flex-start;
-		font-size: 0.7em;
-		line-height: 1;
-		margin-left: 0.08em;
+		position: relative;
+		display: inline-block;
+		font-size: 0.85em;
+		margin-left: 0.15em;
+		width: 0.6em;
+		height: 1.2em;
 	}
 
 	.inv-digit {
-		display: block;
-		line-height: 0.85;
+		position: absolute;
+		left: 0;
+		line-height: 1;
+	}
+
+	.inv-digit:first-child {
+		top: -0.05em;
+	}
+
+	.inv-digit:last-child:not(:first-child) {
+		top: 0.25em;
 	}
 
 	.roman-numeral.centered .inversion {
