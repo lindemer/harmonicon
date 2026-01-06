@@ -82,9 +82,11 @@ const codeToKey: Record<string, string> = {
 
 // ============ State ============
 
-// Modifier states
-let shiftPressed = $state(false);
-let altPressed = $state(false);
+// Modifier states - track physical keyboard and virtual keyboard (mouse) separately
+let shiftKeyboardPressed = $state(false);
+let altKeyboardPressed = $state(false);
+let shiftMousePressed = $state(false);
+let altMousePressed = $state(false);
 let spacePressed = $state(false);
 
 // Visual feedback state
@@ -184,18 +186,19 @@ export const keyboardState = {
 		X: { text: '8', sup: 'va' }
 	} as Record<string, { text: string; sup: string }>,
 
-	// State getters/setters
+	// State getters/setters - combined state from keyboard and mouse
 	get shiftPressed() {
-		return shiftPressed;
-	},
-	set shiftPressed(value: boolean) {
-		shiftPressed = value;
+		return shiftKeyboardPressed || shiftMousePressed;
 	},
 	get altPressed() {
-		return altPressed;
+		return altKeyboardPressed || altMousePressed;
 	},
-	set altPressed(value: boolean) {
-		altPressed = value;
+	// Mouse-specific setters for virtual keyboard
+	set shiftMousePressed(value: boolean) {
+		shiftMousePressed = value;
+	},
+	set altMousePressed(value: boolean) {
+		altMousePressed = value;
 	},
 	get spacePressed() {
 		return spacePressed;
@@ -215,8 +218,8 @@ export const keyboardState = {
 
 	/** Current inversion: Alt = 1st, Shift = 2nd */
 	get inversion(): 0 | 1 | 2 {
-		if (shiftPressed) return 2; // Shift (with or without Alt) = 2nd
-		if (altPressed) return 1; // Alt alone = 1st
+		if (shiftKeyboardPressed || shiftMousePressed) return 2; // Shift (with or without Alt) = 2nd
+		if (altKeyboardPressed || altMousePressed) return 1; // Alt alone = 1st
 		return 0;
 	},
 
@@ -253,8 +256,8 @@ export const keyboardState = {
 
 	// Event handlers
 	handleKeydown(e: KeyboardEvent): void {
-		if (e.key === 'Shift') shiftPressed = true;
-		if (e.key === 'Alt') altPressed = true;
+		if (e.key === 'Shift') shiftKeyboardPressed = true;
+		if (e.key === 'Alt') altKeyboardPressed = true;
 		if (e.key === ' ' && !e.repeat) {
 			e.preventDefault();
 			spacePressed = true;
@@ -308,8 +311,8 @@ export const keyboardState = {
 	},
 
 	handleKeyup(e: KeyboardEvent): void {
-		if (e.key === 'Shift') shiftPressed = false;
-		if (e.key === 'Alt') altPressed = false;
+		if (e.key === 'Shift') shiftKeyboardPressed = false;
+		if (e.key === 'Alt') altKeyboardPressed = false;
 		if (e.key === ' ') spacePressed = false;
 
 		const mappedKey = codeToKey[e.code];
@@ -343,8 +346,10 @@ export const keyboardState = {
 		currentNoteInfo = null;
 		appState.pressedDegree = null;
 		appState.clearPressedNotes();
-		shiftPressed = false;
-		altPressed = false;
+		shiftKeyboardPressed = false;
+		altKeyboardPressed = false;
+		shiftMousePressed = false;
+		altMousePressed = false;
 		spacePressed = false;
 		isDraggingDegree = false;
 		isDraggingNote = false;

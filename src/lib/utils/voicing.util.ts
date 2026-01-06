@@ -32,6 +32,8 @@ export class VoicingUtil {
 	/**
 	 * Get voiced chord notes with octave information.
 	 * Voices chord so bass note is closest to the base octave's C (above or below).
+	 * If any note would be 12+ semitones above baseOctave's C, the entire chord
+	 * is shifted down one octave.
 	 *
 	 * @param chordNotes - Array of note names from Chord.get().notes
 	 * @param inversion - 0 (root), 1 (first), or 2 (second)
@@ -60,13 +62,28 @@ export class VoicingUtil {
 		// If chroma <= 6 (C to F), place in base octave (closer to C going up)
 		const bassOctave = bassChroma > 6 ? baseOctave - 1 : baseOctave;
 
-		return invertedNotes.map((noteName) => {
+		const voicedNotes = invertedNotes.map((noteName) => {
 			const noteChroma = Note.chroma(noteName);
 			if (noteChroma === undefined) return { note: noteName, octave: bassOctave };
 			// Notes with chroma < bass go up an octave (voiced above bass)
 			const octave = noteChroma < bassChroma ? bassOctave + 1 : bassOctave;
 			return { note: noteName, octave };
 		});
+
+		// Check if any note is 12+ semitones above baseOctave's C
+		// If so, shift the entire chord down one octave
+		const maxSemitones = Math.max(
+			...voicedNotes.map((n) => {
+				const chroma = Note.chroma(n.note) ?? 0;
+				return (n.octave - baseOctave) * 12 + chroma;
+			})
+		);
+
+		if (maxSemitones >= 12) {
+			return voicedNotes.map((n) => ({ ...n, octave: n.octave - 1 }));
+		}
+
+		return voicedNotes;
 	}
 
 	/**

@@ -117,9 +117,9 @@
 			<div
 				class="key wide-key dark-key"
 				class:pressed={kb.shiftPressed}
-				onmousedown={() => (kb.shiftPressed = true)}
-				onmouseup={() => (kb.shiftPressed = false)}
-				onmouseleave={() => (kb.shiftPressed = false)}
+				onmousedown={() => (kb.shiftMousePressed = true)}
+				onmouseup={() => (kb.shiftMousePressed = false)}
+				onmouseleave={() => (kb.shiftMousePressed = false)}
 				role="button"
 				tabindex="0"
 			>
@@ -158,9 +158,9 @@
 			<div
 				class="key dark-key"
 				class:pressed={kb.altPressed}
-				onmousedown={() => (kb.altPressed = true)}
-				onmouseup={() => (kb.altPressed = false)}
-				onmouseleave={() => (kb.altPressed = false)}
+				onmousedown={() => (kb.altMousePressed = true)}
+				onmouseup={() => (kb.altMousePressed = false)}
+				onmouseleave={() => (kb.altMousePressed = false)}
 				role="button"
 				tabindex="0"
 			>
