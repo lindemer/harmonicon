@@ -205,6 +205,11 @@
 	}}
 	onmouseup={(e) => {
 		if (e.button === 0) {
+			// Check for center circle click (not drag)
+			if (!isDragging && isInCenterCircle(e.clientX, e.clientY)) {
+				appState.toggleMode();
+			}
+
 			isDragging = false;
 			currentDragSegment = null;
 			appState.isChordPressed = false;
@@ -294,6 +299,7 @@
 
 			if (isInCenterCircle(touch.clientX, touch.clientY)) {
 				// Tap on center circle toggles mode
+				e.preventDefault(); // Prevent synthetic mouse events
 				appState.toggleMode();
 			} else if (ring) {
 				// Tap on a chord segment - select and play briefly
@@ -430,7 +436,6 @@
 		r={radii.center - centerPadding}
 		fill="#111827"
 		class="cursor-pointer outline-none"
-		onclick={() => appState.toggleMode()}
 		onkeydown={(e) => {
 			if (e.key === 'Enter' || e.key === ' ') appState.toggleMode();
 		}}
