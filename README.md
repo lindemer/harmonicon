@@ -17,8 +17,3 @@ An interactive music theory tool for exploring the relationships between notes a
 bun install
 bun run dev
 ```
-
-## Limitations
-
-- No mobile support (yet)
-- Not tested on all keyboard layouts

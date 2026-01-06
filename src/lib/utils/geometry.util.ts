@@ -4,7 +4,7 @@
  * All methods are static with no state.
  */
 
-export interface Point {
+interface Point {
 	x: number;
 	y: number;
 }
