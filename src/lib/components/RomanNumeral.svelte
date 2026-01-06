@@ -4,21 +4,23 @@
 		inversion?: 0 | 1 | 2;
 		color?: string;
 		size?: 'sm' | 'md' | 'lg';
+		centered?: boolean;
 	}
 
-	let { numeral, inversion = 0, color = 'white', size = 'md' }: Props = $props();
+	let { numeral, inversion = 0, color = 'white', size = 'md', centered = false }: Props = $props();
 </script>
 
-<span class="roman-numeral {size} font-music" style:color>
+<span class="roman-numeral {size} font-music" class:centered style:color>
 	{numeral}{#if inversion > 0}<span class="inversion"
-			><span>⁶</span>{#if inversion === 2}<span>₄</span>{/if}</span
+			><span class="inv-digit">⁶</span>{#if inversion === 2}<span class="inv-digit">₄</span
+				>{/if}</span
 		>{/if}
 </span>
 
 <style>
 	.roman-numeral {
 		display: inline-flex;
-		align-items: baseline;
+		align-items: center;
 	}
 
 	.roman-numeral.sm {
@@ -32,26 +34,20 @@
 	}
 
 	.inversion {
-		position: relative;
-		display: inline-block;
-		font-size: 0.85em;
-		vertical-align: middle;
-		margin-left: 0.15em;
-		width: 0.5em;
-		height: 1em;
+		display: inline-flex;
+		flex-direction: column;
+		align-items: flex-start;
+		font-size: 0.7em;
+		line-height: 1;
+		margin-left: 0.08em;
 	}
 
-	.inversion span:first-child {
-		position: absolute;
-		top: 0;
-		left: 0;
-		line-height: 1;
+	.inv-digit {
+		display: block;
+		line-height: 0.85;
 	}
 
-	.inversion span:last-child:not(:first-child) {
-		position: absolute;
-		top: 0.4em;
-		left: 0;
-		line-height: 1;
+	.roman-numeral.centered .inversion {
+		margin-right: -0.55em;
 	}
 </style>

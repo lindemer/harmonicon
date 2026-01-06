@@ -76,7 +76,11 @@
 					<span class="key-label">{key}</span>
 					{#if degree}
 						<span class="key-function"
-							><RomanNumeral numeral={getRomanNumeral(degree)} inversion={kb.inversion} /></span
+							><RomanNumeral
+								numeral={getRomanNumeral(degree)}
+								inversion={kb.inversion}
+								centered
+							/></span
 						>
 					{/if}
 				</div>

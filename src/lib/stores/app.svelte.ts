@@ -196,6 +196,9 @@ export const appState = {
 	setMuted(value: boolean) {
 		if (value) {
 			this.clearPressedNotes();
+		} else {
+			// Initialize audio context on unmute (required for iOS Safari)
+			audioState.initAudio();
 		}
 		audioState.muted = value;
 	},

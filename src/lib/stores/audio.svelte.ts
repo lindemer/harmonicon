@@ -150,5 +150,10 @@ export const audioState = {
 			sampler.triggerRelease(Array.from(playingNotes), Tone.now());
 			playingNotes.clear();
 		}
+	},
+
+	/** Initialize audio context - must be called from user gesture on mobile */
+	async initAudio(): Promise<void> {
+		await ensureAudioReady();
 	}
 };
