@@ -265,7 +265,7 @@
 				text-anchor="middle"
 				dominant-baseline="middle"
 				font-size="8"
-				fill="#9ca3af"
+				fill={key.octave === appState.chordDisplayOctave ? '#f59e0b' : '#9ca3af'}
 				class="font-music pointer-events-none"
 			>
 				C{key.octave}

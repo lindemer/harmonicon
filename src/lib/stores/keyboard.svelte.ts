@@ -184,12 +184,18 @@ export const keyboardState = {
 		X: { text: '8', sup: 'va' }
 	} as Record<string, { text: string; sup: string }>,
 
-	// State getters
+	// State getters/setters
 	get shiftPressed() {
 		return shiftPressed;
 	},
+	set shiftPressed(value: boolean) {
+		shiftPressed = value;
+	},
 	get altPressed() {
 		return altPressed;
+	},
+	set altPressed(value: boolean) {
+		altPressed = value;
 	},
 	get spacePressed() {
 		return spacePressed;
@@ -207,10 +213,10 @@ export const keyboardState = {
 		spaceClicked = value;
 	},
 
-	/** Current inversion based on modifier keys: Alt = 1st, Alt+Shift = 2nd */
+	/** Current inversion: Alt = 1st, Shift = 2nd */
 	get inversion(): 0 | 1 | 2 {
-		if (altPressed && shiftPressed) return 2;
-		if (altPressed) return 1;
+		if (shiftPressed) return 2; // Shift (with or without Alt) = 2nd
+		if (altPressed) return 1; // Alt alone = 1st
 		return 0;
 	},
 
@@ -258,9 +264,11 @@ export const keyboardState = {
 		const mappedKey = codeToKey[e.code];
 
 		if (mappedKey === 'z') {
+			clickedActionKey = 'Z';
 			appState.decrementChordOctave();
 		}
 		if (mappedKey === 'x') {
+			clickedActionKey = 'X';
 			appState.incrementChordOctave();
 		}
 
@@ -305,6 +313,11 @@ export const keyboardState = {
 		if (e.key === ' ') spacePressed = false;
 
 		const mappedKey = codeToKey[e.code];
+
+		// Handle action key release (Z, X)
+		if (mappedKey === 'z' || mappedKey === 'x') {
+			clickedActionKey = null;
+		}
 
 		// Handle piano key release
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {

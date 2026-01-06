@@ -94,7 +94,7 @@
 				<!-- Black key (if present) -->
 				{#if pk.black && pk.blackNote}
 					<div
-						class="black-key"
+						class="black-key dark-key"
 						class:pressed={kb.isKeyPressed(pk.black)}
 						style:--key-index={i}
 						onmousedown={() => pk.black && kb.handleNoteMouseDown(pk.black)}
@@ -114,7 +114,15 @@
 		<!-- Bottom row -->
 		<div class="row bottom-row">
 			<!-- Shift key -->
-			<div class="key wide-key modifier-key" class:pressed={kb.shiftPressed}>
+			<div
+				class="key wide-key dark-key"
+				class:pressed={kb.shiftPressed}
+				onmousedown={() => (kb.shiftPressed = true)}
+				onmouseup={() => (kb.shiftPressed = false)}
+				onmouseleave={() => (kb.shiftPressed = false)}
+				role="button"
+				tabindex="0"
+			>
 				<span class="key-label">⇧</span>
 				<span class="key-function font-music">2<sup>nd</sup></span>
 			</div>
@@ -122,7 +130,7 @@
 			{#each kb.bottomRow as key (key)}
 				{@const action = kb.actionMap[key]}
 				<div
-					class="key action-key"
+					class="key dark-key"
 					class:pressed={kb.isActionKeyPressed(key)}
 					onmousedown={() => {
 						kb.clickedActionKey = key;
@@ -144,18 +152,26 @@
 
 		<!-- Modifier row -->
 		<div class="row">
-			<div class="key modifier-key disabled-key">
+			<div class="key dark-key disabled-key">
 				<span class="key-label">ctrl</span>
 			</div>
-			<div class="key modifier-key" class:pressed={kb.altPressed}>
+			<div
+				class="key dark-key"
+				class:pressed={kb.altPressed}
+				onmousedown={() => (kb.altPressed = true)}
+				onmouseup={() => (kb.altPressed = false)}
+				onmouseleave={() => (kb.altPressed = false)}
+				role="button"
+				tabindex="0"
+			>
 				<span class="key-label">⌥</span>
 				<span class="key-function font-music">1<sup>st</sup></span>
 			</div>
-			<div class="key modifier-key disabled-key">
+			<div class="key dark-key disabled-key">
 				<span class="key-label">⌘</span>
 			</div>
 			<div
-				class="key space-key"
+				class="key dark-key space-key"
 				class:pressed={kb.spacePressed || kb.spaceClicked}
 				onmousedown={() => {
 					kb.spaceClicked = true;
@@ -189,273 +205,5 @@
 </div>
 
 <style>
-	.keyboard-container {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
-		user-select: none;
-	}
-
-	.keyboard {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-	}
-
-	.row {
-		display: flex;
-		gap: 4px;
-		justify-content: center;
-	}
-
-	.number-row {
-		margin-left: calc(-4 * 68px - 42px);
-	}
-
-	.key {
-		min-width: 64px;
-		height: 64px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		background: #374151;
-		border-radius: 6px;
-		padding: 4px 6px;
-		gap: 3px;
-		cursor: pointer;
-		transition:
-			filter 0.08s ease,
-			transform 0.08s ease;
-	}
-
-	.key:hover {
-		filter: brightness(1.15);
-	}
-
-	.key:focus {
-		outline: none;
-	}
-
-	.key-label {
-		font-size: 10px;
-		color: #9ca3af;
-		font-family: system-ui, sans-serif;
-		text-transform: uppercase;
-	}
-
-	.key-function {
-		font-size: 20px;
-		color: #e5e7eb;
-		line-height: 1;
-	}
-
-	/* Piano section - positioned layout */
-	.piano-section {
-		position: relative;
-		height: 128px;
-		width: calc(10 * 68px);
-	}
-
-	/* White keys - tall piano-style */
-	.white-key {
-		position: absolute;
-		left: calc(var(--key-index) * 68px);
-		width: 64px;
-		height: 128px;
-		display: flex;
-		flex-direction: column;
-		border-radius: 6px;
-		overflow: hidden;
-		cursor: pointer;
-		transition:
-			filter 0.08s ease,
-			transform 0.08s ease;
-	}
-
-	.white-key:hover {
-		filter: brightness(1.15);
-	}
-
-	.white-key:focus {
-		outline: none;
-	}
-
-	.white-key.pressed {
-		/* Scale down and translate up so top edge stays fixed */
-		/* 128px height * 0.03 (3% shrink) / 2 = ~2px offset */
-		transform: scale(0.97) translateY(-2px);
-		filter: brightness(0.85);
-	}
-
-	.white-key-top {
-		flex: 1;
-		background: #4b5563;
-		border-radius: 6px 6px 0 0;
-	}
-
-	.white-key-bottom {
-		height: 64px;
-		background: #4b5563;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 3px;
-		border-radius: 0 0 6px 6px;
-	}
-
-	.white-key .key-function {
-		color: #f3f4f6;
-		font-size: 20px;
-	}
-
-	/* Black keys - square, positioned between white keys */
-	.black-key {
-		position: absolute;
-		left: calc(var(--key-index) * 68px - 26px);
-		width: 64px;
-		height: 64px;
-		background: #1f2937;
-		border-radius: 6px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 3px;
-		z-index: 1;
-		cursor: pointer;
-		transition:
-			filter 0.08s ease,
-			transform 0.08s ease,
-			background-color 0.08s ease;
-	}
-
-	.black-key:hover {
-		filter: brightness(1.25);
-	}
-
-	.black-key:focus {
-		outline: none;
-	}
-
-	.black-key.pressed {
-		/* Scale down and translate up so top edge stays fixed */
-		/* 64px height * 0.05 (5% shrink) / 2 = ~1.6px offset */
-		transform: scale(0.95) translateY(-1.6px);
-		background: #374151;
-		filter: brightness(0.9);
-	}
-
-	.black-key .key-label {
-		color: #6b7280;
-	}
-
-	.black-key .key-function {
-		color: #9ca3af;
-		font-size: 16px;
-	}
-
-	/* Degree keys (1-7) with colored backgrounds */
-	.degree-key .key-label {
-		color: rgba(255, 255, 255, 0.7);
-	}
-
-	.degree-key .key-function {
-		color: white;
-		font-weight: 500;
-	}
-
-	.degree-key.pressed {
-		transform: scale(0.95);
-		filter: brightness(0.8);
-	}
-
-	/* Action keys (Z, X for octave) */
-	.action-key {
-		background: #4b5563;
-	}
-
-	.action-key .key-function {
-		color: #f3f4f6;
-	}
-
-	.action-key.pressed {
-		transform: scale(0.95);
-		filter: brightness(0.8);
-	}
-
-	/* Modifier keys */
-	.modifier-key {
-		background: #1f2937;
-		cursor: default;
-	}
-
-	.modifier-key:hover {
-		filter: none;
-	}
-
-	.modifier-key .key-label,
-	.modifier-key .key-function {
-		color: #f3f4f6;
-	}
-
-	.modifier-key.pressed {
-		transform: scale(0.95) translateY(-1.6px);
-		filter: brightness(0.8);
-	}
-
-	/* Disabled keys (ctrl, cmd) - no function */
-	.disabled-key {
-		cursor: default;
-	}
-
-	.disabled-key:hover {
-		filter: none;
-	}
-
-	.disabled-key .key-label {
-		color: #4b5563;
-	}
-
-	/* Wide keys */
-	.wide-key {
-		min-width: 96px;
-	}
-
-	.space-key {
-		min-width: 320px;
-		background: #374151;
-	}
-
-	.space-key.pressed {
-		transform: scale(0.98) translateY(-1px);
-		filter: brightness(0.8);
-	}
-
-	.mode-toggle {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.mode-separator {
-		color: #6b7280;
-	}
-
-	.active-mode {
-		color: #f3f4f6;
-	}
-
-	.inactive-mode {
-		color: #6b7280;
-	}
-
-	.bottom-row {
-		justify-content: flex-start;
-		padding-left: 20px;
-	}
+	@import './Keyboard.css';
 </style>
