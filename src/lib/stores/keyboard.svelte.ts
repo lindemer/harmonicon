@@ -94,6 +94,8 @@ let spaceClicked = $state(false);
 // Drag states
 let isDraggingDegree = $state(false);
 let isDraggingNote = $state(false);
+let mouseInBlackKeyZone = $state(false); // For realistic glissando behavior
+let lastMouseX = 0; // Track X position for zone transitions
 
 // Audio tracking (internal)
 const playingDegreeNotes = new SvelteMap<number, Array<{ note: string; octave: number }>>();
@@ -118,6 +120,42 @@ function getChordNotesForDegree(
 	const chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
 	if (!chord || !chord.notes.length) return [];
 	return VoicingUtil.getVoicedNotes(chord.notes, inversion, appState.chordDisplayOctave);
+}
+
+/** Piano key layout: each key is 64px wide with 4px gap, total 68px per key */
+const KEY_WIDTH = 68;
+const BLACK_KEY_OFFSET = 26; // Black keys are offset 26px to the left of white key boundary
+
+/** Find which key character is at the given X position */
+function findKeyAtPosition(x: number, inBlackZone: boolean): string | null {
+	const pianoKeys = keyboardState.pianoKeys;
+
+	if (inBlackZone) {
+		// Check black keys - they're positioned between white keys
+		for (let i = 0; i < pianoKeys.length; i++) {
+			const pk = pianoKeys[i];
+			if (pk.black) {
+				// Black key position: (index * 68) - 26, width 64
+				const blackKeyLeft = i * KEY_WIDTH - BLACK_KEY_OFFSET;
+				const blackKeyRight = blackKeyLeft + 64;
+				if (x >= blackKeyLeft && x <= blackKeyRight) {
+					return pk.black;
+				}
+			}
+		}
+	} else {
+		// Check white keys
+		for (let i = 0; i < pianoKeys.length; i++) {
+			const pk = pianoKeys[i];
+			// White key position: index * 68, width 64
+			const whiteKeyLeft = i * KEY_WIDTH;
+			const whiteKeyRight = whiteKeyLeft + 64;
+			if (x >= whiteKeyLeft && x <= whiteKeyRight) {
+				return pk.white;
+			}
+		}
+	}
+	return null;
 }
 
 // ============ Exported State ============
@@ -354,8 +392,13 @@ export const keyboardState = {
 		}
 	},
 
-	handleNoteMouseEnter(noteKey: string): void {
+	handleNoteMouseEnter(noteKey: string, isBlackKey: boolean): void {
 		if (isDraggingNote) {
+			// During glissando, white keys only trigger below black key level (realistic piano behavior)
+			if (!isBlackKey && mouseInBlackKeyZone) {
+				return;
+			}
+
 			if (currentNoteInfo) {
 				appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
 			}
@@ -363,6 +406,34 @@ export const keyboardState = {
 			currentNoteInfo = getNoteForKey(noteKey);
 			if (currentNoteInfo) {
 				appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+			}
+		}
+	},
+
+	handlePianoSectionMouseMove(e: MouseEvent): void {
+		if (!isDraggingNote) return;
+		const target = e.currentTarget as HTMLElement;
+		const rect = target.getBoundingClientRect();
+		const relativeX = e.clientX - rect.left;
+		const relativeY = e.clientY - rect.top;
+
+		// Check if we crossed the black key threshold (64px)
+		const wasInBlackZone = mouseInBlackKeyZone;
+		const nowInBlackZone = relativeY <= 64;
+		mouseInBlackKeyZone = nowInBlackZone;
+		lastMouseX = relativeX;
+
+		// If we crossed zones vertically, trigger the appropriate key under the cursor
+		if (wasInBlackZone !== nowInBlackZone) {
+			const keyUnderCursor = findKeyAtPosition(relativeX, nowInBlackZone);
+			if (keyUnderCursor) {
+				if (currentNoteInfo) {
+					appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+				}
+				currentNoteInfo = getNoteForKey(keyUnderCursor);
+				if (currentNoteInfo) {
+					appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+				}
 			}
 		}
 	},

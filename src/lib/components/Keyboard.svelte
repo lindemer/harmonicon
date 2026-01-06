@@ -68,7 +68,8 @@
 		</div>
 
 		<!-- Piano keys section -->
-		<div class="piano-section">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="piano-section" onmousemove={kb.handlePianoSectionMouseMove}>
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const whiteNoteColor = getNoteColor(pk.note)}
 				{@const blackNoteColor = pk.blackNote ? getNoteColor(pk.blackNote) : undefined}
@@ -78,7 +79,7 @@
 					class:pressed={kb.isKeyPressed(pk.white)}
 					style:--key-index={i}
 					onmousedown={() => kb.handleNoteMouseDown(pk.white)}
-					onmouseenter={() => kb.handleNoteMouseEnter(pk.white)}
+					onmouseenter={() => kb.handleNoteMouseEnter(pk.white, false)}
 					role="button"
 					tabindex="0"
 				>
@@ -97,7 +98,7 @@
 						class:pressed={kb.isKeyPressed(pk.black)}
 						style:--key-index={i}
 						onmousedown={() => pk.black && kb.handleNoteMouseDown(pk.black)}
-						onmouseenter={() => pk.black && kb.handleNoteMouseEnter(pk.black)}
+						onmouseenter={() => pk.black && kb.handleNoteMouseEnter(pk.black, true)}
 						role="button"
 						tabindex="0"
 					>

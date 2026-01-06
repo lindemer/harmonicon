@@ -16,6 +16,7 @@
 	// Mouse drag state for glissando-style playing
 	let isDragging = $state(false);
 	let directPressedNote = $state<{ note: string; octave: number } | null>(null);
+	let mouseY = $state(0); // Y position relative to keyboard area (for realistic glissando)
 
 	type KeyInfo = {
 		note: string;
@@ -119,6 +120,10 @@
 
 	function handlePianoKeyMouseEnter(key: KeyInfo) {
 		if (isDragging) {
+			// During glissando, white keys only trigger below black key level (realistic piano behavior)
+			if (!key.isBlack && mouseY <= blackKey.height) {
+				return;
+			}
 			// Stop previous note before playing new one (glissando)
 			if (directPressedNote) {
 				appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
@@ -126,6 +131,54 @@
 			directPressedNote = { note: key.note, octave: key.octave };
 			appState.addPressedNote(key.note, key.octave);
 		}
+	}
+
+	function handleMouseMove(e: MouseEvent) {
+		if (!isDragging) return;
+		const svg = e.currentTarget as SVGSVGElement;
+		const rect = svg.getBoundingClientRect();
+		const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
+		const newMouseY = svgY - octaveLabelHeight; // Y relative to keyboard area
+
+		// Check if we crossed the black key threshold
+		const wasInBlackZone = mouseY <= blackKey.height;
+		const nowInBlackZone = newMouseY <= blackKey.height;
+		mouseY = newMouseY;
+
+		// If we crossed zones vertically, trigger the appropriate key under the cursor
+		if (wasInBlackZone !== nowInBlackZone) {
+			const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+			const keyUnderCursor = findKeyAtPosition(mouseX, newMouseY);
+			if (keyUnderCursor && keyUnderCursor !== directPressedNote) {
+				// Only trigger if the key matches the zone we're now in
+				const shouldTrigger = keyUnderCursor.isBlack ? nowInBlackZone : !nowInBlackZone;
+				if (shouldTrigger) {
+					if (directPressedNote) {
+						appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
+					}
+					directPressedNote = { note: keyUnderCursor.note, octave: keyUnderCursor.octave };
+					appState.addPressedNote(keyUnderCursor.note, keyUnderCursor.octave);
+				}
+			}
+		}
+	}
+
+	function findKeyAtPosition(x: number, y: number): KeyInfo | null {
+		// Check black keys first (they're on top)
+		if (y <= blackKey.height) {
+			for (const key of blackKeys) {
+				if (x >= key.x && x <= key.x + blackKey.width) {
+					return key;
+				}
+			}
+		}
+		// Check white keys
+		for (const key of whiteKeys) {
+			if (x >= key.x && x <= key.x + whiteKey.width) {
+				return key;
+			}
+		}
+		return null;
 	}
 
 	function handleMouseUp() {
@@ -189,6 +242,7 @@
 	preserveAspectRatio="xMidYMax meet"
 	onmouseup={handleMouseUp}
 	onmouseleave={handleMouseUp}
+	onmousemove={handleMouseMove}
 	role="application"
 	aria-label="Piano keyboard - click and drag to play notes"
 >
