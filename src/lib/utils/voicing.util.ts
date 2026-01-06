@@ -1,5 +1,5 @@
+import type { Mode } from '$lib/types';
 import { Key, Chord, Note } from 'tonal';
-import type { Mode } from './format.util';
 
 export type ChordType = ReturnType<typeof Chord.get>;
 

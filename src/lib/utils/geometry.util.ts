@@ -4,7 +4,7 @@
  * All methods are static with no state.
  */
 
-export interface Point {
+interface Point {
 	x: number;
 	y: number;
 }
@@ -12,7 +12,8 @@ export interface Point {
 export class GeometryUtil {
 	/**
 	 * Convert client (mouse/touch) coordinates to SVG coordinates.
-	 * Handles the transformation from screen space to SVG viewBox space.
+	 * Handles the transformation from screen space to SVG viewBox space,
+	 * accounting for preserveAspectRatio="xMidYMid meet" centering.
 	 */
 	static clientToSvgCoords(
 		clientX: number,
@@ -21,11 +22,23 @@ export class GeometryUtil {
 		viewBoxSize: number
 	): Point {
 		const rect = svg.getBoundingClientRect();
-		const x = clientX - rect.left;
-		const y = clientY - rect.top;
+
+		// Calculate the actual rendered size (accounting for aspect ratio preservation)
+		const scale = Math.min(rect.width / viewBoxSize, rect.height / viewBoxSize);
+		const renderedWidth = viewBoxSize * scale;
+		const renderedHeight = viewBoxSize * scale;
+
+		// Calculate offset from centering (xMidYMid)
+		const offsetX = (rect.width - renderedWidth) / 2;
+		const offsetY = (rect.height - renderedHeight) / 2;
+
+		// Transform client coords to SVG coords
+		const x = clientX - rect.left - offsetX;
+		const y = clientY - rect.top - offsetY;
+
 		return {
-			x: (x / rect.width) * viewBoxSize,
-			y: (y / rect.height) * viewBoxSize
+			x: (x / renderedWidth) * viewBoxSize,
+			y: (y / renderedHeight) * viewBoxSize
 		};
 	}
 

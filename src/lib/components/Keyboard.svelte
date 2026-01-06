@@ -7,6 +7,17 @@
 
 	const kb = keyboardState;
 
+	// Responsive scaling
+	let containerWidth = $state(0);
+	const KEYBOARD_NATURAL_WIDTH = 750;
+	const CONTAINER_PADDING = 32;
+
+	const keyboardScale = $derived(
+		containerWidth > 0
+			? Math.min(1, (containerWidth - CONTAINER_PADDING) / KEYBOARD_NATURAL_WIDTH)
+			: 1
+	);
+
 	// Get color for a degree key, accounting for inversion
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
 	function getDegreeColorForInversion(degree: number, inv: 0 | 1 | 2): string {
@@ -37,11 +48,16 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	class="keyboard-container"
+	bind:clientWidth={containerWidth}
 	onmouseup={kb.handleMouseUp}
 	onmouseleave={kb.handleMouseUp}
 	role="application"
 >
-	<div class="keyboard">
+	<div
+		class="keyboard"
+		style:transform="scale({keyboardScale})"
+		style:transform-origin="center center"
+	>
 		<!-- Number row -->
 		<div class="row number-row">
 			{#each kb.numberRow as key (key)}
@@ -213,22 +229,25 @@
 		justify-content: center;
 		padding: 1rem;
 		user-select: none;
+		--key-size: 64px;
+		--key-gap: 4px;
+		--key-unit: calc(var(--key-size) + var(--key-gap));
 	}
 
 	.keyboard {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: var(--key-gap);
 	}
 
 	.row {
 		display: flex;
-		gap: 4px;
+		gap: var(--key-gap);
 		justify-content: center;
 	}
 
 	.number-row {
-		margin-left: calc(-4 * 68px - 42px);
+		margin-left: calc(-4 * var(--key-unit) - 42px);
 	}
 
 	/* Shared transition for interactive elements */
@@ -243,8 +262,8 @@
 	}
 
 	.key {
-		min-width: 64px;
-		height: 64px;
+		min-width: var(--key-size);
+		height: var(--key-size);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -281,16 +300,16 @@
 	/* Piano section - positioned layout */
 	.piano-section {
 		position: relative;
-		height: 128px;
-		width: calc(10 * 68px);
+		height: calc(2 * var(--key-size));
+		width: calc(10 * var(--key-unit));
 	}
 
 	/* White keys - tall piano-style */
 	.white-key {
 		position: absolute;
-		left: calc(var(--key-index) * 68px);
-		width: 64px;
-		height: 128px;
+		left: calc(var(--key-index) * var(--key-unit));
+		width: var(--key-size);
+		height: calc(2 * var(--key-size));
 		display: flex;
 		flex-direction: column;
 		border-radius: 6px;
@@ -314,7 +333,7 @@
 	}
 
 	.white-key-bottom {
-		height: 64px;
+		height: var(--key-size);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -353,9 +372,9 @@
 	/* Black keys - square, positioned between white keys */
 	.black-key {
 		position: absolute;
-		left: calc(var(--key-index) * 68px - 26px);
-		width: 64px;
-		height: 64px;
+		left: calc(var(--key-index) * var(--key-unit) - 26px);
+		width: var(--key-size);
+		height: var(--key-size);
 		border-radius: 6px;
 		display: flex;
 		flex-direction: column;
@@ -399,11 +418,11 @@
 
 	/* Wide keys */
 	.wide-key {
-		min-width: 96px;
+		min-width: calc(var(--key-size) * 1.5);
 	}
 
 	.space-key {
-		min-width: 320px;
+		min-width: calc(var(--key-size) * 5);
 	}
 
 	/* Space key has slightly different pressed animation due to its width */
