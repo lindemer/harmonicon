@@ -1,5 +1,5 @@
 import { Key } from 'tonal';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
 import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
@@ -51,6 +51,22 @@ const KEY_TO_NOTE: Record<string, { note: string; octaveOffset: number }> = {
 	p: { note: 'D#', octaveOffset: 1 }
 };
 
+/** Reverse mapping: note -> keyboard key (for deriving pressed state from appState) */
+const NOTE_TO_KEY: Record<string, { key: string; octaveOffset: number }> = {
+	C: { key: 'a', octaveOffset: 0 },
+	D: { key: 's', octaveOffset: 0 },
+	E: { key: 'd', octaveOffset: 0 },
+	F: { key: 'f', octaveOffset: 0 },
+	G: { key: 'g', octaveOffset: 0 },
+	A: { key: 'h', octaveOffset: 0 },
+	B: { key: 'j', octaveOffset: 0 },
+	'C#': { key: 'w', octaveOffset: 0 },
+	'D#': { key: 'e', octaveOffset: 0 },
+	'F#': { key: 't', octaveOffset: 0 },
+	'G#': { key: 'y', octaveOffset: 0 },
+	'A#': { key: 'u', octaveOffset: 0 }
+};
+
 /** Map KeyboardEvent.code to key characters (handles Alt+key on macOS) */
 const codeToKey: Record<string, string> = {
 	KeyA: 'a',
@@ -89,7 +105,6 @@ let altPressed = $state(false);
 let spacePressed = $state(false);
 
 // Visual feedback state
-const pressedKeys = new SvelteSet<string>();
 let clickedActionKey = $state<string | null>(null);
 let spaceClicked = $state(false);
 
@@ -99,7 +114,6 @@ let isDraggingNote = $state(false);
 
 // Audio tracking (internal)
 const playingDegreeNotes = new SvelteMap<number, Array<{ note: string; octave: number }>>();
-const pressedPianoKeys = new SvelteSet<string>();
 let currentChordNotes: Array<{ note: string; octave: number }> = [];
 let currentNoteInfo: { note: string; octave: number } | null = null;
 
@@ -181,11 +195,27 @@ export const keyboardState = {
 
 	// Helper methods
 	isKeyPressed(key: string): boolean {
-		return pressedKeys.has(key.toLowerCase());
+		const keyLower = key.toLowerCase();
+
+		// For piano keys, derive from appState.pressedNotes
+		const noteInfo = KEY_TO_NOTE[keyLower];
+		if (noteInfo) {
+			const baseOctave = appState.chordDisplayOctave + 1;
+			const octave = baseOctave + noteInfo.octaveOffset;
+			return appState.pressedNotes.has(`${noteInfo.note}${octave}`);
+		}
+
+		// For degree keys (1-7), derive from appState.pressedDegree
+		const degree = parseInt(keyLower);
+		if (degree >= 1 && degree <= 7) {
+			return appState.pressedDegree === degree;
+		}
+
+		return false;
 	},
 
 	isActionKeyPressed(key: string): boolean {
-		return pressedKeys.has(key.toLowerCase()) || clickedActionKey === key;
+		return clickedActionKey === key;
 	},
 
 	getDegree(key: string): number | null {
@@ -213,25 +243,30 @@ export const keyboardState = {
 			appState.incrementChordOctave();
 		}
 
-		if (mappedKey) {
-			pressedKeys.add(mappedKey);
-		}
-
 		// Handle piano keys (A-L, W-P)
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
-			if (!e.repeat && !pressedPianoKeys.has(mappedKey)) {
-				pressedPianoKeys.add(mappedKey);
-				const noteInfo = getNoteForKey(mappedKey);
-				if (noteInfo) {
-					appState.addPressedNote(noteInfo.note, noteInfo.octave);
-					AudioService.instance.playNote(noteInfo.note, noteInfo.octave);
-				}
+			const noteInfo = getNoteForKey(mappedKey);
+			if (noteInfo && !e.repeat && !appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
+				appState.addPressedNote(noteInfo.note, noteInfo.octave);
+				AudioService.instance.playNote(noteInfo.note, noteInfo.octave);
 			}
 		}
 
 		// Handle degree keys (1-7) for chord playback
 		const degree = keyboardState.getDegree(mappedKey);
 		if (degree && !e.repeat && !playingDegreeNotes.has(degree)) {
+			// Get chord symbol for this degree (same logic as handleDegreeMouseDown)
+			const triads =
+				appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).triads
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+			const chord = triads[degree - 1];
+			if (chord) {
+				const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+				appState.selectedChord = formatted;
+			}
+			appState.pressedDegree = degree;
+			appState.selectedInversion = keyboardState.inversion;
 			const chordNotes = getChordNotesForDegree(degree, keyboardState.inversion);
 			if (chordNotes.length > 0) {
 				playingDegreeNotes.set(degree, chordNotes);
@@ -248,25 +283,19 @@ export const keyboardState = {
 
 		const mappedKey = codeToKey[e.code];
 
-		if (mappedKey) {
-			pressedKeys.delete(mappedKey);
-		}
-
 		// Handle piano key release
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
-			if (pressedPianoKeys.has(mappedKey)) {
-				pressedPianoKeys.delete(mappedKey);
-				const noteInfo = getNoteForKey(mappedKey);
-				if (noteInfo) {
-					appState.removePressedNote(noteInfo.note, noteInfo.octave);
-					AudioService.instance.stopNote(noteInfo.note, noteInfo.octave);
-				}
+			const noteInfo = getNoteForKey(mappedKey);
+			if (noteInfo && appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
+				appState.removePressedNote(noteInfo.note, noteInfo.octave);
+				AudioService.instance.stopNote(noteInfo.note, noteInfo.octave);
 			}
 		}
 
 		// Handle degree key release
 		const degree = keyboardState.getDegree(mappedKey);
 		if (degree && playingDegreeNotes.has(degree)) {
+			appState.pressedDegree = null;
 			const chordNotes = playingDegreeNotes.get(degree)!;
 			playingDegreeNotes.delete(degree);
 			appState.removePressedNotes(chordNotes);
@@ -278,8 +307,6 @@ export const keyboardState = {
 
 	handleBlur(): void {
 		AudioService.instance.stopAllNotes();
-		pressedKeys.clear();
-		pressedPianoKeys.clear();
 		playingDegreeNotes.clear();
 		currentChordNotes = [];
 		currentNoteInfo = null;
@@ -294,7 +321,6 @@ export const keyboardState = {
 
 	handleDegreeMouseDown(degree: number): void {
 		isDraggingDegree = true;
-		pressedKeys.add(degree.toString());
 
 		const triads =
 			appState.mode === 'major'
@@ -324,9 +350,6 @@ export const keyboardState = {
 				}
 			}
 
-			keyboardState.numberRow.forEach((k) => pressedKeys.delete(k));
-			pressedKeys.add(degree.toString());
-
 			const triads =
 				appState.mode === 'major'
 					? Key.majorKey(appState.selectedRoot).triads
@@ -349,7 +372,6 @@ export const keyboardState = {
 
 	handleNoteMouseDown(noteKey: string): void {
 		isDraggingNote = true;
-		pressedKeys.add(noteKey.toLowerCase());
 
 		currentNoteInfo = getNoteForKey(noteKey);
 		if (currentNoteInfo) {
@@ -365,9 +387,6 @@ export const keyboardState = {
 				AudioService.instance.stopNote(currentNoteInfo.note, currentNoteInfo.octave);
 			}
 
-			pianoKeyChars.forEach((k) => pressedKeys.delete(k));
-			pressedKeys.add(noteKey.toLowerCase());
-
 			currentNoteInfo = getNoteForKey(noteKey);
 			if (currentNoteInfo) {
 				appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
@@ -378,7 +397,6 @@ export const keyboardState = {
 
 	handleMouseUp(): void {
 		if (isDraggingDegree) {
-			keyboardState.numberRow.forEach((k) => pressedKeys.delete(k));
 			appState.pressedDegree = null;
 
 			if (currentChordNotes.length > 0) {
@@ -390,8 +408,6 @@ export const keyboardState = {
 			}
 		}
 		if (isDraggingNote) {
-			pianoKeyChars.forEach((k) => pressedKeys.delete(k));
-
 			if (currentNoteInfo) {
 				appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
 				AudioService.instance.stopNote(currentNoteInfo.note, currentNoteInfo.octave);

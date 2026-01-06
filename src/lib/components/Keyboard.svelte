@@ -48,7 +48,7 @@
 				{@const degree = kb.getDegree(key)}
 				<div
 					class="key degree-key"
-					class:pressed={kb.isKeyPressed(key)}
+					class:pressed={degree !== null && appState.pressedDegree === degree}
 					style:background-color={degree
 						? getDegreeColorForInversion(degree, kb.inversion)
 						: undefined}

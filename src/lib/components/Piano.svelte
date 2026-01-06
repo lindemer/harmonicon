@@ -115,6 +115,7 @@
 	function handlePianoKeyMouseDown(key: KeyInfo) {
 		isDragging = true;
 		directPressedNote = { note: key.note, octave: key.octave };
+		appState.addPressedNote(key.note, key.octave);
 		AudioService.instance.playNote(key.note, key.octave);
 	}
 
@@ -122,9 +123,11 @@
 		if (isDragging) {
 			// Stop previous note before playing new one (glissando)
 			if (directPressedNote) {
+				appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
 				AudioService.instance.stopNote(directPressedNote.note, directPressedNote.octave);
 			}
 			directPressedNote = { note: key.note, octave: key.octave };
+			appState.addPressedNote(key.note, key.octave);
 			AudioService.instance.playNote(key.note, key.octave);
 		}
 	}
@@ -132,6 +135,7 @@
 	function handleMouseUp() {
 		isDragging = false;
 		if (directPressedNote) {
+			appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
 			AudioService.instance.stopNote(directPressedNote.note, directPressedNote.octave);
 		}
 		directPressedNote = null;

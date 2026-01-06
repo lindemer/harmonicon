@@ -148,6 +148,11 @@
 				const inversion = getInversionFromEvent(e);
 				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
+
+				// Set pressedDegree if chord is diatonic
+				const unformatted = FormatUtil.unformatNote(chordSymbol);
+				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
+				appState.pressedDegree = degree;
 			}
 		} else if (e.button === 2) {
 			isRightDragging = true;
@@ -158,6 +163,7 @@
 			isDragging = false;
 			currentDragSegment = null;
 			appState.isChordPressed = false;
+			appState.pressedDegree = null;
 
 			// Stop chord audio (selection persists)
 			AudioService.instance.stopAllNotes();
@@ -173,6 +179,7 @@
 		currentDragSegment = null;
 		hoveredSegment = null;
 		appState.isChordPressed = false;
+		appState.pressedDegree = null;
 
 		// Stop chord audio when leaving
 		AudioService.instance.stopAllNotes();
@@ -199,6 +206,11 @@
 				const inversion = getInversionFromEvent(e);
 				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
+
+				// Update pressedDegree if chord is diatonic
+				const unformatted = FormatUtil.unformatNote(chordSymbol);
+				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
+				appState.pressedDegree = degree;
 			}
 		}
 	}}
@@ -216,6 +228,11 @@
 				const chordSymbol = getChordSymbol(segment, ring);
 				appState.selectChord(chordSymbol, 0, false);
 				playChordForSegment(segment, ring, 0);
+
+				// Set pressedDegree if chord is diatonic
+				const unformatted = FormatUtil.unformatNote(chordSymbol);
+				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
+				appState.pressedDegree = degree;
 			}
 		}
 	}}
@@ -223,6 +240,7 @@
 		isDragging = false;
 		currentDragSegment = null;
 		appState.isChordPressed = false;
+		appState.pressedDegree = null;
 		// Stop chord audio
 		AudioService.instance.stopAllNotes();
 	}}
@@ -246,6 +264,11 @@
 				const chordSymbol = getChordSymbol(segment, ring);
 				appState.selectChord(chordSymbol, 0, false);
 				playChordForSegment(segment, ring, 0);
+
+				// Update pressedDegree if chord is diatonic
+				const unformatted = FormatUtil.unformatNote(chordSymbol);
+				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
+				appState.pressedDegree = degree;
 			}
 		}
 	}}
