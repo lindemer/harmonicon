@@ -1,10 +1,139 @@
 import { Chord } from 'tonal';
 import { SvelteSet } from 'svelte/reactivity';
+import * as Tone from 'tone';
 import { FormatUtil, type Mode } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
 
 // Re-export types
 export type { Mode };
+
+// ============ Audio State (private) ============
+let sampler: Tone.Sampler | null = null;
+const playingNotes = new Set<string>();
+let muted = $state(true);
+
+// ============ Audio Helper Functions (private) ============
+
+/** Convert note name and octave to Tone.js format (e.g., "C#", 4 -> "C#4") */
+function formatNoteForTone(note: string, octave: number): string {
+	const normalized = note.replace('♯', '#').replace('♭', 'b');
+	return `${normalized}${octave}`;
+}
+
+/** Initialize the audio context and sampler. Must be called from a user gesture. */
+async function ensureAudioReady(): Promise<void> {
+	if (Tone.getContext().state !== 'running') {
+		await Tone.start();
+	}
+
+	if (!sampler) {
+		await new Promise<void>((resolve) => {
+			sampler = new Tone.Sampler({
+				urls: {
+					A0: 'A0.mp3',
+					C1: 'C1.mp3',
+					'D#1': 'Ds1.mp3',
+					'F#1': 'Fs1.mp3',
+					A1: 'A1.mp3',
+					C2: 'C2.mp3',
+					'D#2': 'Ds2.mp3',
+					'F#2': 'Fs2.mp3',
+					A2: 'A2.mp3',
+					C3: 'C3.mp3',
+					'D#3': 'Ds3.mp3',
+					'F#3': 'Fs3.mp3',
+					A3: 'A3.mp3',
+					C4: 'C4.mp3',
+					'D#4': 'Ds4.mp3',
+					'F#4': 'Fs4.mp3',
+					A4: 'A4.mp3',
+					C5: 'C5.mp3',
+					'D#5': 'Ds5.mp3',
+					'F#5': 'Fs5.mp3',
+					A5: 'A5.mp3',
+					C6: 'C6.mp3',
+					'D#6': 'Ds6.mp3',
+					'F#6': 'Fs6.mp3',
+					A6: 'A6.mp3',
+					C7: 'C7.mp3',
+					'D#7': 'Ds7.mp3',
+					'F#7': 'Fs7.mp3',
+					A7: 'A7.mp3',
+					C8: 'C8.mp3'
+				},
+				release: 1,
+				baseUrl: 'https://tonejs.github.io/audio/salamander/',
+				onload: () => {
+					resolve();
+				}
+			}).toDestination();
+
+			sampler.volume.value = -6;
+		});
+	}
+}
+
+/** Play a single note (internal - called by addPressedNote) */
+async function playNoteAudio(note: string, octave: number): Promise<void> {
+	if (muted) return;
+	await ensureAudioReady();
+	if (!sampler) return;
+
+	const noteStr = formatNoteForTone(note, octave);
+	if (playingNotes.has(noteStr)) return;
+
+	playingNotes.add(noteStr);
+	sampler.triggerAttack(noteStr, Tone.now());
+}
+
+/** Stop a single note (internal - called by removePressedNote) */
+function stopNoteAudio(note: string, octave: number): void {
+	if (!sampler) return;
+
+	const noteStr = formatNoteForTone(note, octave);
+	if (playingNotes.has(noteStr)) {
+		playingNotes.delete(noteStr);
+		sampler.triggerRelease(noteStr, Tone.now());
+	}
+}
+
+/** Play multiple notes (internal - called by addPressedNotes) */
+async function playNotesAudio(notes: Array<{ note: string; octave: number }>): Promise<void> {
+	if (muted) return;
+	await ensureAudioReady();
+	if (!sampler) return;
+
+	const noteStrings = notes.map((n) => formatNoteForTone(n.note, n.octave));
+	const newNotes = noteStrings.filter((n) => !playingNotes.has(n));
+
+	if (newNotes.length > 0) {
+		newNotes.forEach((n) => playingNotes.add(n));
+		sampler.triggerAttack(newNotes, Tone.now());
+	}
+}
+
+/** Stop multiple notes (internal - called by removePressedNotes) */
+function stopNotesAudio(notes: Array<{ note: string; octave: number }>): void {
+	if (!sampler) return;
+
+	const noteStrings = notes.map((n) => formatNoteForTone(n.note, n.octave));
+	const notesToStop = noteStrings.filter((n) => playingNotes.has(n));
+
+	if (notesToStop.length > 0) {
+		notesToStop.forEach((n) => playingNotes.delete(n));
+		sampler.triggerRelease(notesToStop, Tone.now());
+	}
+}
+
+/** Stop all currently playing notes (internal - called by clearPressedNotes) */
+function stopAllNotesAudio(): void {
+	if (!sampler) return;
+
+	if (playingNotes.size > 0) {
+		sampler.triggerRelease(Array.from(playingNotes), Tone.now());
+		playingNotes.clear();
+	}
+}
 
 // The selected key root note (e.g., 'C', 'G', 'F#')
 let selectedRoot = $state('C');
@@ -107,32 +236,38 @@ export const appState = {
 		return pressedNotes;
 	},
 
-	// Add a note to the pressed set (format: "C4", "F#3", etc.)
+	// Add a note to the pressed set and play audio
 	addPressedNote(note: string, octave: number) {
 		pressedNotes.add(`${note}${octave}`);
+		playNoteAudio(note, octave);
 	},
 
-	// Remove a note from the pressed set
+	// Remove a note from the pressed set and stop audio
 	removePressedNote(note: string, octave: number) {
 		pressedNotes.delete(`${note}${octave}`);
+		stopNoteAudio(note, octave);
 	},
 
-	// Add multiple notes at once (for chords)
+	// Add multiple notes at once (for chords) and play audio
 	addPressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.add(`${n.note}${n.octave}`);
 		}
+		playNotesAudio(notes);
 	},
 
-	// Remove multiple notes at once (for chords)
+	// Remove multiple notes at once (for chords) and stop audio
 	removePressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.delete(`${n.note}${n.octave}`);
 		}
+		stopNotesAudio(notes);
 	},
 
+	// Clear all pressed notes and stop all audio
 	clearPressedNotes() {
 		pressedNotes.clear();
+		stopAllNotesAudio();
 	},
 
 	get isChordPressed() {
@@ -141,6 +276,22 @@ export const appState = {
 
 	set isChordPressed(value: boolean) {
 		isChordPressed = value;
+	},
+
+	// Audio mute controls
+	get isMuted() {
+		return muted;
+	},
+
+	setMuted(value: boolean) {
+		if (value) {
+			this.clearPressedNotes();
+		}
+		muted = value;
+	},
+
+	toggleMuted() {
+		this.setMuted(!muted);
 	},
 
 	// Get the notes that should be highlighted on the piano based on pressed keys

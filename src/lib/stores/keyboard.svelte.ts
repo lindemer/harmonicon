@@ -3,7 +3,6 @@ import { SvelteMap } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
 import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
-import { AudioService } from '$lib/services/audio.service';
 
 // ============ Constants ============
 
@@ -248,7 +247,6 @@ export const keyboardState = {
 			const noteInfo = getNoteForKey(mappedKey);
 			if (noteInfo && !e.repeat && !appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
 				appState.addPressedNote(noteInfo.note, noteInfo.octave);
-				AudioService.instance.playNote(noteInfo.note, noteInfo.octave);
 			}
 		}
 
@@ -271,7 +269,6 @@ export const keyboardState = {
 			if (chordNotes.length > 0) {
 				playingDegreeNotes.set(degree, chordNotes);
 				appState.addPressedNotes(chordNotes);
-				AudioService.instance.playNotes(chordNotes);
 			}
 		}
 	},
@@ -288,7 +285,6 @@ export const keyboardState = {
 			const noteInfo = getNoteForKey(mappedKey);
 			if (noteInfo && appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
 				appState.removePressedNote(noteInfo.note, noteInfo.octave);
-				AudioService.instance.stopNote(noteInfo.note, noteInfo.octave);
 			}
 		}
 
@@ -299,14 +295,10 @@ export const keyboardState = {
 			const chordNotes = playingDegreeNotes.get(degree)!;
 			playingDegreeNotes.delete(degree);
 			appState.removePressedNotes(chordNotes);
-			for (const n of chordNotes) {
-				AudioService.instance.stopNote(n.note, n.octave);
-			}
 		}
 	},
 
 	handleBlur(): void {
-		AudioService.instance.stopAllNotes();
 		playingDegreeNotes.clear();
 		currentChordNotes = [];
 		currentNoteInfo = null;
@@ -336,7 +328,6 @@ export const keyboardState = {
 			currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion);
 			if (currentChordNotes.length > 0) {
 				appState.addPressedNotes(currentChordNotes);
-				AudioService.instance.playNotes(currentChordNotes);
 			}
 		}
 	},
@@ -345,9 +336,6 @@ export const keyboardState = {
 		if (isDraggingDegree) {
 			if (currentChordNotes.length > 0) {
 				appState.removePressedNotes(currentChordNotes);
-				for (const n of currentChordNotes) {
-					AudioService.instance.stopNote(n.note, n.octave);
-				}
 			}
 
 			const triads =
@@ -364,7 +352,6 @@ export const keyboardState = {
 				currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion);
 				if (currentChordNotes.length > 0) {
 					appState.addPressedNotes(currentChordNotes);
-					AudioService.instance.playNotes(currentChordNotes);
 				}
 			}
 		}
@@ -376,7 +363,6 @@ export const keyboardState = {
 		currentNoteInfo = getNoteForKey(noteKey);
 		if (currentNoteInfo) {
 			appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-			AudioService.instance.playNote(currentNoteInfo.note, currentNoteInfo.octave);
 		}
 	},
 
@@ -384,13 +370,11 @@ export const keyboardState = {
 		if (isDraggingNote) {
 			if (currentNoteInfo) {
 				appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				AudioService.instance.stopNote(currentNoteInfo.note, currentNoteInfo.octave);
 			}
 
 			currentNoteInfo = getNoteForKey(noteKey);
 			if (currentNoteInfo) {
 				appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				AudioService.instance.playNote(currentNoteInfo.note, currentNoteInfo.octave);
 			}
 		}
 	},
@@ -401,16 +385,12 @@ export const keyboardState = {
 
 			if (currentChordNotes.length > 0) {
 				appState.removePressedNotes(currentChordNotes);
-				for (const n of currentChordNotes) {
-					AudioService.instance.stopNote(n.note, n.octave);
-				}
 				currentChordNotes = [];
 			}
 		}
 		if (isDraggingNote) {
 			if (currentNoteInfo) {
 				appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				AudioService.instance.stopNote(currentNoteInfo.note, currentNoteInfo.octave);
 				currentNoteInfo = null;
 			}
 		}

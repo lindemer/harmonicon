@@ -6,7 +6,6 @@
 	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import { CIRCLE_DIMENSIONS, CIRCLE_RINGS, type RingType } from '$lib/constants/circle';
 	import RomanNumeral from './RomanNumeral.svelte';
-	import { AudioService } from '$lib/services/audio.service';
 
 	const { viewBox, center, radii, fontSizes, segmentAngle, rotationOffset, centerPadding } =
 		CIRCLE_DIMENSIONS;
@@ -122,7 +121,6 @@
 		if (notes.length > 0) {
 			currentChordNotes = notes;
 			appState.addPressedNotes(notes);
-			AudioService.instance.playNotes(notes);
 		}
 	}
 </script>
@@ -168,12 +166,11 @@
 			appState.isChordPressed = false;
 			appState.pressedDegree = null;
 
-			// Clear pressed notes and stop audio (selection persists)
+			// Clear pressed notes (selection persists)
 			if (currentChordNotes.length > 0) {
 				appState.removePressedNotes(currentChordNotes);
 				currentChordNotes = [];
 			}
-			AudioService.instance.stopAllNotes();
 		} else if (e.button === 2) {
 			appState.selectedRoot =
 				FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY)];
@@ -188,12 +185,11 @@
 		appState.isChordPressed = false;
 		appState.pressedDegree = null;
 
-		// Clear pressed notes and stop audio when leaving
+		// Clear pressed notes when leaving
 		if (currentChordNotes.length > 0) {
 			appState.removePressedNotes(currentChordNotes);
 			currentChordNotes = [];
 		}
-		AudioService.instance.stopAllNotes();
 	}}
 	onmousemove={(e) => {
 		const ring = getRingFromPoint(e.clientX, e.clientY);
@@ -211,12 +207,11 @@
 			) {
 				currentDragSegment = { segment, ring };
 
-				// Clear previous pressed notes and stop audio
+				// Clear previous pressed notes
 				if (currentChordNotes.length > 0) {
 					appState.removePressedNotes(currentChordNotes);
 					currentChordNotes = [];
 				}
-				AudioService.instance.stopAllNotes();
 
 				// Select and play new chord
 				const chordSymbol = getChordSymbol(segment, ring);
@@ -258,12 +253,11 @@
 		currentDragSegment = null;
 		appState.isChordPressed = false;
 		appState.pressedDegree = null;
-		// Clear pressed notes and stop audio
+		// Clear pressed notes
 		if (currentChordNotes.length > 0) {
 			appState.removePressedNotes(currentChordNotes);
 			currentChordNotes = [];
 		}
-		AudioService.instance.stopAllNotes();
 	}}
 	ontouchmove={(e) => {
 		if (isDragging) {
@@ -280,12 +274,11 @@
 			) {
 				currentDragSegment = { segment, ring };
 
-				// Clear previous pressed notes and stop audio
+				// Clear previous pressed notes
 				if (currentChordNotes.length > 0) {
 					appState.removePressedNotes(currentChordNotes);
 					currentChordNotes = [];
 				}
-				AudioService.instance.stopAllNotes();
 
 				// Select and play new chord
 				const chordSymbol = getChordSymbol(segment, ring);

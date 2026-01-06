@@ -3,15 +3,8 @@
 	import CircleOfFifths from '$lib/components/CircleOfFifths.svelte';
 	import Piano from '$lib/components/Piano.svelte';
 	import Keyboard from '$lib/components/Keyboard.svelte';
-	import { AudioService } from '$lib/services/audio.service';
+	import { appState } from '$lib/stores/app.svelte';
 	import type { Snippet } from 'svelte';
-
-	let muted = $state(true);
-
-	function toggleMute() {
-		muted = !muted;
-		AudioService.instance.setMuted(muted);
-	}
 
 	let { children }: { children: Snippet } = $props();
 </script>
@@ -20,8 +13,8 @@
 	<title>Harmonicon</title>
 </svelte:head>
 <div class="app-layout">
-	<button class="mute-button" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
-		{#if muted}
+	<button class="mute-button" onclick={() => appState.toggleMuted()} aria-label={appState.isMuted ? 'Unmute' : 'Mute'}>
+		{#if appState.isMuted}
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"

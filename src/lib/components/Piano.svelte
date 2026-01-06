@@ -9,7 +9,6 @@
 		WHITE_NOTES,
 		BLACK_KEY_POSITIONS
 	} from '$lib/constants/piano';
-	import { AudioService } from '$lib/services/audio.service';
 
 	const { whiteKey, blackKey, octaves, octaveLabelHeight } = PIANO_DIMENSIONS;
 	const { width: svgWidth, height: svgHeight } = PIANO_SVG;
@@ -116,7 +115,6 @@
 		isDragging = true;
 		directPressedNote = { note: key.note, octave: key.octave };
 		appState.addPressedNote(key.note, key.octave);
-		AudioService.instance.playNote(key.note, key.octave);
 	}
 
 	function handlePianoKeyMouseEnter(key: KeyInfo) {
@@ -124,11 +122,9 @@
 			// Stop previous note before playing new one (glissando)
 			if (directPressedNote) {
 				appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
-				AudioService.instance.stopNote(directPressedNote.note, directPressedNote.octave);
 			}
 			directPressedNote = { note: key.note, octave: key.octave };
 			appState.addPressedNote(key.note, key.octave);
-			AudioService.instance.playNote(key.note, key.octave);
 		}
 	}
 
@@ -136,10 +132,8 @@
 		isDragging = false;
 		if (directPressedNote) {
 			appState.removePressedNote(directPressedNote.note, directPressedNote.octave);
-			AudioService.instance.stopNote(directPressedNote.note, directPressedNote.octave);
 		}
 		directPressedNote = null;
-		AudioService.instance.stopAllNotes();
 	}
 
 	// Check if a piano key should be highlighted (from appState OR direct press)
