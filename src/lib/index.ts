@@ -10,4 +10,6 @@ export * from './constants/piano';
 // Stores
 export { appState } from './stores/app.svelte';
 export { keyboardState } from './stores/keyboard.svelte';
-export type { Mode } from './stores/app.svelte';
+
+// Types
+export type { Mode } from './types';

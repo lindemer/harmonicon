@@ -50,22 +50,6 @@ const KEY_TO_NOTE: Record<string, { note: string; octaveOffset: number }> = {
 	p: { note: 'D#', octaveOffset: 1 }
 };
 
-/** Reverse mapping: note -> keyboard key (for deriving pressed state from appState) */
-const NOTE_TO_KEY: Record<string, { key: string; octaveOffset: number }> = {
-	C: { key: 'a', octaveOffset: 0 },
-	D: { key: 's', octaveOffset: 0 },
-	E: { key: 'd', octaveOffset: 0 },
-	F: { key: 'f', octaveOffset: 0 },
-	G: { key: 'g', octaveOffset: 0 },
-	A: { key: 'h', octaveOffset: 0 },
-	B: { key: 'j', octaveOffset: 0 },
-	'C#': { key: 'w', octaveOffset: 0 },
-	'D#': { key: 'e', octaveOffset: 0 },
-	'F#': { key: 't', octaveOffset: 0 },
-	'G#': { key: 'y', octaveOffset: 0 },
-	'A#': { key: 'u', octaveOffset: 0 }
-};
-
 /** Map KeyboardEvent.code to key characters (handles Alt+key on macOS) */
 const codeToKey: Record<string, string> = {
 	KeyA: 'a',
@@ -245,7 +229,11 @@ export const keyboardState = {
 		// Handle piano keys (A-L, W-P)
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
 			const noteInfo = getNoteForKey(mappedKey);
-			if (noteInfo && !e.repeat && !appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
+			if (
+				noteInfo &&
+				!e.repeat &&
+				!appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)
+			) {
 				appState.addPressedNote(noteInfo.note, noteInfo.octave);
 			}
 		}

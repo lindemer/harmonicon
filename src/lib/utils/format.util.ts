@@ -1,6 +1,5 @@
+import type { Mode } from '$lib/types';
 import { Key, Chord, Note, Progression } from 'tonal';
-
-export type Mode = 'major' | 'minor';
 
 /**
  * Centralized utility class for music notation formatting and theory computations.
