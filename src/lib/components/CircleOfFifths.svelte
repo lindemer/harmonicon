@@ -4,8 +4,34 @@
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { GeometryUtil } from '$lib/utils/geometry.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
-	import { CIRCLE_DIMENSIONS, CIRCLE_RINGS, type RingType } from '$lib/constants/circle';
 	import RomanNumeral from './RomanNumeral.svelte';
+
+	const CIRCLE_DIMENSIONS = {
+		viewBox: 400,
+		center: { x: 200, y: 200 },
+		radii: {
+			outer: 185,
+			mid: 135,
+			inner: 95,
+			center: 65
+		},
+		fontSizes: {
+			major: 18,
+			minor: 14,
+			dim: 11
+		},
+		segmentAngle: 30,
+		rotationOffset: -15,
+		centerPadding: 5
+	};
+
+	type RingType = 'major' | 'minor' | 'dim';
+
+	const CIRCLE_RINGS: Array<{ name: RingType; innerRadius: number; outerRadius: number }> = [
+		{ name: 'dim', innerRadius: CIRCLE_DIMENSIONS.radii.center, outerRadius: CIRCLE_DIMENSIONS.radii.inner },
+		{ name: 'minor', innerRadius: CIRCLE_DIMENSIONS.radii.inner, outerRadius: CIRCLE_DIMENSIONS.radii.mid },
+		{ name: 'major', innerRadius: CIRCLE_DIMENSIONS.radii.mid, outerRadius: CIRCLE_DIMENSIONS.radii.outer }
+	];
 
 	const { viewBox, center, radii, fontSizes, segmentAngle, rotationOffset, centerPadding } =
 		CIRCLE_DIMENSIONS;

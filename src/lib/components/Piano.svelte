@@ -3,15 +3,32 @@
 	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
-	import {
-		PIANO_DIMENSIONS,
-		PIANO_SVG,
-		WHITE_NOTES,
-		BLACK_KEY_POSITIONS
-	} from '$lib/constants/piano';
+
+	const PIANO_DIMENSIONS = {
+		whiteKey: {
+			width: 24,
+			height: 120,
+			gap: 1,
+			radius: 3,
+			labelRadius: 10
+		},
+		blackKey: {
+			width: 16,
+			height: 72,
+			radius: 3,
+			labelRadius: 7
+		},
+		octaves: 5,
+		octaveLabelHeight: 16
+	};
+
+	const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
+	const BLACK_KEY_POSITIONS = [0, 1, 3, 4, 5] as const;
 
 	const { whiteKey, blackKey, octaves, octaveLabelHeight } = PIANO_DIMENSIONS;
-	const { width: svgWidth, height: svgHeight } = PIANO_SVG;
+	const totalWhiteKeys = WHITE_NOTES.length * octaves + 1;
+	const svgWidth = totalWhiteKeys * whiteKey.width;
+	const svgHeight = whiteKey.height + octaveLabelHeight;
 
 	// Mouse drag state for glissando-style playing
 	let isDragging = $state(false);
