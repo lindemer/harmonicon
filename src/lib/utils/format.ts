@@ -101,7 +101,8 @@ export class FormatUtil {
 
 		const chordChroma = Note.chroma(chord.tonic);
 		const tonic = this.getTonicRoot(keyRoot, mode);
-		const triads = mode === 'major' ? Key.majorKey(tonic).triads : Key.minorKey(tonic).natural.triads;
+		const triads =
+			mode === 'major' ? Key.majorKey(tonic).triads : Key.minorKey(tonic).natural.triads;
 
 		const degreeIndex = triads.findIndex((triad) => {
 			const triadChord = Chord.get(triad);

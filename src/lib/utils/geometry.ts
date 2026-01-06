@@ -40,7 +40,11 @@ export function getDistanceFromCenter(point: Point, center: Point): number {
  * Calculate angle (in degrees) from center to a point.
  * Returns 0-360 degrees, with 0 at top (12 o'clock position).
  */
-export function getAngleFromCenter(point: Point, center: Point, rotationOffset: number = 0): number {
+export function getAngleFromCenter(
+	point: Point,
+	center: Point,
+	rotationOffset: number = 0
+): number {
 	const dx = point.x - center.x;
 	const dy = point.y - center.y;
 	let angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -88,10 +92,28 @@ export function describeArc(
 	const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
 
 	return [
-		'M', outerStart.x, outerStart.y,
-		'A', outerRadius, outerRadius, 0, largeArcFlag, 1, outerEnd.x, outerEnd.y,
-		'L', innerEnd.x, innerEnd.y,
-		'A', innerRadius, innerRadius, 0, largeArcFlag, 0, innerStart.x, innerStart.y,
+		'M',
+		outerStart.x,
+		outerStart.y,
+		'A',
+		outerRadius,
+		outerRadius,
+		0,
+		largeArcFlag,
+		1,
+		outerEnd.x,
+		outerEnd.y,
+		'L',
+		innerEnd.x,
+		innerEnd.y,
+		'A',
+		innerRadius,
+		innerRadius,
+		0,
+		largeArcFlag,
+		0,
+		innerStart.x,
+		innerStart.y,
 		'Z'
 	].join(' ');
 }
