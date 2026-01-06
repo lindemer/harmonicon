@@ -11,9 +11,9 @@
 </script>
 
 <span class="roman-numeral {size} font-music" class:centered style:color>
-	{numeral}{#if inversion > 0}<span class="inversion"
-			><span class="inv-digit">⁶</span>{#if inversion === 2}<span class="inv-digit">₄</span
-				>{/if}</span
+	<span class="numeral">{numeral}</span>{#if inversion > 0}<span class="inversion"
+			><span class="inv-top">6</span><span class="inv-bottom">{inversion === 2 ? '4' : ''}</span
+			></span
 		>{/if}
 </span>
 
@@ -21,6 +21,8 @@
 	.roman-numeral {
 		display: inline-flex;
 		align-items: center;
+		/* Use line-height to establish consistent height for the numeral */
+		line-height: 1;
 	}
 
 	.roman-numeral.sm {
@@ -33,30 +35,28 @@
 		font-size: 28px;
 	}
 
-	.inversion {
-		position: relative;
-		display: inline-block;
-		font-size: 0.85em;
-		margin-left: 0.15em;
-		width: 0.6em;
-		height: 1.2em;
-	}
-
-	.inv-digit {
-		position: absolute;
-		left: 0;
+	.numeral {
+		/* Ensure numeral has consistent height based on line-height */
 		line-height: 1;
 	}
 
-	.inv-digit:first-child {
-		top: -0.05em;
+	.inversion {
+		display: inline-flex;
+		flex-direction: column;
+		justify-content: space-between;
+		font-size: 0.5em;
+		margin-left: 0.15em;
+		/* Height matches the parent's 1em (the numeral height) */
+		height: 1.9em; /* 0.95em at parent size since we're at 0.5em */
+		align-self: stretch;
 	}
 
-	.inv-digit:last-child:not(:first-child) {
-		top: 0.25em;
+	.inv-top,
+	.inv-bottom {
+		line-height: 1;
 	}
 
 	.roman-numeral.centered .inversion {
-		margin-right: -0.55em;
+		margin-right: -0.95em;
 	}
 </style>
