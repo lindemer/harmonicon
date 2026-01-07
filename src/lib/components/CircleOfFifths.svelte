@@ -168,9 +168,8 @@
 		}
 	}
 
-	// Touch event handlers (need to be non-passive for preventDefault to work)
+	// Touch event handlers
 	function handleTouchStart(e: TouchEvent) {
-		e.preventDefault();
 		const touch = e.touches[0];
 		touchStartPos = { x: touch.clientX, y: touch.clientY };
 		const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
@@ -180,7 +179,6 @@
 	}
 
 	function handleTouchEnd(e: TouchEvent) {
-		e.preventDefault();
 		if (!touchStartPos || !touchStartSegment) {
 			touchStartPos = null;
 			touchStartSegment = null;
@@ -199,16 +197,11 @@
 				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
 				const chordSymbol = getChordSymbol(segment, ring);
 
-				// If same chord is already selected, cycle through inversions
-				const nextInversion =
-					appState.selectedChord === chordSymbol
-						? (((appState.selectedInversion + 1) % 3) as 0 | 1 | 2)
-						: 0;
-
-				appState.selectChord(chordSymbol, nextInversion, false);
+				// Always use root position on mobile (no inversion cycling)
+				appState.selectChord(chordSymbol, 0, false);
 
 				// Play chord briefly then stop
-				playChordForSegment(segment, ring, nextInversion);
+				playChordForSegment(segment, ring, 0);
 				setTimeout(() => {
 					if (currentChordNotes.length > 0) {
 						appState.removePressedNotes(currentChordNotes);
@@ -225,7 +218,6 @@
 	}
 
 	function handleTouchMove(e: TouchEvent) {
-		e.preventDefault();
 		if (!touchStartPos) return;
 
 		const touch = e.touches[0];
@@ -240,11 +232,11 @@
 		}
 	}
 
-	// Action to attach non-passive touch listeners
-	const nonPassiveTouch = (node: SVGSVGElement) => {
-		node.addEventListener('touchstart', handleTouchStart as EventListener, { passive: false });
-		node.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false });
-		node.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+	// Action to attach touch listeners
+	const touchHandlers = (node: SVGSVGElement) => {
+		node.addEventListener('touchstart', handleTouchStart as EventListener);
+		node.addEventListener('touchend', handleTouchEnd as EventListener);
+		node.addEventListener('touchmove', handleTouchMove as EventListener);
 
 		return {
 			destroy() {
@@ -259,11 +251,11 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
 	viewBox="0 0 {viewBox} {viewBox}"
-	class="h-full w-auto select-none"
+	class="max-h-full max-w-full select-none"
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
-	use:nonPassiveTouch
+	use:touchHandlers
 	oncontextmenu={(e) => e.preventDefault()}
 	onmousedown={(e) => {
 		if (isInCenterCircle(e.clientX, e.clientY)) return;

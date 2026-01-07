@@ -9,12 +9,17 @@
 
 	// Responsive scaling
 	let containerWidth = $state(0);
+	let containerHeight = $state(0);
 	const KEYBOARD_NATURAL_WIDTH = 750;
+	const KEYBOARD_NATURAL_HEIGHT = 332;
 	const CONTAINER_PADDING = 32;
 
 	const keyboardScale = $derived(
-		containerWidth > 0
-			? Math.min(1, (containerWidth - CONTAINER_PADDING) / KEYBOARD_NATURAL_WIDTH)
+		containerWidth > 0 && containerHeight > 0
+			? Math.min(
+					(containerWidth - CONTAINER_PADDING) / KEYBOARD_NATURAL_WIDTH,
+					(containerHeight - CONTAINER_PADDING) / KEYBOARD_NATURAL_HEIGHT
+				)
 			: 1
 	);
 
@@ -49,6 +54,7 @@
 <div
 	class="keyboard-container"
 	bind:clientWidth={containerWidth}
+	bind:clientHeight={containerHeight}
 	onmouseup={kb.handleMouseUp}
 	onmouseleave={kb.handleMouseUp}
 	role="application"
@@ -229,6 +235,7 @@
 		justify-content: center;
 		padding: 1rem;
 		user-select: none;
+		overflow: visible;
 		--key-size: 64px;
 		--key-gap: 4px;
 		--key-unit: calc(var(--key-size) + var(--key-gap));
