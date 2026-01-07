@@ -42,7 +42,8 @@
 }
 
 .left-half {
-	flex: 0 0 auto;
+	flex: 1;
+	min-width: 0;
 	height: 100%;
 	display: flex;
 	align-items: center;
@@ -59,7 +60,7 @@
 	align-items: center;
 	justify-content: center;
 	padding: 1rem;
-	overflow: hidden;
+	overflow: visible;
 }
 
 .header {
@@ -73,7 +74,7 @@
 
 .header h1 {
 	font-family: var(--font-music);
-	font-size: 1.1rem;
+	font-size: 1.65rem;
 	font-weight: 400;
 	color: #e5e7eb; /* gray-200 */
 	margin: 0;
@@ -93,8 +94,8 @@
 }
 
 .header a svg {
-	width: 24px;
-	height: 24px;
+	width: 36px;
+	height: 36px;
 }
 
 .mute-button {
@@ -114,8 +115,8 @@
 }
 
 .mute-button svg {
-	width: 24px;
-	height: 24px;
+	width: 36px;
+	height: 36px;
 }
 
 .bottom-area {

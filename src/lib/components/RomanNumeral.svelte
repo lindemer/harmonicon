@@ -42,8 +42,9 @@
 		flex-direction: column;
 		justify-content: space-between;
 		font-size: 0.5em;
-		margin-left: 0.15em;
-		height: 1.9em;
+		margin-left: 0.2em;
+		margin-bottom: 0.2em;
+		height: 2em;
 	}
 
 	.inv-top,
