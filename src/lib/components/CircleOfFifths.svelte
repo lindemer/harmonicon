@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Key, Chord } from 'tonal';
 	import { appState } from '$lib/stores/app.svelte';
+	import { keyboardState } from '$lib/stores/keyboard.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { GeometryUtil } from '$lib/utils/geometry.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
@@ -111,14 +112,26 @@
 		return distance < radii.center - centerPadding;
 	}
 
-	function getChordSymbol(segmentIndex: number, ring: RingType): string {
+	function getChordSymbol(segmentIndex: number, ring: RingType, seventh: boolean = false): string {
 		const key = keys[segmentIndex];
+		if (seventh) {
+			// 7th chord symbols: Maj7 for major, m7 for minor, m7b5 for diminished
+			if (ring === 'major') return key.major + 'maj7';
+			if (ring === 'minor') return key.minor + '7'; // Minor 7th (e.g., Am7)
+			// Diminished becomes half-diminished (m7b5) in 7th mode
+			return FormatUtil.formatNote(key.dimNote) + 'm7b5';
+		}
 		if (ring === 'major') return key.major;
 		if (ring === 'minor') return key.minor;
 		return key.dim;
 	}
 
-	function getInversionFromEvent(e: MouseEvent): 0 | 1 | 2 {
+	function getInversionFromEvent(e: MouseEvent): 0 | 1 | 2 | 3 {
+		const seventh = keyboardState.tabPressed;
+		if (e.shiftKey && e.altKey) {
+			// Both pressed: 3rd inversion in 7th mode, 2nd inversion otherwise
+			return seventh ? 3 : 2;
+		}
 		if (e.shiftKey) return 2;
 		if (e.altKey) return 1;
 		return 0;
@@ -154,8 +167,9 @@
 	}
 
 	// Play chord audio for a segment
-	function playChordForSegment(segmentIndex: number, ring: RingType, inv: 0 | 1 | 2 = 0) {
-		const chordSymbol = getChordSymbol(segmentIndex, ring);
+	function playChordForSegment(segmentIndex: number, ring: RingType, inv: 0 | 1 | 2 | 3 = 0) {
+		const seventh = keyboardState.tabPressed;
+		const chordSymbol = getChordSymbol(segmentIndex, ring, seventh);
 		const unformatted = FormatUtil.unformatNote(chordSymbol);
 		const notes = VoicingUtil.getVoicedNotesFromSymbol(
 			unformatted,
@@ -269,7 +283,8 @@
 				appState.isChordPressed = true;
 
 				// Select and play chord
-				const chordSymbol = getChordSymbol(segment, ring);
+				const seventh = keyboardState.tabPressed;
+				const chordSymbol = getChordSymbol(segment, ring, seventh);
 				const inversion = getInversionFromEvent(e);
 				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
@@ -343,7 +358,8 @@
 				}
 
 				// Select and play new chord
-				const chordSymbol = getChordSymbol(segment, ring);
+				const seventh = keyboardState.tabPressed;
+				const chordSymbol = getChordSymbol(segment, ring, seventh);
 				const inversion = getInversionFromEvent(e);
 				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
@@ -472,7 +488,7 @@
 			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
 			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
 				<div class="center-numeral">
-					<RomanNumeral numeral={result.numeral} {inversion} color={numeralColor} size="lg" />
+					<RomanNumeral numeral={result.numeral} {inversion} isSeventh={appState.isSeventhMode} color={numeralColor} size="lg" />
 				</div>
 			</foreignObject>
 		{/if}

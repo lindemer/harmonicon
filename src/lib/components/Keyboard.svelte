@@ -23,10 +23,12 @@
 			: 1
 	);
 
-	// Get color for a degree key, accounting for inversion
+	// Get color for a degree key, accounting for inversion and 7th mode
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
-	function getDegreeColorForInversion(degree: number, inv: 0 | 1 | 2): string {
-		const chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
+	function getDegreeColorForInversion(degree: number, inv: 0 | 1 | 2 | 3, isSeventh: boolean): string {
+		const chord = isSeventh
+			? VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode)
+			: VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
 		if (!chord || !chord.notes.length) {
 			return FormatUtil.getDegreeColor(degree);
 		}
@@ -72,7 +74,7 @@
 					class="key degree-key"
 					class:pressed={degree !== null && appState.pressedDegree === degree}
 					style:background-color={degree
-						? getDegreeColorForInversion(degree, kb.inversion)
+						? getDegreeColorForInversion(degree, kb.inversion, kb.tabPressed)
 						: undefined}
 					onmousedown={() => degree && kb.handleDegreeMouseDown(degree)}
 					onmouseenter={() => degree && kb.handleDegreeMouseEnter(degree)}
@@ -82,16 +84,29 @@
 					<span class="key-label">{key}</span>
 					{#if degree}
 						<span class="key-function"
-							><RomanNumeral numeral={getRomanNumeral(degree)} inversion={kb.inversion} /></span
+							><RomanNumeral numeral={getRomanNumeral(degree)} inversion={kb.inversion} isSeventh={kb.tabPressed} /></span
 						>
 					{/if}
 				</div>
 			{/each}
 		</div>
 
-		<!-- Piano keys section -->
+		<!-- Piano keys section with Tab key -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div class="piano-section" onmousemove={kb.handlePianoSectionMouseMove}>
+			<!-- Tab key (7th mode toggle) - positioned to left of piano keys -->
+			<div
+				class="key wide-key dark-key tab-key"
+				class:pressed={kb.tabPressed}
+				onmousedown={() => (kb.tabMousePressed = true)}
+				onmouseup={() => (kb.tabMousePressed = false)}
+				onmouseleave={() => (kb.tabMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
+				<span class="key-label">tab</span>
+				<span class="key-function font-music">7<sup>th</sup></span>
+			</div>
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const whiteNoteColor = getNoteColor(pk.note)}
 				{@const blackNoteColor = pk.blackNote ? getNoteColor(pk.blackNote) : undefined}
@@ -233,7 +248,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 1rem;
+		/* Extra left padding to accommodate Tab key overflow */
+		padding: 1rem 1rem 1rem calc(1rem + 1.5 * var(--key-size) + var(--key-gap));
 		user-select: none;
 		overflow: visible;
 		--key-size: 64px;
@@ -245,6 +261,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--key-gap);
+		overflow: visible;
 	}
 
 	.row {
@@ -309,6 +326,15 @@
 		position: relative;
 		height: calc(2 * var(--key-size));
 		width: calc(10 * var(--key-unit));
+		overflow: visible;
+	}
+
+	/* Tab key - positioned to left of piano keys, aligned with black keys */
+	.tab-key {
+		position: absolute;
+		left: calc(-1.5 * var(--key-size) - var(--key-gap));
+		top: 0;
+		height: var(--key-size);
 	}
 
 	/* White keys - tall piano-style */
