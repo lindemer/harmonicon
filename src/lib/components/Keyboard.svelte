@@ -196,7 +196,7 @@
 		</div>
 
 		<!-- Modifier row -->
-		<div class="row">
+		<div class="row modifier-row">
 			<div class="key dark-key disabled-key">
 				<span class="key-label">ctrl</span>
 			</div>
@@ -491,6 +491,15 @@
 
 	.bottom-row {
 		justify-content: flex-start;
-		padding-left: 20px;
+		margin-left: calc(-1.5 * var(--key-size) - var(--key-gap));
+	}
+
+	.bottom-row .wide-key {
+		min-width: calc(var(--key-size) * 2 + 0.5 * var(--key-gap));
+	}
+
+	.modifier-row {
+		justify-content: flex-start;
+		margin-left: calc(-0.75 * var(--key-unit));
 	}
 </style>
