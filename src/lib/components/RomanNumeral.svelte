@@ -12,20 +12,31 @@
 	// Figured bass notation for triads and 7th chords
 	// Triads: root (none), 1st (6), 2nd (6/4)
 	// 7ths: root (7), 1st (6/5), 2nd (4/3), 3rd (4/2)
-	function getFiguredBass(inv: 0 | 1 | 2 | 3, seventh: boolean): { top: string; bottom: string } | null {
+	function getFiguredBass(
+		inv: 0 | 1 | 2 | 3,
+		seventh: boolean
+	): { top: string; bottom: string } | null {
 		if (seventh) {
 			switch (inv) {
-				case 0: return { top: '7', bottom: '' };
-				case 1: return { top: '6', bottom: '5' };
-				case 2: return { top: '4', bottom: '3' };
-				case 3: return { top: '4', bottom: '2' };
+				case 0:
+					return { top: '7', bottom: '' };
+				case 1:
+					return { top: '6', bottom: '5' };
+				case 2:
+					return { top: '4', bottom: '3' };
+				case 3:
+					return { top: '4', bottom: '2' };
 			}
 		} else {
 			switch (inv) {
-				case 0: return null;
-				case 1: return { top: '6', bottom: '' };
-				case 2: return { top: '6', bottom: '4' };
-				default: return null;
+				case 0:
+					return null;
+				case 1:
+					return { top: '6', bottom: '' };
+				case 2:
+					return { top: '6', bottom: '4' };
+				default:
+					return null;
 			}
 		}
 	}
@@ -35,7 +46,8 @@
 
 <span class="roman-numeral {size} font-music" style:color>
 	<span class="numeral">{numeral}</span>{#if figuredBass}<span class="inversion"
-			><span class="inv-top">{figuredBass.top}</span><span class="inv-bottom">{figuredBass.bottom}</span
+			><span class="inv-top">{figuredBass.top}</span><span class="inv-bottom"
+				>{figuredBass.bottom}</span
 			></span
 		>{/if}
 </span>

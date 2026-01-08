@@ -320,12 +320,12 @@ export const keyboardState = {
 			const seventhMode = keyboardState.tabPressed;
 			// Get chord symbol for this degree
 			const chords = seventhMode
-				? (appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).chords
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords)
-				: (appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).triads
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads);
+				? appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).chords
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords
+				: appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).triads
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
 			const chord = chords[degree - 1];
 			if (chord) {
 				const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
@@ -401,12 +401,12 @@ export const keyboardState = {
 		const seventhMode = keyboardState.tabPressed;
 
 		const chords = seventhMode
-			? (appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).chords
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords)
-			: (appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).triads
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads);
+			? appState.mode === 'major'
+				? Key.majorKey(appState.selectedRoot).chords
+				: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords
+			: appState.mode === 'major'
+				? Key.majorKey(appState.selectedRoot).triads
+				: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
 		const chord = chords[degree - 1];
 		if (chord) {
 			const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
@@ -429,12 +429,12 @@ export const keyboardState = {
 
 			const seventhMode = keyboardState.tabPressed;
 			const chords = seventhMode
-				? (appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).chords
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords)
-				: (appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).triads
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads);
+				? appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).chords
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords
+				: appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).triads
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
 			const chord = chords[degree - 1];
 			if (chord) {
 				const formatted = FormatUtil.formatNote(chord).replace('dim', '°');

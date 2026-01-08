@@ -25,7 +25,11 @@
 
 	// Get color for a degree key, accounting for inversion and 7th mode
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
-	function getDegreeColorForInversion(degree: number, inv: 0 | 1 | 2 | 3, isSeventh: boolean): string {
+	function getDegreeColorForInversion(
+		degree: number,
+		inv: 0 | 1 | 2 | 3,
+		isSeventh: boolean
+	): string {
 		const chord = isSeventh
 			? VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode)
 			: VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
@@ -84,7 +88,11 @@
 					<span class="key-label">{key}</span>
 					{#if degree}
 						<span class="key-function"
-							><RomanNumeral numeral={getRomanNumeral(degree)} inversion={kb.inversion} isSeventh={kb.tabPressed} /></span
+							><RomanNumeral
+								numeral={getRomanNumeral(degree)}
+								inversion={kb.inversion}
+								isSeventh={kb.tabPressed}
+							/></span
 						>
 					{/if}
 				</div>
