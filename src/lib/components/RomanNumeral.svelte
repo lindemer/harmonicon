@@ -1,17 +1,53 @@
 <script lang="ts">
 	interface Props {
 		numeral: string;
-		inversion?: 0 | 1 | 2;
+		inversion?: 0 | 1 | 2 | 3;
+		isSeventh?: boolean;
 		color?: string;
 		size?: 'sm' | 'md' | 'lg';
 	}
 
-	let { numeral, inversion = 0, color = 'white', size = 'md' }: Props = $props();
+	let { numeral, inversion = 0, isSeventh = false, color = 'white', size = 'md' }: Props = $props();
+
+	// Figured bass notation for triads and 7th chords
+	// Triads: root (none), 1st (6), 2nd (6/4)
+	// 7ths: root (7), 1st (6/5), 2nd (4/3), 3rd (4/2)
+	function getFiguredBass(
+		inv: 0 | 1 | 2 | 3,
+		seventh: boolean
+	): { top: string; bottom: string } | null {
+		if (seventh) {
+			switch (inv) {
+				case 0:
+					return { top: '7', bottom: '' };
+				case 1:
+					return { top: '6', bottom: '5' };
+				case 2:
+					return { top: '4', bottom: '3' };
+				case 3:
+					return { top: '4', bottom: '2' };
+			}
+		} else {
+			switch (inv) {
+				case 0:
+					return null;
+				case 1:
+					return { top: '6', bottom: '' };
+				case 2:
+					return { top: '6', bottom: '4' };
+				default:
+					return null;
+			}
+		}
+	}
+
+	const figuredBass = $derived(getFiguredBass(inversion, isSeventh));
 </script>
 
 <span class="roman-numeral {size} font-music" style:color>
-	<span class="numeral">{numeral}</span>{#if inversion > 0}<span class="inversion"
-			><span class="inv-top">6</span><span class="inv-bottom">{inversion === 2 ? '4' : ''}</span
+	<span class="numeral">{numeral}</span>{#if figuredBass}<span class="inversion"
+			><span class="inv-top">{figuredBass.top}</span><span class="inv-bottom"
+				>{figuredBass.bottom}</span
 			></span
 		>{/if}
 </span>

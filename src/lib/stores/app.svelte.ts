@@ -15,8 +15,9 @@ export interface AppState {
 
 	// Chord selection
 	selectedChord: string | null;
-	selectedInversion: 0 | 1 | 2;
-	selectChord(chord: string | null, inversion?: 0 | 1 | 2, toggle?: boolean): void;
+	selectedInversion: 0 | 1 | 2 | 3;
+	isSeventhMode: boolean;
+	selectChord(chord: string | null, inversion?: 0 | 1 | 2 | 3, toggle?: boolean): void;
 
 	// Octave control
 	pianoStartOctave: number;
@@ -49,7 +50,8 @@ export interface AppState {
 let selectedRoot = $state('C');
 let mode = $state<Mode>('major');
 let selectedChord = $state<string | null>(null);
-let selectedInversion = $state<0 | 1 | 2>(0);
+let selectedInversion = $state<0 | 1 | 2 | 3>(0);
+let isSeventhMode = $state(false);
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 let pressedDegree = $state<number | null>(null);
@@ -92,8 +94,16 @@ export const appState = {
 		return selectedInversion;
 	},
 
-	set selectedInversion(value: 0 | 1 | 2) {
+	set selectedInversion(value: 0 | 1 | 2 | 3) {
 		selectedInversion = value;
+	},
+
+	get isSeventhMode() {
+		return isSeventhMode;
+	},
+
+	set isSeventhMode(value: boolean) {
+		isSeventhMode = value;
 	},
 
 	/**
@@ -103,7 +113,7 @@ export const appState = {
 	 * @param inversion - Inversion level (0, 1, or 2)
 	 * @param toggle - If true, deselects if the same chord/inversion is already selected
 	 */
-	selectChord(chord: string | null, inversion: 0 | 1 | 2 = 0, toggle = false) {
+	selectChord(chord: string | null, inversion: 0 | 1 | 2 | 3 = 0, toggle = false) {
 		if (toggle && selectedChord === chord && selectedInversion === inversion) {
 			selectedChord = null;
 			selectedInversion = 0;
@@ -211,7 +221,9 @@ export const appState = {
 
 		// Chord highlighting from degree key (1-7)
 		if (pressedDegree !== null) {
-			const chord = VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
+			const chord = isSeventhMode
+				? VoicingUtil.getSeventhChordForDegree(pressedDegree, selectedRoot, mode)
+				: VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
 			if (chord && chord.notes.length) {
 				results.push(
 					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave)

@@ -30,19 +30,40 @@ export class VoicingUtil {
 	}
 
 	/**
+	 * Get the 7th chord for a scale degree in a given key.
+	 * @param degree - Scale degree (1-7)
+	 * @param keyRoot - Root note of the key (e.g., 'C', 'G')
+	 * @param mode - 'major' or 'minor'
+	 * @returns Tonal Chord object or null if invalid degree
+	 */
+	static getSeventhChordForDegree(degree: number, keyRoot: string, mode: Mode): ChordType | null {
+		if (degree < 1 || degree > 7) return null;
+
+		// Get 7th chords based on mode
+		// In minor mode, use the natural minor 7th chords
+		const chords =
+			mode === 'major'
+				? Key.majorKey(keyRoot).chords
+				: Key.minorKey(Key.majorKey(keyRoot).minorRelative).natural.chords;
+
+		const chord = chords[degree - 1];
+		return Chord.get(chord);
+	}
+
+	/**
 	 * Get voiced chord notes with octave information.
 	 * Voices chord so bass note is closest to the base octave's C (above or below).
 	 * If any note would be 12+ semitones above baseOctave's C, the entire chord
 	 * is shifted down one octave.
 	 *
 	 * @param chordNotes - Array of note names from Chord.get().notes
-	 * @param inversion - 0 (root), 1 (first), or 2 (second)
+	 * @param inversion - 0 (root), 1 (first), 2 (second), or 3 (third for 7th chords)
 	 * @param baseOctave - Base octave for voicing (e.g., 3)
 	 * @returns Array of {note, octave} objects
 	 */
 	static getVoicedNotes(
 		chordNotes: string[],
-		inversion: 0 | 1 | 2,
+		inversion: 0 | 1 | 2 | 3,
 		baseOctave: number
 	): Array<{ note: string; octave: number }> {
 		if (!chordNotes.length) return [];
@@ -90,14 +111,14 @@ export class VoicingUtil {
 	 * Get voiced notes from a chord symbol.
 	 * Convenience method that parses the chord symbol first.
 	 *
-	 * @param chordSymbol - Chord symbol (e.g., 'C', 'Am', 'Bdim')
-	 * @param inversion - 0 (root), 1 (first), or 2 (second)
+	 * @param chordSymbol - Chord symbol (e.g., 'C', 'Am', 'Bdim', 'Cmaj7')
+	 * @param inversion - 0 (root), 1 (first), 2 (second), or 3 (third for 7th chords)
 	 * @param baseOctave - Base octave for voicing
 	 * @returns Array of {note, octave} objects, or empty array if invalid chord
 	 */
 	static getVoicedNotesFromSymbol(
 		chordSymbol: string,
-		inversion: 0 | 1 | 2,
+		inversion: 0 | 1 | 2 | 3,
 		baseOctave: number
 	): Array<{ note: string; octave: number }> {
 		const chord = Chord.get(chordSymbol);

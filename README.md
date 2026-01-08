@@ -2,14 +2,16 @@
 
 ![Harmonicon Screenshot](static/screenshot.png)
 
-An interactive music theory tool for exploring the relationships between notes and chords. Inspired by the great educational material from [Hooktheory](https://www.hooktheory.com/) and [David Bennett Piano](https://www.youtube.com/@DavidBennettPiano). The idea is to provide a visually engaging way to see harmonic relationships, aiding memorization, playing by ear, and brainstorming song ideas.
+An interactive tool for exploring keys, chords and intervals with the circle of fifths. Inspired by the great educational material from [Hooktheory](https://www.hooktheory.com/) and [David Bennett Piano](https://www.youtube.com/@DavidBennettPiano).
 
 ## Usage
 
-- **Play notes/chords**: Click and drag on the circle, keyboard, or piano
-- **Chord inversions**: Hold Alt/Option for 1st inversion, Shift+Alt for 2nd inversion
-- **Change key**: Right-click on the circle
-- **Toggle major/minor**: Press Spacebar
+- **Play notes/chords**: Click (and drag) on the circle, virtual keyboard, or piano
+- **Chord inversions**: Hold Alt/Option for 1st inversions, Shift for 2nd inversions, or both for 3rd inversions
+- **7th chords**: Hold tab
+- **Change key**: Right-click (and drag) on the circle
+- **Toggle major/minor**: Press Spacebar or click on the center of the circle
+- **Change octave**: z and x
 
 ## Development
 
