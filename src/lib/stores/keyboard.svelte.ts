@@ -1,7 +1,6 @@
-import { Key, Chord, Note } from 'tonal';
+import { Chord, Note } from 'tonal';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
-import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
 import { midiState } from '$lib/stores/midi.svelte';
 

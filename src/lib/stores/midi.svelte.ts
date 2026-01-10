@@ -1,3 +1,4 @@
+import { SvelteMap } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
 
 // MIDI note names for conversion
@@ -7,13 +8,13 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 let midiAccess: MIDIAccess | null = $state(null);
 let availableInputs: MIDIInput[] = $state([]);
 let selectedInputId: string | null = $state(null);
-let isSupported = $state(typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator);
+const isSupported = $state(typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator);
 let isMenuOpen = $state(false);
 let initError: string | null = $state(null);
 let initialized = false;
 
 // Track which MIDI notes are currently pressed (to handle note-off correctly)
-const pressedMidiNotes = new Map<number, { note: string; octave: number }>();
+const pressedMidiNotes = new SvelteMap<number, { note: string; octave: number }>();
 
 /** Convert MIDI note number to note name and octave */
 function midiNoteToNoteInfo(midiNote: number): { note: string; octave: number } {

@@ -204,7 +204,7 @@ export const appState = {
 		const notesInRange = notesWithPitch.map((n) => n.note);
 
 		// Count unique pitch classes (ignore octave duplicates)
-		const uniquePitchClasses = new Set(notesInRange).size;
+		const uniquePitchClasses = new SvelteSet(notesInRange).size;
 
 		// Need at least 3 unique pitch classes for chord detection
 		if (uniquePitchClasses < 3) return null;
