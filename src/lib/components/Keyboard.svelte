@@ -3,7 +3,9 @@
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import RomanNumeral from './RomanNumeral.svelte';
+	import MidiMenu from './MidiMenu.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
+	import { midiState } from '$lib/stores/midi.svelte';
 
 	const kb = keyboardState;
 
@@ -12,12 +14,14 @@
 	let containerHeight = $state(0);
 	const KEYBOARD_NATURAL_WIDTH = 750;
 	const KEYBOARD_NATURAL_HEIGHT = 332;
-	const CONTAINER_PADDING = 32;
+	const CONTAINER_PADDING = 0;
+	// Tab key overflows left by 1.5 * 64px + 4px = 100px
+	const TAB_KEY_OVERFLOW = 100;
 
 	const keyboardScale = $derived(
 		containerWidth > 0 && containerHeight > 0
 			? Math.min(
-					(containerWidth - CONTAINER_PADDING) / KEYBOARD_NATURAL_WIDTH,
+					(containerWidth - CONTAINER_PADDING) / (KEYBOARD_NATURAL_WIDTH + TAB_KEY_OVERFLOW),
 					(containerHeight - CONTAINER_PADDING) / KEYBOARD_NATURAL_HEIGHT
 				)
 			: 1
@@ -69,6 +73,7 @@
 	bind:clientHeight={containerHeight}
 	onmouseup={kb.handleMouseUp}
 	onmouseleave={kb.handleMouseUp}
+	oncontextmenu={(e) => e.preventDefault()}
 	role="application"
 >
 	<div
@@ -166,12 +171,17 @@
 					<div class="white-key-bottom">
 						<span class="key-label">{pk.white}</span>
 						<span class="key-function font-music" style:color={whiteNoteColor ?? '#f3f4f6'}
-							>{pk.note}</span
+							>{appState.playMode === 'chords' && kb.ctrlPressed
+								? pk.note.toLowerCase()
+								: pk.note}</span
 						>
 					</div>
 				</div>
 				<!-- Black key (if present) -->
 				{#if pk.black && pk.blackNote}
+					{@const displayBlackNote = FormatUtil.usesFlatNotation(appState.selectedRoot)
+						? FormatUtil.toFlatNotation(pk.blackNote)
+						: pk.blackNote}
 					<div
 						class="black-key dark-key"
 						class:pressed={kb.isKeyPressed(pk.black)}
@@ -183,7 +193,9 @@
 					>
 						<span class="key-label">{pk.black}</span>
 						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}
-							>{FormatUtil.formatNote(pk.blackNote)}</span
+							>{appState.playMode === 'chords' && kb.ctrlPressed
+								? FormatUtil.formatNote(displayBlackNote).toLowerCase()
+								: FormatUtil.formatNote(displayBlackNote)}</span
 						>
 					</div>
 				{/if}
@@ -204,12 +216,15 @@
 				tabindex="0"
 			>
 				<span class="key-label">⇧</span>
-				<span class="key-function font-music">2<sup>nd</sup></span>
+				<span class="key-function font-music"
+					>{#if kb.tabPressed && kb.altPressed}3<sup>rd</sup>{:else}2<sup>nd</sup>{/if}</span
+				>
 			</div>
 
 			{#each kb.bottomRow as key (key)}
 				{@const action = kb.actionMap[key]}
-				{@const isVoicingKey = key === 'C'}
+				{@const isVoicingKey = key === 'V'}
+				{@const isPlayModeKey = key === 'C'}
 				<div
 					class="key dark-key"
 					class:pressed={kb.isActionKeyPressed(key)}
@@ -217,7 +232,8 @@
 						kb.clickedActionKey = key;
 						if (key === 'Z') appState.decrementChordOctave();
 						else if (key === 'X') appState.incrementChordOctave();
-						else if (key === 'C') appState.toggleVoicingMode();
+						else if (key === 'V') appState.toggleVoicingMode();
+						else if (key === 'C') appState.togglePlayMode();
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -226,35 +242,87 @@
 				>
 					<span class="key-label">{key}</span>
 					{#if isVoicingKey}
-						<span class="key-function voicing-label"
-							>{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
-						>
+						<span class="key-function voicing-label">
+							<span class="voicing-mode">{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
+							>
+							<span>VOICE</span>
+						</span>
+					{:else if isPlayModeKey}
+						<span class="key-function play-mode-label">
+							<span>PLAY</span>
+							<span class="play-mode">{appState.playMode === 'notes' ? 'NOTES' : 'CHORDS'}</span>
+						</span>
 					{:else if action}
-						<span class="key-function font-music"
-							>{action.text}{#if action.sup}<sup>{action.sup}</sup>{/if}</span
-						>
+						<span class="key-function octave-label">
+							<span>{action.text}</span>
+							<span>{action.text2}</span>
+						</span>
 					{/if}
 				</div>
 			{/each}
-			<!-- V-M keys (disabled placeholders) -->
-			<div class="key dark-key disabled-key">
-				<span class="key-label">V</span>
-			</div>
+			<!-- B and N keys (disabled placeholders) -->
 			<div class="key dark-key disabled-key">
 				<span class="key-label">B</span>
 			</div>
 			<div class="key dark-key disabled-key">
 				<span class="key-label">N</span>
 			</div>
+			<!-- M key (MIDI menu toggle) -->
+			<div class="midi-key-wrapper">
+				<div
+					class="key dark-key midi-key-trigger"
+					class:midi-connected={midiState.isConnected}
+					class:pressed={kb.mKeyPressed}
+					onmousedown={() => {
+						kb.mKeyPressed = true;
+						midiState.toggleMenu();
+					}}
+					onmouseup={() => (kb.mKeyPressed = false)}
+					onmouseleave={() => (kb.mKeyPressed = false)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							midiState.toggleMenu();
+						}
+					}}
+					role="button"
+					tabindex="0"
+				>
+					<span class="key-label">M</span>
+					<span class="key-function midi-label">
+						<span>MIDI</span>
+						<span>INPUT</span>
+					</span>
+				</div>
+				<MidiMenu />
+			</div>
+			<!-- Comma key (disabled) -->
 			<div class="key dark-key disabled-key">
-				<span class="key-label">M</span>
+				<span class="key-label">,</span>
+			</div>
+			<!-- Period key (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">.</span>
 			</div>
 		</div>
 
 		<!-- Modifier row -->
 		<div class="row modifier-row">
-			<div class="key dark-key disabled-key">
+			<div
+				class="key dark-key ctrl-key"
+				class:pressed={kb.ctrlPressed}
+				class:disabled-key={appState.playMode === 'notes'}
+				onmousedown={() => (kb.ctrlMousePressed = true)}
+				onmouseup={() => (kb.ctrlMousePressed = false)}
+				onmouseleave={() => (kb.ctrlMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
 				<span class="key-label">ctrl</span>
+				<span class="key-function ctrl-label">
+					<span>PARALLEL</span>
+					<span>MINOR</span>
+				</span>
 			</div>
 			<div
 				class="key dark-key"
@@ -267,7 +335,9 @@
 				tabindex="0"
 			>
 				<span class="key-label">⌥</span>
-				<span class="key-function font-music">1<sup>st</sup></span>
+				<span class="key-function font-music"
+					>{#if kb.tabPressed && kb.shiftPressed}3<sup>rd</sup>{:else}1<sup>st</sup>{/if}</span
+				>
 			</div>
 			<div class="key dark-key disabled-key">
 				<span class="key-label">⌘</span>
@@ -290,17 +360,31 @@
 				role="button"
 				tabindex="0"
 			>
-				<span class="key-function mode-toggle font-music">
-					<span
-						class:active-mode={appState.mode === 'major'}
-						class:inactive-mode={appState.mode !== 'major'}>Δ</span
-					>
-					<span class="mode-separator">/</span>
-					<span
-						class:active-mode={appState.mode === 'minor'}
-						class:inactive-mode={appState.mode !== 'minor'}>m</span
-					>
+				<span class="key-label">SPACEBAR</span>
+				<span class="key-function space-label">
+					<span>TOGGLE MODE</span>
+					<span class="space-mode">{appState.mode === 'major' ? 'MAJOR' : 'MINOR'}</span>
 				</span>
+			</div>
+			<!-- Second command key (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">⌘</span>
+			</div>
+			<!-- Second alt key (mirrors first alt key) -->
+			<div
+				class="key dark-key"
+				class:pressed={kb.altPressed}
+				class:disabled-key={kb.ninePressed}
+				onmousedown={() => (kb.altMousePressed = true)}
+				onmouseup={() => (kb.altMousePressed = false)}
+				onmouseleave={() => (kb.altMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
+				<span class="key-label">⌥</span>
+				<span class="key-function font-music"
+					>{#if kb.tabPressed && kb.shiftPressed}3<sup>rd</sup>{:else}1<sup>st</sup>{/if}</span
+				>
 			</div>
 		</div>
 	</div>
@@ -314,9 +398,9 @@
 		align-items: center;
 		justify-content: center;
 		/* Extra left padding to accommodate Tab key overflow */
-		padding: 1rem 1rem 1rem calc(1rem + 1.5 * var(--key-size) + var(--key-gap));
+		padding: 0 0 0 calc(1.5 * var(--key-size) + var(--key-gap));
 		user-select: none;
-		overflow: visible;
+		overflow: hidden;
 		--key-size: 64px;
 		--key-gap: 4px;
 		--key-unit: calc(var(--key-size) + var(--key-gap));
@@ -558,34 +642,28 @@
 		min-width: calc(var(--key-size) * 5);
 	}
 
+	.ctrl-key {
+		min-width: calc(var(--key-size) * 1.75);
+	}
+
 	/* Space key has slightly different pressed animation due to its width */
 	.space-key.pressed {
 		transform: scale(0.98) translateY(-1px);
 	}
 
-	/* Spacebar has only key-function, center it */
-	.space-key > .key-function {
-		position: static;
-		width: auto;
+	/* Spacebar label and function positioning */
+	.space-key > .key-label {
+		position: absolute;
+		top: 10px;
+		width: 100%;
 		text-align: center;
 	}
 
-	.mode-toggle {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.mode-separator {
-		color: #6b7280;
-	}
-
-	.active-mode {
-		color: #f3f4f6;
-	}
-
-	.inactive-mode {
-		color: #6b7280;
+	.space-key > .key-function {
+		position: absolute;
+		top: 30px;
+		width: 100%;
+		text-align: center;
 	}
 
 	.bottom-row {
@@ -599,13 +677,77 @@
 
 	.modifier-row {
 		justify-content: flex-start;
-		margin-left: calc(-0.75 * var(--key-unit));
+		margin-left: calc(-1.5 * var(--key-size) - var(--key-gap));
 	}
 
-	.dark-key > .voicing-label {
+	.dark-key > .voicing-label,
+	.dark-key > .octave-label,
+	.dark-key > .play-mode-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 		font-size: 10px;
-		font-weight: 600;
+		font-weight: 400;
 		letter-spacing: 0.5px;
-		top: 34px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
+	}
+
+	.voicing-mode,
+	.play-mode {
+		color: #f59e0b;
+	}
+
+	.ctrl-key > .ctrl-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
+	}
+
+	.ctrl-key.disabled-key > .ctrl-label {
+		color: #4b5563;
+	}
+
+	.space-key > .space-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
+	}
+
+	.space-mode {
+		color: #f59e0b;
+	}
+
+	.midi-key-wrapper {
+		position: relative;
+	}
+
+	.dark-key > .midi-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
+	}
+
+	.midi-connected > .midi-label {
+		color: #f59e0b;
 	}
 </style>

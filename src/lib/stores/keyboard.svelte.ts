@@ -1,8 +1,8 @@
-import { Key } from 'tonal';
-import { SvelteMap } from 'svelte/reactivity';
+import { Chord, Note } from 'tonal';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
-import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
+import { midiState } from '$lib/stores/midi.svelte';
 
 // ============ Constants ============
 
@@ -79,7 +79,9 @@ const codeToKey: Record<string, string> = {
 	Digit9: '9',
 	KeyZ: 'z',
 	KeyX: 'x',
-	KeyC: 'c'
+	KeyC: 'c',
+	KeyV: 'v',
+	KeyM: 'm'
 };
 
 // ============ State ============
@@ -89,15 +91,18 @@ let shiftKeyboardPressed = $state(false);
 let altKeyboardPressed = $state(false);
 let tabKeyboardPressed = $state(false);
 let nineKeyboardPressed = $state(false);
+let ctrlKeyboardPressed = $state(false);
 let shiftMousePressed = $state(false);
 let altMousePressed = $state(false);
 let tabMousePressed = $state(false);
 let nineMousePressed = $state(false);
+let ctrlMousePressed = $state(false);
 let spacePressed = $state(false);
 
 // Visual feedback state
 let clickedActionKey = $state<string | null>(null);
 let spaceClicked = $state(false);
+let mKeyPressed = $state(false);
 
 // Drag states
 let isDraggingDegree = $state(false);
@@ -106,8 +111,14 @@ let mouseInBlackKeyZone = $state(false); // For realistic glissando behavior
 
 // Audio tracking (internal)
 const playingDegreeNotes = new SvelteMap<number, Array<{ note: string; octave: number }>>();
+const playingPianoKeyChords = new SvelteMap<string, Array<{ note: string; octave: number }>>();
 let currentChordNotes: Array<{ note: string; octave: number }> = [];
 let currentNoteInfo: { note: string; octave: number } | null = null;
+
+// Track which virtual keys are clicked (for visual pressed state in chord mode)
+const clickedVirtualKeys = new SvelteSet<string>();
+// Track chord notes for mouse-initiated chords
+const mouseChordNotes = new SvelteMap<string, Array<{ note: string; octave: number }>>();
 
 // ============ Helper Functions ============
 
@@ -141,6 +152,32 @@ function getChordNotesForDegree(
 		appState.chordDisplayOctave,
 		appState.voicingMode
 	);
+}
+
+/** Get chord notes for a given note (for chord mode playback) */
+function getChordNotesForNote(
+	note: string,
+	isMinor: boolean
+): Array<{ note: string; octave: number }> {
+	// Build chord symbol: C, Cm (always triads for letter key chords)
+	const chordSymbol = note + (isMinor ? 'm' : '');
+
+	const chord = Chord.get(chordSymbol);
+	if (chord.empty || !chord.notes.length) return [];
+
+	// Use appState.chordDisplayOctave directly, just like getChordNotesForDegree
+	const voicedNotes = VoicingUtil.getVoicedNotes(
+		chord.notes,
+		0,
+		appState.chordDisplayOctave,
+		appState.voicingMode
+	);
+
+	// Normalize any double sharps/flats to simpler enharmonics (e.g., F## -> G)
+	return voicedNotes.map((vn) => ({
+		note: Note.simplify(vn.note) || vn.note,
+		octave: vn.octave
+	}));
 }
 
 /** Piano key layout: each key is 64px wide with 4px gap, total 68px per key */
@@ -198,12 +235,12 @@ export const keyboardState = {
 		{ white: ';', black: 'P', note: 'E', blackNote: 'D#' }
 	],
 
-	bottomRow: ['Z', 'X', 'C'],
+	bottomRow: ['Z', 'X', 'C', 'V'],
 
 	actionMap: {
-		Z: { text: '8', sup: 'vb' },
-		X: { text: '8', sup: 'va' }
-	} as Record<string, { text: string; sup: string }>,
+		Z: { text: 'OCTAVE', text2: 'DOWN' },
+		X: { text: 'OCTAVE', text2: 'UP' }
+	} as Record<string, { text: string; text2: string }>,
 
 	// State getters/setters - combined state from keyboard and mouse
 	get shiftPressed() {
@@ -217,6 +254,12 @@ export const keyboardState = {
 	},
 	get ninePressed() {
 		return nineKeyboardPressed || nineMousePressed;
+	},
+	get ctrlPressed() {
+		return ctrlKeyboardPressed || ctrlMousePressed;
+	},
+	set ctrlMousePressed(value: boolean) {
+		ctrlMousePressed = value;
 	},
 	// Mouse-specific setters for virtual keyboard
 	set shiftMousePressed(value: boolean) {
@@ -271,6 +314,12 @@ export const keyboardState = {
 	set spaceClicked(value: boolean) {
 		spaceClicked = value;
 	},
+	get mKeyPressed() {
+		return mKeyPressed;
+	},
+	set mKeyPressed(value: boolean) {
+		mKeyPressed = value;
+	},
 
 	/** Current inversion based on modifiers and 7th mode
 	 * In 9th mode: always 0 (no inversions)
@@ -298,12 +347,18 @@ export const keyboardState = {
 	isKeyPressed(key: string): boolean {
 		const keyLower = key.toLowerCase();
 
-		// For piano keys, derive from appState.pressedNotes
+		// For piano keys, check if this key specifically is pressed
 		const noteInfo = KEY_TO_NOTE[keyLower];
 		if (noteInfo) {
-			const baseOctave = appState.chordDisplayOctave + 1;
-			const octave = baseOctave + noteInfo.octaveOffset;
-			return appState.pressedNotes.has(`${noteInfo.note}${octave}`);
+			if (appState.playMode === 'chords') {
+				// In chord mode: check if the key itself is pressed (keyboard or mouse)
+				return playingPianoKeyChords.has(keyLower) || clickedVirtualKeys.has(keyLower);
+			} else {
+				// In notes mode: check if the corresponding note is pressed (existing behavior)
+				const baseOctave = appState.chordDisplayOctave + 1;
+				const octave = baseOctave + noteInfo.octaveOffset;
+				return appState.pressedNotes.has(`${noteInfo.note}${octave}`);
+			}
 		}
 
 		// For degree keys (1-7), derive from appState.pressedDegree
@@ -332,6 +387,12 @@ export const keyboardState = {
 		// Always prevent default Tab behavior
 		if (e.key === 'Tab') {
 			e.preventDefault();
+		}
+
+		// Track Control key
+		if (e.key === 'Control') {
+			ctrlKeyboardPressed = true;
+			return;
 		}
 
 		// Shift, Alt, Tab are mutually exclusive with 9 key
@@ -372,20 +433,40 @@ export const keyboardState = {
 			clickedActionKey = 'X';
 			appState.incrementChordOctave();
 		}
+		if (mappedKey === 'v' && !e.repeat) {
+			clickedActionKey = 'V';
+			appState.toggleVoicingMode();
+		}
 		if (mappedKey === 'c' && !e.repeat) {
 			clickedActionKey = 'C';
-			appState.toggleVoicingMode();
+			appState.togglePlayMode();
+		}
+		if (mappedKey === 'm' && !e.repeat) {
+			mKeyPressed = true;
+			midiState.toggleMenu();
 		}
 
 		// Handle piano keys (A-L, W-P)
-		if (mappedKey && pianoKeyChars.has(mappedKey)) {
+		if (mappedKey && pianoKeyChars.has(mappedKey) && !e.repeat) {
 			const noteInfo = getNoteForKey(mappedKey);
-			if (
-				noteInfo &&
-				!e.repeat &&
-				!appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)
-			) {
-				appState.addPressedNote(noteInfo.note, noteInfo.octave);
+			if (!noteInfo) return;
+
+			// Check if already playing this key
+			if (appState.playMode === 'chords') {
+				if (playingPianoKeyChords.has(mappedKey)) return;
+
+				const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+				// Letter key chords are always triads (no 7ths/9ths)
+				const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+				if (chordNotes.length > 0) {
+					playingPianoKeyChords.set(mappedKey, chordNotes);
+					appState.addPressedNotes(chordNotes);
+				}
+			} else {
+				// Notes mode - original behavior
+				if (!appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
+					appState.addPressedNote(noteInfo.note, noteInfo.octave);
+				}
 			}
 		}
 
@@ -394,36 +475,7 @@ export const keyboardState = {
 		if (degree && !e.repeat && !playingDegreeNotes.has(degree)) {
 			const seventhMode = keyboardState.tabPressed;
 			const ninthMode = keyboardState.ninePressed;
-			// Get chord symbol for this degree
-			let chords;
-			if (ninthMode) {
-				// For 9th mode, use 7th chords as base (we'll add 9 suffix in display)
-				chords =
-					appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).chords
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
-			} else if (seventhMode) {
-				chords =
-					appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).chords
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
-			} else {
-				chords =
-					appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).triads
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
-			}
-			const chord = chords[degree - 1];
-			if (chord) {
-				let formatted = FormatUtil.formatNote(chord).replace('dim', '°');
-				if (ninthMode) {
-					// Replace 7 with 9 in the chord symbol
-					formatted = formatted.replace('7', '9');
-				}
-				appState.selectedChord = formatted;
-			}
 			appState.pressedDegree = degree;
-			appState.selectedInversion = keyboardState.inversion;
 			const chordNotes = getChordNotesForDegree(
 				degree,
 				keyboardState.inversion,
@@ -440,6 +492,7 @@ export const keyboardState = {
 	handleKeyup(e: KeyboardEvent): void {
 		if (e.key === 'Shift') shiftKeyboardPressed = false;
 		if (e.key === 'Alt') altKeyboardPressed = false;
+		if (e.key === 'Control') ctrlKeyboardPressed = false;
 		if (e.key === 'Tab') {
 			tabKeyboardPressed = false;
 			// Only exit seventh mode if mouse tab is also not pressed
@@ -460,16 +513,27 @@ export const keyboardState = {
 			}
 		}
 
-		// Handle action key release (Z, X, C)
-		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'c') {
+		// Handle action key release (Z, X, V, C)
+		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c') {
 			clickedActionKey = null;
+		}
+		if (mappedKey === 'm') {
+			mKeyPressed = false;
 		}
 
 		// Handle piano key release
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
-			const noteInfo = getNoteForKey(mappedKey);
-			if (noteInfo && appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
-				appState.removePressedNote(noteInfo.note, noteInfo.octave);
+			// Check if this key has chord notes playing (chord mode)
+			if (playingPianoKeyChords.has(mappedKey)) {
+				const chordNotes = playingPianoKeyChords.get(mappedKey)!;
+				playingPianoKeyChords.delete(mappedKey);
+				appState.removePressedNotes(chordNotes);
+			} else {
+				// Notes mode - original behavior
+				const noteInfo = getNoteForKey(mappedKey);
+				if (noteInfo && appState.pressedNotes.has(`${noteInfo.note}${noteInfo.octave}`)) {
+					appState.removePressedNote(noteInfo.note, noteInfo.octave);
+				}
 			}
 		}
 
@@ -485,6 +549,9 @@ export const keyboardState = {
 
 	handleBlur(): void {
 		playingDegreeNotes.clear();
+		playingPianoKeyChords.clear();
+		clickedVirtualKeys.clear();
+		mouseChordNotes.clear();
 		currentChordNotes = [];
 		currentNoteInfo = null;
 		appState.pressedDegree = null;
@@ -495,11 +562,14 @@ export const keyboardState = {
 		altKeyboardPressed = false;
 		tabKeyboardPressed = false;
 		nineKeyboardPressed = false;
+		ctrlKeyboardPressed = false;
 		shiftMousePressed = false;
 		altMousePressed = false;
 		tabMousePressed = false;
 		nineMousePressed = false;
+		ctrlMousePressed = false;
 		spacePressed = false;
+		mKeyPressed = false;
 		isDraggingDegree = false;
 		isDraggingNote = false;
 	},
@@ -509,33 +579,27 @@ export const keyboardState = {
 		const seventhMode = keyboardState.tabPressed;
 		const ninthMode = keyboardState.ninePressed;
 
-		let chords;
-		if (ninthMode) {
-			chords =
-				appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).chords
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
-		} else if (seventhMode) {
-			chords =
-				appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).chords
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
-		} else {
-			chords =
-				appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).triads
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+		appState.pressedDegree = degree;
+		currentChordNotes = getChordNotesForDegree(
+			degree,
+			keyboardState.inversion,
+			seventhMode,
+			ninthMode
+		);
+		if (currentChordNotes.length > 0) {
+			appState.addPressedNotes(currentChordNotes);
 		}
-		const chord = chords[degree - 1];
-		if (chord) {
-			let formatted = FormatUtil.formatNote(chord).replace('dim', '°');
-			if (ninthMode) {
-				formatted = formatted.replace('7', '9');
-			}
-			appState.selectedChord = formatted;
-			appState.selectedInversion = keyboardState.inversion;
-			appState.pressedDegree = degree;
+	},
 
+	handleDegreeMouseEnter(degree: number): void {
+		if (isDraggingDegree) {
+			if (currentChordNotes.length > 0) {
+				appState.removePressedNotes(currentChordNotes);
+			}
+
+			const seventhMode = keyboardState.tabPressed;
+			const ninthMode = keyboardState.ninePressed;
+			appState.pressedDegree = degree;
 			currentChordNotes = getChordNotesForDegree(
 				degree,
 				keyboardState.inversion,
@@ -548,78 +612,68 @@ export const keyboardState = {
 		}
 	},
 
-	handleDegreeMouseEnter(degree: number): void {
-		if (isDraggingDegree) {
-			if (currentChordNotes.length > 0) {
-				appState.removePressedNotes(currentChordNotes);
-			}
-
-			const seventhMode = keyboardState.tabPressed;
-			const ninthMode = keyboardState.ninePressed;
-			let chords;
-			if (ninthMode) {
-				chords =
-					appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).chords
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
-			} else if (seventhMode) {
-				chords =
-					appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).chords
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
-			} else {
-				chords =
-					appState.mode === 'major'
-						? Key.majorKey(appState.selectedRoot).triads
-						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
-			}
-			const chord = chords[degree - 1];
-			if (chord) {
-				let formatted = FormatUtil.formatNote(chord).replace('dim', '°');
-				if (ninthMode) {
-					formatted = formatted.replace('7', '9');
-				}
-				appState.selectedChord = formatted;
-				appState.selectedInversion = keyboardState.inversion;
-				appState.pressedDegree = degree;
-
-				currentChordNotes = getChordNotesForDegree(
-					degree,
-					keyboardState.inversion,
-					seventhMode,
-					ninthMode
-				);
-				if (currentChordNotes.length > 0) {
-					appState.addPressedNotes(currentChordNotes);
-				}
-			}
-		}
-	},
-
 	handleNoteMouseDown(noteKey: string): void {
 		isDraggingNote = true;
+		const noteInfo = getNoteForKey(noteKey);
+		if (!noteInfo) return;
 
-		currentNoteInfo = getNoteForKey(noteKey);
-		if (currentNoteInfo) {
-			appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+		if (appState.playMode === 'chords') {
+			// Clear any stale mouse chord state first
+			for (const [key, notes] of mouseChordNotes) {
+				appState.removePressedNotes(notes);
+				clickedVirtualKeys.delete(key);
+			}
+			mouseChordNotes.clear();
+
+			// Track which key is clicked for visual feedback
+			clickedVirtualKeys.add(noteKey.toLowerCase());
+
+			const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+			// Letter key chords are always triads (no 7ths/9ths)
+			const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+			if (chordNotes.length > 0) {
+				mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
+				appState.addPressedNotes(chordNotes);
+			}
+		} else {
+			// Notes mode - original behavior
+			currentNoteInfo = noteInfo;
+			appState.addPressedNote(noteInfo.note, noteInfo.octave);
 		}
 	},
 
 	handleNoteMouseEnter(noteKey: string, isBlackKey: boolean): void {
-		if (isDraggingNote) {
-			// During glissando, white keys only trigger below black key level (realistic piano behavior)
-			if (!isBlackKey && mouseInBlackKeyZone) {
-				return;
-			}
+		if (!isDraggingNote) return;
 
+		// During glissando, white keys only trigger below black key level (realistic piano behavior)
+		if (!isBlackKey && mouseInBlackKeyZone) return;
+
+		const noteInfo = getNoteForKey(noteKey);
+		if (!noteInfo) return;
+
+		if (appState.playMode === 'chords') {
+			// Stop previous chord notes
+			for (const [key, notes] of mouseChordNotes) {
+				appState.removePressedNotes(notes);
+				clickedVirtualKeys.delete(key);
+			}
+			mouseChordNotes.clear();
+
+			// Start new chord
+			clickedVirtualKeys.add(noteKey.toLowerCase());
+			const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+			const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+			if (chordNotes.length > 0) {
+				mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
+				appState.addPressedNotes(chordNotes);
+			}
+		} else {
+			// Notes mode - original behavior
 			if (currentNoteInfo) {
 				appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
 			}
-
-			currentNoteInfo = getNoteForKey(noteKey);
-			if (currentNoteInfo) {
-				appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-			}
+			currentNoteInfo = noteInfo;
+			appState.addPressedNote(noteInfo.note, noteInfo.octave);
 		}
 	},
 
@@ -639,12 +693,32 @@ export const keyboardState = {
 		if (wasInBlackZone !== nowInBlackZone) {
 			const keyUnderCursor = findKeyAtPosition(relativeX, nowInBlackZone);
 			if (keyUnderCursor) {
-				if (currentNoteInfo) {
-					appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				}
-				currentNoteInfo = getNoteForKey(keyUnderCursor);
-				if (currentNoteInfo) {
-					appState.addPressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+				const noteInfo = getNoteForKey(keyUnderCursor);
+				if (!noteInfo) return;
+
+				if (appState.playMode === 'chords') {
+					// Stop previous chord notes
+					for (const [key, notes] of mouseChordNotes) {
+						appState.removePressedNotes(notes);
+						clickedVirtualKeys.delete(key);
+					}
+					mouseChordNotes.clear();
+
+					// Start new chord
+					clickedVirtualKeys.add(keyUnderCursor.toLowerCase());
+					const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+					const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+					if (chordNotes.length > 0) {
+						mouseChordNotes.set(keyUnderCursor.toLowerCase(), chordNotes);
+						appState.addPressedNotes(chordNotes);
+					}
+				} else {
+					// Notes mode - original behavior
+					if (currentNoteInfo) {
+						appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+					}
+					currentNoteInfo = noteInfo;
+					appState.addPressedNote(noteInfo.note, noteInfo.octave);
 				}
 			}
 		}
@@ -660,9 +734,19 @@ export const keyboardState = {
 			}
 		}
 		if (isDraggingNote) {
-			if (currentNoteInfo) {
-				appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-				currentNoteInfo = null;
+			if (appState.playMode === 'chords') {
+				// Stop all mouse-initiated chords
+				for (const [key, notes] of mouseChordNotes) {
+					appState.removePressedNotes(notes);
+					clickedVirtualKeys.delete(key);
+				}
+				mouseChordNotes.clear();
+			} else {
+				// Notes mode - original behavior
+				if (currentNoteInfo) {
+					appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+					currentNoteInfo = null;
+				}
 			}
 		}
 		isDraggingDegree = false;
