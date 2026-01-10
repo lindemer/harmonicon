@@ -291,7 +291,7 @@
 					<span class="key-label">M</span>
 					<span class="key-function midi-label">
 						<span>MIDI</span>
-						<span>INPUT</span>
+						<span>IN</span>
 					</span>
 				</div>
 				<MidiMenu />
