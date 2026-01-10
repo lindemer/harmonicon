@@ -230,7 +230,7 @@
 					<span class="key-label">{key}</span>
 					{#if isVoicingKey}
 						<span class="key-function voicing-label">
-							<span>{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span>
+							<span class="voicing-mode">{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span>
 							<span>VOICE</span>
 						</span>
 					{:else if action}
@@ -292,16 +292,10 @@
 				role="button"
 				tabindex="0"
 			>
-				<span class="key-function mode-toggle font-music">
-					<span
-						class:active-mode={appState.mode === 'major'}
-						class:inactive-mode={appState.mode !== 'major'}>Δ</span
-					>
-					<span class="mode-separator">/</span>
-					<span
-						class:active-mode={appState.mode === 'minor'}
-						class:inactive-mode={appState.mode !== 'minor'}>m</span
-					>
+				<span class="key-label">SPACEBAR</span>
+				<span class="key-function space-label">
+					<span>TOGGLE MODE</span>
+					<span class="space-mode">{appState.mode === 'major' ? 'MAJOR' : 'MINOR'}</span>
 				</span>
 			</div>
 		</div>
@@ -565,29 +559,19 @@
 		transform: scale(0.98) translateY(-1px);
 	}
 
-	/* Spacebar has only key-function, center it */
-	.space-key > .key-function {
-		position: static;
-		width: auto;
+	/* Spacebar label and function positioning */
+	.space-key > .key-label {
+		position: absolute;
+		top: 10px;
+		width: 100%;
 		text-align: center;
 	}
 
-	.mode-toggle {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.mode-separator {
-		color: #6b7280;
-	}
-
-	.active-mode {
-		color: #f3f4f6;
-	}
-
-	.inactive-mode {
-		color: #6b7280;
+	.space-key > .key-function {
+		position: absolute;
+		top: 30px;
+		width: 100%;
+		text-align: center;
 	}
 
 	.bottom-row {
@@ -615,5 +599,25 @@
 		line-height: 1.3;
 		top: 28px;
 		color: white;
+	}
+
+	.voicing-mode {
+		color: #f59e0b;
+	}
+
+	.space-key > .space-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
+	}
+
+	.space-mode {
+		color: #f59e0b;
 	}
 </style>
