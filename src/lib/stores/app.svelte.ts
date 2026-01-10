@@ -158,6 +158,13 @@ export const appState = {
 
 		if (notesInRange.length < 2) return null; // Need at least 2 notes for a chord
 
+		// Count unique pitch classes (ignore octave duplicates)
+		const uniquePitchClasses = new Set(notesInRange).size;
+
+		// If too many unique notes are pressed (more than a 9th chord = 5 notes),
+		// the detection is likely to be unreliable
+		if (uniquePitchClasses > 5) return null;
+
 		const detected = Chord.detect(notesInRange);
 		if (detected.length === 0) return null;
 
