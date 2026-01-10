@@ -171,7 +171,9 @@
 					<div class="white-key-bottom">
 						<span class="key-label">{pk.white}</span>
 						<span class="key-function font-music" style:color={whiteNoteColor ?? '#f3f4f6'}
-							>{appState.playMode === 'chords' && kb.ctrlPressed ? pk.note.toLowerCase() : pk.note}</span
+							>{appState.playMode === 'chords' && kb.ctrlPressed
+								? pk.note.toLowerCase()
+								: pk.note}</span
 						>
 					</div>
 				</div>
@@ -191,7 +193,9 @@
 					>
 						<span class="key-label">{pk.black}</span>
 						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}
-							>{appState.playMode === 'chords' && kb.ctrlPressed ? FormatUtil.formatNote(displayBlackNote).toLowerCase() : FormatUtil.formatNote(displayBlackNote)}</span
+							>{appState.playMode === 'chords' && kb.ctrlPressed
+								? FormatUtil.formatNote(displayBlackNote).toLowerCase()
+								: FormatUtil.formatNote(displayBlackNote)}</span
 						>
 					</div>
 				{/if}
