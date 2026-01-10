@@ -122,6 +122,10 @@
 				<span class="key-label">9</span>
 				<span class="key-function font-music">9<sup>th</sup></span>
 			</div>
+			<!-- 0 key placeholder (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">0</span>
+			</div>
 		</div>
 
 		<!-- Piano keys section with Tab key -->
@@ -140,6 +144,10 @@
 			>
 				<span class="key-label">tab</span>
 				<span class="key-function font-music">7<sup>th</sup></span>
+			</div>
+			<!-- Caps key placeholder (disabled) - positioned below Tab key -->
+			<div class="key wide-key dark-key caps-key disabled-key">
+				<span class="key-label">caps</span>
 			</div>
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const whiteNoteColor = getNoteColor(pk.note)}
@@ -228,6 +236,19 @@
 					{/if}
 				</div>
 			{/each}
+			<!-- V-M keys (disabled placeholders) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">V</span>
+			</div>
+			<div class="key dark-key disabled-key">
+				<span class="key-label">B</span>
+			</div>
+			<div class="key dark-key disabled-key">
+				<span class="key-label">N</span>
+			</div>
+			<div class="key dark-key disabled-key">
+				<span class="key-label">M</span>
+			</div>
 		</div>
 
 		<!-- Modifier row -->
@@ -315,8 +336,8 @@
 	}
 
 	.number-row {
-		/* Adjusted for 9 keys (1-7 + 8 + 9) instead of 7 keys */
-		margin-left: calc(-2 * var(--key-unit) - 42px);
+		/* Adjusted for 10 keys (1-7 + 8 + 9 + 0) */
+		margin-left: calc(-1 * var(--key-unit) - 42px);
 	}
 
 	/* Shared transition for interactive elements */
@@ -406,6 +427,14 @@
 		position: absolute;
 		left: calc(-1.5 * var(--key-size) - var(--key-gap));
 		top: 0;
+		height: var(--key-size);
+	}
+
+	/* Caps key - positioned below Tab key */
+	.caps-key {
+		position: absolute;
+		left: calc(-1.5 * var(--key-size) - var(--key-gap));
+		top: calc(var(--key-size) + var(--key-gap));
 		height: var(--key-size);
 	}
 
