@@ -49,6 +49,31 @@ export class FormatUtil {
 	// === Note/Chord Formatting ===
 
 	/**
+	 * Determine if a key signature idiomatically uses flat notation.
+	 * Flat keys: F, Bb, Eb, Ab, Db, Gb, Cb
+	 */
+	static usesFlatNotation(keyRoot: string): boolean {
+		const flatKeys = ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'];
+		const normalized = keyRoot.replace('♭', 'b');
+		return flatKeys.includes(normalized);
+	}
+
+	/**
+	 * Convert a sharp note to its flat enharmonic equivalent.
+	 * E.g., C# → Db, D# → Eb, etc.
+	 */
+	static toFlatNotation(note: string): string {
+		const sharpToFlat: Record<string, string> = {
+			'C#': 'Db',
+			'D#': 'Eb',
+			'F#': 'Gb',
+			'G#': 'Ab',
+			'A#': 'Bb'
+		};
+		return sharpToFlat[note] ?? note;
+	}
+
+	/**
 	 * Format note names with proper music symbols.
 	 * Converts ASCII accidentals to Unicode: # → ♯, b → ♭
 	 */

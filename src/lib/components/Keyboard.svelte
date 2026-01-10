@@ -12,7 +12,7 @@
 	let containerHeight = $state(0);
 	const KEYBOARD_NATURAL_WIDTH = 750;
 	const KEYBOARD_NATURAL_HEIGHT = 332;
-	const CONTAINER_PADDING = 32;
+	const CONTAINER_PADDING = 0;
 	// Tab key overflows left by 1.5 * 64px + 4px = 100px
 	const TAB_KEY_OVERFLOW = 100;
 
@@ -175,6 +175,9 @@
 				</div>
 				<!-- Black key (if present) -->
 				{#if pk.black && pk.blackNote}
+					{@const displayBlackNote = FormatUtil.usesFlatNotation(appState.selectedRoot)
+						? FormatUtil.toFlatNotation(pk.blackNote)
+						: pk.blackNote}
 					<div
 						class="black-key dark-key"
 						class:pressed={kb.isKeyPressed(pk.black)}
@@ -186,7 +189,7 @@
 					>
 						<span class="key-label">{pk.black}</span>
 						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}
-							>{appState.playMode === 'chords' && kb.ctrlPressed ? FormatUtil.formatNote(pk.blackNote).toLowerCase() : FormatUtil.formatNote(pk.blackNote)}</span
+							>{appState.playMode === 'chords' && kb.ctrlPressed ? FormatUtil.formatNote(displayBlackNote).toLowerCase() : FormatUtil.formatNote(displayBlackNote)}</span
 						>
 					</div>
 				{/if}
@@ -363,9 +366,9 @@
 		align-items: center;
 		justify-content: center;
 		/* Extra left padding to accommodate Tab key overflow */
-		padding: 1rem 1rem 1rem calc(1rem + 1.5 * var(--key-size) + var(--key-gap));
+		padding: 0 0 0 calc(1.5 * var(--key-size) + var(--key-gap));
 		user-select: none;
-		overflow: visible;
+		overflow: hidden;
 		--key-size: 64px;
 		--key-gap: 4px;
 		--key-unit: calc(var(--key-size) + var(--key-gap));
