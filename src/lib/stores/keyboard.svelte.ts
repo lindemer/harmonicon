@@ -1,5 +1,5 @@
 import { Key, Chord, Note } from 'tonal';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
 import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
@@ -114,7 +114,7 @@ let currentChordNotes: Array<{ note: string; octave: number }> = [];
 let currentNoteInfo: { note: string; octave: number } | null = null;
 
 // Track which virtual keys are clicked (for visual pressed state in chord mode)
-const clickedVirtualKeys = new Set<string>();
+const clickedVirtualKeys = new SvelteSet<string>();
 // Track chord notes for mouse-initiated chords
 const mouseChordNotes = new SvelteMap<string, Array<{ note: string; octave: number }>>();
 
