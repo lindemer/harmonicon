@@ -23,16 +23,22 @@
 			: 1
 	);
 
-	// Get color for a degree key, accounting for inversion and 7th mode
+	// Get color for a degree key, accounting for inversion and 7th/9th mode
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
 	function getDegreeColorForInversion(
 		degree: number,
 		inv: 0 | 1 | 2 | 3,
-		isSeventh: boolean
+		isSeventh: boolean,
+		isNinth: boolean
 	): string {
-		const chord = isSeventh
-			? VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode)
-			: VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
+		let chord;
+		if (isNinth) {
+			chord = VoicingUtil.getNinthChordForDegree(degree, appState.selectedRoot, appState.mode);
+		} else if (isSeventh) {
+			chord = VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode);
+		} else {
+			chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
+		}
 		if (!chord || !chord.notes.length) {
 			return FormatUtil.getDegreeColor(degree);
 		}
@@ -78,7 +84,7 @@
 					class="key degree-key"
 					class:pressed={degree !== null && appState.pressedDegree === degree}
 					style:background-color={degree
-						? getDegreeColorForInversion(degree, kb.inversion, kb.tabPressed)
+						? getDegreeColorForInversion(degree, kb.inversion, kb.tabPressed, kb.ninePressed)
 						: undefined}
 					onmousedown={() => degree && kb.handleDegreeMouseDown(degree)}
 					onmouseenter={() => degree && kb.handleDegreeMouseEnter(degree)}
@@ -92,11 +98,34 @@
 								numeral={getRomanNumeral(degree)}
 								inversion={kb.inversion}
 								isSeventh={kb.tabPressed}
+								isNinth={kb.ninePressed}
 							/></span
 						>
 					{/if}
 				</div>
 			{/each}
+			<!-- 8 key placeholder (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">8</span>
+			</div>
+			<!-- 9 key (9th mode toggle) -->
+			<div
+				class="key dark-key"
+				class:pressed={kb.ninePressed}
+				class:disabled-key={kb.tabPressed || kb.altPressed || kb.shiftPressed}
+				onmousedown={() => (kb.nineMousePressed = true)}
+				onmouseup={() => (kb.nineMousePressed = false)}
+				onmouseleave={() => (kb.nineMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
+				<span class="key-label">9</span>
+				<span class="key-function font-music">9<sup>th</sup></span>
+			</div>
+			<!-- 0 key placeholder (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">0</span>
+			</div>
 		</div>
 
 		<!-- Piano keys section with Tab key -->
@@ -106,6 +135,7 @@
 			<div
 				class="key wide-key dark-key tab-key"
 				class:pressed={kb.tabPressed}
+				class:disabled-key={kb.ninePressed}
 				onmousedown={() => (kb.tabMousePressed = true)}
 				onmouseup={() => (kb.tabMousePressed = false)}
 				onmouseleave={() => (kb.tabMousePressed = false)}
@@ -114,6 +144,10 @@
 			>
 				<span class="key-label">tab</span>
 				<span class="key-function font-music">7<sup>th</sup></span>
+			</div>
+			<!-- Caps key placeholder (disabled) - positioned below Tab key -->
+			<div class="key wide-key dark-key caps-key disabled-key">
+				<span class="key-label">caps</span>
 			</div>
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const whiteNoteColor = getNoteColor(pk.note)}
@@ -162,6 +196,7 @@
 			<div
 				class="key wide-key dark-key"
 				class:pressed={kb.shiftPressed}
+				class:disabled-key={kb.ninePressed}
 				onmousedown={() => (kb.shiftMousePressed = true)}
 				onmouseup={() => (kb.shiftMousePressed = false)}
 				onmouseleave={() => (kb.shiftMousePressed = false)}
@@ -174,13 +209,15 @@
 
 			{#each kb.bottomRow as key (key)}
 				{@const action = kb.actionMap[key]}
+				{@const isVoicingKey = key === 'C'}
 				<div
 					class="key dark-key"
 					class:pressed={kb.isActionKeyPressed(key)}
 					onmousedown={() => {
 						kb.clickedActionKey = key;
 						if (key === 'Z') appState.decrementChordOctave();
-						else appState.incrementChordOctave();
+						else if (key === 'X') appState.incrementChordOctave();
+						else if (key === 'C') appState.toggleVoicingMode();
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -188,11 +225,30 @@
 					tabindex="0"
 				>
 					<span class="key-label">{key}</span>
-					{#if action}
-						<span class="key-function font-music">{action.text}<sup>{action.sup}</sup></span>
+					{#if isVoicingKey}
+						<span class="key-function voicing-label"
+							>{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
+						>
+					{:else if action}
+						<span class="key-function font-music"
+							>{action.text}{#if action.sup}<sup>{action.sup}</sup>{/if}</span
+						>
 					{/if}
 				</div>
 			{/each}
+			<!-- V-M keys (disabled placeholders) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">V</span>
+			</div>
+			<div class="key dark-key disabled-key">
+				<span class="key-label">B</span>
+			</div>
+			<div class="key dark-key disabled-key">
+				<span class="key-label">N</span>
+			</div>
+			<div class="key dark-key disabled-key">
+				<span class="key-label">M</span>
+			</div>
 		</div>
 
 		<!-- Modifier row -->
@@ -203,6 +259,7 @@
 			<div
 				class="key dark-key"
 				class:pressed={kb.altPressed}
+				class:disabled-key={kb.ninePressed}
 				onmousedown={() => (kb.altMousePressed = true)}
 				onmouseup={() => (kb.altMousePressed = false)}
 				onmouseleave={() => (kb.altMousePressed = false)}
@@ -279,7 +336,8 @@
 	}
 
 	.number-row {
-		margin-left: calc(-4 * var(--key-unit) - 42px);
+		/* Adjusted for 10 keys (1-7 + 8 + 9 + 0) */
+		margin-left: calc(-1 * var(--key-unit) - 42px);
 	}
 
 	/* Shared transition for interactive elements */
@@ -294,6 +352,7 @@
 	}
 
 	.key {
+		position: relative;
 		min-width: var(--key-size);
 		height: var(--key-size);
 		display: flex;
@@ -329,10 +388,36 @@
 		line-height: 1;
 	}
 
+	/* Absolute positioning for all square keys (degree keys, dark keys, black piano keys) */
+	.key > .key-label,
+	.black-key > .key-label {
+		position: absolute;
+		top: 10px;
+		width: 100%;
+		text-align: center;
+	}
+
+	.key > .key-function,
+	.black-key > .key-function {
+		position: absolute;
+		top: 30px;
+		width: 100%;
+		text-align: center;
+	}
+
+	/* Dark keys text shifted down slightly to align visually */
+	.dark-key > .key-label {
+		top: 12px;
+	}
+
+	.dark-key > .key-function {
+		top: 32px;
+	}
+
 	/* Piano section - positioned layout */
 	.piano-section {
 		position: relative;
-		height: calc(2 * var(--key-size));
+		height: calc(2 * var(--key-size) + var(--key-gap));
 		width: calc(10 * var(--key-unit));
 		overflow: visible;
 	}
@@ -345,12 +430,20 @@
 		height: var(--key-size);
 	}
 
+	/* Caps key - positioned below Tab key */
+	.caps-key {
+		position: absolute;
+		left: calc(-1.5 * var(--key-size) - var(--key-gap));
+		top: calc(var(--key-size) + var(--key-gap));
+		height: var(--key-size);
+	}
+
 	/* White keys - tall piano-style */
 	.white-key {
 		position: absolute;
 		left: calc(var(--key-index) * var(--key-unit));
 		width: var(--key-size);
-		height: calc(2 * var(--key-size));
+		height: calc(2 * var(--key-size) + var(--key-gap));
 		display: flex;
 		flex-direction: column;
 		border-radius: 6px;
@@ -417,11 +510,6 @@
 		width: var(--key-size);
 		height: var(--key-size);
 		border-radius: 6px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 3px;
 		z-index: 1;
 	}
 
@@ -444,7 +532,7 @@
 		filter: brightness(0.8);
 	}
 
-	/* Disabled keys (ctrl, cmd) - no function */
+	/* Disabled keys (ctrl, cmd, and dynamically disabled modifier keys) */
 	.disabled-key {
 		cursor: default;
 	}
@@ -454,6 +542,10 @@
 	}
 
 	.disabled-key .key-label {
+		color: #4b5563;
+	}
+
+	.disabled-key .key-function {
 		color: #4b5563;
 	}
 
@@ -469,6 +561,13 @@
 	/* Space key has slightly different pressed animation due to its width */
 	.space-key.pressed {
 		transform: scale(0.98) translateY(-1px);
+	}
+
+	/* Spacebar has only key-function, center it */
+	.space-key > .key-function {
+		position: static;
+		width: auto;
+		text-align: center;
 	}
 
 	.mode-toggle {
@@ -501,5 +600,12 @@
 	.modifier-row {
 		justify-content: flex-start;
 		margin-left: calc(-0.75 * var(--key-unit));
+	}
+
+	.dark-key > .voicing-label {
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.5px;
+		top: 34px;
 	}
 </style>

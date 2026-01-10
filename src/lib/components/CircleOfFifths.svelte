@@ -57,6 +57,12 @@
 		return FormatUtil.getChordRomanNumeral(chordSymbol, appState.selectedRoot, appState.mode);
 	}
 
+	function getChordType(chordSymbol: string): 'ninth' | 'seventh' | 'triad' {
+		if (chordSymbol.includes('9')) return 'ninth';
+		if (chordSymbol.includes('7')) return 'seventh';
+		return 'triad';
+	}
+
 	// Build keys array from circle of fifths using Tonal
 	const keys = FormatUtil.CIRCLE_OF_FIFTHS.map((root) => {
 		const keyInfo = Key.majorKey(root);
@@ -112,8 +118,20 @@
 		return distance < radii.center - centerPadding;
 	}
 
-	function getChordSymbol(segmentIndex: number, ring: RingType, seventh: boolean = false): string {
+	function getChordSymbol(
+		segmentIndex: number,
+		ring: RingType,
+		seventh: boolean = false,
+		ninth: boolean = false
+	): string {
 		const key = keys[segmentIndex];
+		if (ninth) {
+			// 9th chord symbols: maj9 for major, m9 for minor, m9b5 for diminished
+			if (ring === 'major') return key.major + 'maj9';
+			if (ring === 'minor') return key.minor + '9'; // Minor 9th (e.g., Am9)
+			// Diminished becomes half-diminished 9th (m9b5) in 9th mode
+			return FormatUtil.formatNote(key.dimNote) + 'm9b5';
+		}
 		if (seventh) {
 			// 7th chord symbols: Maj7 for major, m7 for minor, m7b5 for diminished
 			if (ring === 'major') return key.major + 'maj7';
@@ -169,12 +187,14 @@
 	// Play chord audio for a segment
 	function playChordForSegment(segmentIndex: number, ring: RingType, inv: 0 | 1 | 2 | 3 = 0) {
 		const seventh = keyboardState.tabPressed;
-		const chordSymbol = getChordSymbol(segmentIndex, ring, seventh);
+		const ninth = keyboardState.ninePressed;
+		const chordSymbol = getChordSymbol(segmentIndex, ring, seventh, ninth);
 		const unformatted = FormatUtil.unformatNote(chordSymbol);
 		const notes = VoicingUtil.getVoicedNotesFromSymbol(
 			unformatted,
 			inv,
-			appState.chordDisplayOctave
+			appState.chordDisplayOctave,
+			appState.voicingMode
 		);
 		if (notes.length > 0) {
 			currentChordNotes = notes;
@@ -209,7 +229,9 @@
 				appState.toggleMode();
 			} else if (ring) {
 				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
-				const chordSymbol = getChordSymbol(segment, ring);
+				const seventh = keyboardState.tabPressed;
+				const ninth = keyboardState.ninePressed;
+				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 
 				// Always use root position on mobile (no inversion cycling)
 				appState.selectChord(chordSymbol, 0, false);
@@ -265,7 +287,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
 	viewBox="0 0 {viewBox} {viewBox}"
-	class="max-h-full max-w-full select-none"
+	class="max-h-full max-w-full touch-none select-none"
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}
@@ -284,7 +306,8 @@
 
 				// Select and play chord
 				const seventh = keyboardState.tabPressed;
-				const chordSymbol = getChordSymbol(segment, ring, seventh);
+				const ninth = keyboardState.ninePressed;
+				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 				const inversion = getInversionFromEvent(e);
 				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
@@ -359,7 +382,8 @@
 
 				// Select and play new chord
 				const seventh = keyboardState.tabPressed;
-				const chordSymbol = getChordSymbol(segment, ring, seventh);
+				const ninth = keyboardState.ninePressed;
+				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 				const inversion = getInversionFromEvent(e);
 				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
@@ -481,6 +505,7 @@
 		{#if result}
 			{@const inversion = appState.selectedInversion}
 			{@const chordSymbol = FormatUtil.unformatNote(appState.selectedChord)}
+			{@const chordType = getChordType(chordSymbol)}
 			{@const chord = Chord.get(chordSymbol)}
 			{@const chordNotes = chord.notes}
 			{@const bassNote = chordNotes[inversion] ?? chordNotes[0]}
@@ -491,7 +516,8 @@
 					<RomanNumeral
 						numeral={result.numeral}
 						{inversion}
-						isSeventh={appState.isSeventhMode}
+						isSeventh={chordType === 'seventh'}
+						isNinth={chordType === 'ninth'}
 						color={numeralColor}
 						size="lg"
 					/>

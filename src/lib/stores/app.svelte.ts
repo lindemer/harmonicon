@@ -3,7 +3,7 @@ import { SvelteSet } from 'svelte/reactivity';
 import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
 import { audioState } from './audio.svelte';
-import type { Mode } from '$lib/types';
+import type { Mode, VoicingMode } from '$lib/types';
 
 // ============ AppState Interface ============
 
@@ -17,6 +17,7 @@ export interface AppState {
 	selectedChord: string | null;
 	selectedInversion: 0 | 1 | 2 | 3;
 	isSeventhMode: boolean;
+	isNinthMode: boolean;
 	selectChord(chord: string | null, inversion?: 0 | 1 | 2 | 3, toggle?: boolean): void;
 
 	// Octave control
@@ -24,6 +25,10 @@ export interface AppState {
 	chordDisplayOctave: number;
 	incrementChordOctave(): void;
 	decrementChordOctave(): void;
+
+	// Voicing mode
+	voicingMode: VoicingMode;
+	setVoicingMode(mode: VoicingMode): void;
 
 	// Pressed state (visual + audio)
 	pressedDegree: number | null;
@@ -52,8 +57,10 @@ let mode = $state<Mode>('major');
 let selectedChord = $state<string | null>(null);
 let selectedInversion = $state<0 | 1 | 2 | 3>(0);
 let isSeventhMode = $state(false);
+let isNinthMode = $state(false);
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
+let voicingMode = $state<VoicingMode>('open');
 let pressedDegree = $state<number | null>(null);
 let isChordPressed = $state(false);
 
@@ -106,6 +113,14 @@ export const appState = {
 		isSeventhMode = value;
 	},
 
+	get isNinthMode() {
+		return isNinthMode;
+	},
+
+	set isNinthMode(value: boolean) {
+		isNinthMode = value;
+	},
+
 	/**
 	 * Select a chord with optional inversion and toggle behavior.
 	 * Consolidates chord selection logic used across components.
@@ -141,6 +156,18 @@ export const appState = {
 
 	decrementChordOctave() {
 		if (chordDisplayOctave > 3) chordDisplayOctave--;
+	},
+
+	get voicingMode() {
+		return voicingMode;
+	},
+
+	setVoicingMode(mode: VoicingMode) {
+		voicingMode = mode;
+	},
+
+	toggleVoicingMode() {
+		voicingMode = voicingMode === 'open' ? 'closed' : 'open';
 	},
 
 	// Pressed key state for visual feedback
@@ -221,12 +248,19 @@ export const appState = {
 
 		// Chord highlighting from degree key (1-7)
 		if (pressedDegree !== null) {
-			const chord = isSeventhMode
-				? VoicingUtil.getSeventhChordForDegree(pressedDegree, selectedRoot, mode)
-				: VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
+			const chord = isNinthMode
+				? VoicingUtil.getNinthChordForDegree(pressedDegree, selectedRoot, mode)
+				: isSeventhMode
+					? VoicingUtil.getSeventhChordForDegree(pressedDegree, selectedRoot, mode)
+					: VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
 			if (chord && chord.notes.length) {
 				results.push(
-					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave)
+					...VoicingUtil.getVoicedNotes(
+						chord.notes,
+						selectedInversion,
+						chordDisplayOctave,
+						voicingMode
+					)
 				);
 			}
 		}
@@ -237,7 +271,12 @@ export const appState = {
 			const chord = Chord.get(chordSymbol);
 			if (!chord.empty && chord.notes.length) {
 				results.push(
-					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave)
+					...VoicingUtil.getVoicedNotes(
+						chord.notes,
+						selectedInversion,
+						chordDisplayOctave,
+						voicingMode
+					)
 				);
 			}
 		}
