@@ -3,7 +3,9 @@
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import RomanNumeral from './RomanNumeral.svelte';
+	import MidiMenu from './MidiMenu.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
+	import { midiState } from '$lib/stores/midi.svelte';
 
 	const kb = keyboardState;
 
@@ -254,15 +256,41 @@
 					{/if}
 				</div>
 			{/each}
-			<!-- B-M keys (disabled placeholders) -->
+			<!-- B and N keys (disabled placeholders) -->
 			<div class="key dark-key disabled-key">
 				<span class="key-label">B</span>
 			</div>
 			<div class="key dark-key disabled-key">
 				<span class="key-label">N</span>
 			</div>
-			<div class="key dark-key disabled-key">
-				<span class="key-label">M</span>
+			<!-- M key (MIDI menu toggle) -->
+			<div class="midi-key-wrapper">
+				<div
+					class="key dark-key midi-key-trigger"
+					class:midi-connected={midiState.isConnected}
+					class:pressed={kb.mKeyPressed}
+					onmousedown={() => {
+						kb.mKeyPressed = true;
+						midiState.toggleMenu();
+					}}
+					onmouseup={() => (kb.mKeyPressed = false)}
+					onmouseleave={() => (kb.mKeyPressed = false)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							midiState.toggleMenu();
+						}
+					}}
+					role="button"
+					tabindex="0"
+				>
+					<span class="key-label">M</span>
+					<span class="key-function midi-label">
+						<span>MIDI</span>
+						<span>INPUT</span>
+					</span>
+				</div>
+				<MidiMenu />
 			</div>
 			<!-- Comma key (disabled) -->
 			<div class="key dark-key disabled-key">
@@ -696,6 +724,26 @@
 	}
 
 	.space-mode {
+		color: #f59e0b;
+	}
+
+	.midi-key-wrapper {
+		position: relative;
+	}
+
+	.dark-key > .midi-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
+	}
+
+	.midi-connected > .midi-label {
 		color: #f59e0b;
 	}
 </style>

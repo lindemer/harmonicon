@@ -3,6 +3,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
 import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
+import { midiState } from '$lib/stores/midi.svelte';
 
 // ============ Constants ============
 
@@ -80,7 +81,8 @@ const codeToKey: Record<string, string> = {
 	KeyZ: 'z',
 	KeyX: 'x',
 	KeyC: 'c',
-	KeyV: 'v'
+	KeyV: 'v',
+	KeyM: 'm'
 };
 
 // ============ State ============
@@ -101,6 +103,7 @@ let spacePressed = $state(false);
 // Visual feedback state
 let clickedActionKey = $state<string | null>(null);
 let spaceClicked = $state(false);
+let mKeyPressed = $state(false);
 
 // Drag states
 let isDraggingDegree = $state(false);
@@ -312,6 +315,12 @@ export const keyboardState = {
 	set spaceClicked(value: boolean) {
 		spaceClicked = value;
 	},
+	get mKeyPressed() {
+		return mKeyPressed;
+	},
+	set mKeyPressed(value: boolean) {
+		mKeyPressed = value;
+	},
 
 	/** Current inversion based on modifiers and 7th mode
 	 * In 9th mode: always 0 (no inversions)
@@ -433,6 +442,10 @@ export const keyboardState = {
 			clickedActionKey = 'C';
 			appState.togglePlayMode();
 		}
+		if (mappedKey === 'm' && !e.repeat) {
+			mKeyPressed = true;
+			midiState.toggleMenu();
+		}
 
 		// Handle piano keys (A-L, W-P)
 		if (mappedKey && pianoKeyChars.has(mappedKey) && !e.repeat) {
@@ -505,6 +518,9 @@ export const keyboardState = {
 		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c') {
 			clickedActionKey = null;
 		}
+		if (mappedKey === 'm') {
+			mKeyPressed = false;
+		}
 
 		// Handle piano key release
 		if (mappedKey && pianoKeyChars.has(mappedKey)) {
@@ -554,6 +570,7 @@ export const keyboardState = {
 		nineMousePressed = false;
 		ctrlMousePressed = false;
 		spacePressed = false;
+		mKeyPressed = false;
 		isDraggingDegree = false;
 		isDraggingNote = false;
 	},
