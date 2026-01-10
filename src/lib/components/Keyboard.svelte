@@ -188,16 +188,25 @@
 				<span class="key-label">tab</span>
 				<span class="key-function font-music">7<sup>th</sup></span>
 			</div>
-			<!-- Caps key placeholder (disabled) - positioned below Tab key -->
-			<div class="key wide-key dark-key caps-key disabled-key">
+			<!-- Caps Lock key - positioned below Tab key, shows parallel major/minor state -->
+			<div
+				class="key wide-key dark-key caps-key"
+				class:disabled-key={appState.playMode === 'notes'}
+			>
 				<span class="key-label">caps</span>
+				{#if appState.playMode !== 'notes'}
+					<span class="key-function caps-label">
+						<span>PARALLEL</span>
+						<span class="caps-mode">{kb.capsLockOn ? 'MINOR' : 'MAJOR'}</span>
+					</span>
+				{/if}
 			</div>
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const isChordMode = appState.playMode === 'chords'}
 				{@const whiteChordInfo = isChordMode
 					? getChordDisplayInfo(
 							pk.note,
-							kb.ctrlPressed,
+							kb.capsLockOn,
 							kb.inversion,
 							kb.tabPressed,
 							kb.ninePressed,
@@ -242,7 +251,7 @@
 					{@const blackChordInfo = isChordMode
 						? getChordDisplayInfo(
 								displayBlackNote,
-								kb.ctrlPressed,
+								kb.capsLockOn,
 								kb.inversion,
 								kb.tabPressed,
 								kb.ninePressed,
@@ -384,21 +393,8 @@
 
 		<!-- Modifier row -->
 		<div class="row modifier-row">
-			<div
-				class="key dark-key ctrl-key"
-				class:pressed={kb.ctrlPressed && appState.playMode !== 'notes'}
-				class:disabled-key={appState.playMode === 'notes'}
-				onmousedown={() => appState.playMode !== 'notes' && (kb.ctrlMousePressed = true)}
-				onmouseup={() => (kb.ctrlMousePressed = false)}
-				onmouseleave={() => (kb.ctrlMousePressed = false)}
-				role="button"
-				tabindex="0"
-			>
+			<div class="key dark-key ctrl-key disabled-key">
 				<span class="key-label">ctrl</span>
-				<span class="key-function ctrl-label">
-					<span>PARALLEL</span>
-					<span>MINOR</span>
-				</span>
 			</div>
 			<div
 				class="key dark-key"
@@ -727,17 +723,17 @@
 		transform: scale(0.98) translateY(-1px);
 	}
 
-	/* Spacebar label and function positioning */
+	/* Spacebar label and function positioning - use same values as dark-key */
 	.space-key > .key-label {
 		position: absolute;
-		top: 10px;
+		top: 12px;
 		width: 100%;
 		text-align: center;
 	}
 
 	.space-key > .key-function {
 		position: absolute;
-		top: 30px;
+		top: 28px;
 		width: 100%;
 		text-align: center;
 	}
@@ -775,7 +771,7 @@
 		color: #f59e0b;
 	}
 
-	.ctrl-key > .ctrl-label {
+	.caps-key > .caps-label {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -787,8 +783,8 @@
 		color: white;
 	}
 
-	.ctrl-key.disabled-key > .ctrl-label {
-		color: #4b5563;
+	.caps-mode {
+		color: #f59e0b;
 	}
 
 	.space-key > .space-label {
