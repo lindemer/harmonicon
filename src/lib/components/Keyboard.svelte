@@ -615,12 +615,17 @@
 		height: var(--key-size);
 	}
 
-	/* Caps key - positioned below Tab key */
+	/* Caps key - positioned below Tab key, display-only (not clickable) */
 	.caps-key {
 		position: absolute;
 		left: calc(-1.5 * var(--key-size) - var(--key-gap));
 		top: calc(var(--key-size) + var(--key-gap));
 		height: var(--key-size);
+		cursor: default;
+	}
+
+	.caps-key.dark-key:hover {
+		filter: none;
 	}
 
 	/* White keys - tall piano-style */
