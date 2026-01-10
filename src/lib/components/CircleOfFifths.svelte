@@ -476,7 +476,7 @@
 	{#if appState.detectedChord}
 		{@const detected = appState.detectedChord}
 		{@const result = getChordRomanNumeral()}
-		{#if result?.isDiatonic}
+		{#if result}
 			{@const inversion = detected.inversion}
 			{@const chordSymbol = FormatUtil.unformatNote(detected.symbol)}
 			{@const chordType = getChordType(chordSymbol)}

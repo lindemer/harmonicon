@@ -204,14 +204,9 @@ export class FormatUtil {
 		const semitones = (chordChroma - tonicChroma + 12) % 12;
 		let base: string = this.CHROMATIC_NUMERALS[semitones];
 
-		// Simplify the numeral based on the chord's accidental
+		// Always use flat spelling for non-diatonic numerals (standard practice)
 		if (base.includes('/')) {
-			const chordRoot = chord.tonic;
-			if (chordRoot.includes('#')) {
-				base = base.split('/')[0]; // Use sharp version
-			} else {
-				base = base.split('/')[1]; // Use flat version
-			}
+			base = base.split('/')[1]; // Use flat version (e.g., ♭III not ♯II)
 		}
 
 		// Adjust case based on chord quality
