@@ -110,7 +110,7 @@
 	});
 
 	function getChordInterval(noteName: string, noteOctave: number): string | null {
-		if (highlightedNotes.length < 2 || !lowestPressedNote) return null;
+		if (highlightedNotes.length === 0 || !lowestPressedNote) return null;
 
 		// Check if this piano key matches any highlighted note
 		const noteChroma = Note.chroma(noteName);

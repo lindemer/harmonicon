@@ -21,6 +21,11 @@ function formatNoteForTone(note: string, octave: number): string {
 	return `${normalized}${octave}`;
 }
 
+/** Check if audio is ready synchronously (avoids async/await microtask delay) */
+function isAudioReady(): boolean {
+	return sampler !== null && samplerLoaded;
+}
+
 /** Initialize the audio context and sampler. Must be called from a user gesture. */
 async function ensureAudioReady(): Promise<void> {
 	// Return existing initialization promise if already in progress
@@ -29,6 +34,11 @@ async function ensureAudioReady(): Promise<void> {
 	}
 
 	initPromise = (async () => {
+		// Create low-latency audio context
+		const context = new Tone.Context({ latencyHint: 'interactive' });
+		Tone.setContext(context);
+		context.lookAhead = 0; // Disable lookahead buffer for immediate response
+
 		if (Tone.getContext().state !== 'running') {
 			await Tone.start();
 		}
@@ -95,16 +105,26 @@ export const audioState = {
 		muted = value;
 	},
 
-	async playNote(note: string, octave: number): Promise<void> {
+	playNote(note: string, octave: number): void {
 		if (muted) return;
-		await ensureAudioReady();
-		if (!sampler || !samplerLoaded) return;
 
-		const noteStr = formatNoteForTone(note, octave);
-		if (playingNotes.has(noteStr)) return;
+		// Fast path: audio already initialized - no async overhead
+		if (isAudioReady()) {
+			const noteStr = formatNoteForTone(note, octave);
+			if (playingNotes.has(noteStr)) return;
+			playingNotes.add(noteStr);
+			sampler!.triggerAttack(noteStr, Tone.immediate());
+			return;
+		}
 
-		playingNotes.add(noteStr);
-		sampler.triggerAttack(noteStr, Tone.now());
+		// Slow path: need to initialize first (only happens on first note)
+		ensureAudioReady().then(() => {
+			if (!sampler || !samplerLoaded) return;
+			const noteStr = formatNoteForTone(note, octave);
+			if (playingNotes.has(noteStr)) return;
+			playingNotes.add(noteStr);
+			sampler.triggerAttack(noteStr, Tone.immediate());
+		});
 	},
 
 	stopNote(note: string, octave: number): void {
@@ -113,22 +133,31 @@ export const audioState = {
 		const noteStr = formatNoteForTone(note, octave);
 		if (playingNotes.has(noteStr)) {
 			playingNotes.delete(noteStr);
-			sampler.triggerRelease(noteStr, Tone.now());
+			sampler.triggerRelease(noteStr, Tone.immediate());
 		}
 	},
 
-	async playNotes(notes: Array<{ note: string; octave: number }>): Promise<void> {
+	playNotes(notes: Array<{ note: string; octave: number }>): void {
 		if (muted) return;
-		await ensureAudioReady();
-		if (!sampler || !samplerLoaded) return;
 
-		const noteStrings = notes.map((n) => formatNoteForTone(n.note, n.octave));
-		const newNotes = noteStrings.filter((n) => !playingNotes.has(n));
+		const playNewNotes = () => {
+			if (!sampler || !samplerLoaded) return;
+			const noteStrings = notes.map((n) => formatNoteForTone(n.note, n.octave));
+			const newNotes = noteStrings.filter((n) => !playingNotes.has(n));
+			if (newNotes.length > 0) {
+				newNotes.forEach((n) => playingNotes.add(n));
+				sampler.triggerAttack(newNotes, Tone.immediate());
+			}
+		};
 
-		if (newNotes.length > 0) {
-			newNotes.forEach((n) => playingNotes.add(n));
-			sampler.triggerAttack(newNotes, Tone.now());
+		// Fast path: audio already initialized - no async overhead
+		if (isAudioReady()) {
+			playNewNotes();
+			return;
 		}
+
+		// Slow path: need to initialize first (only happens on first note)
+		ensureAudioReady().then(playNewNotes);
 	},
 
 	stopNotes(notes: Array<{ note: string; octave: number }>): void {
@@ -139,7 +168,7 @@ export const audioState = {
 
 		if (notesToStop.length > 0) {
 			notesToStop.forEach((n) => playingNotes.delete(n));
-			sampler.triggerRelease(notesToStop, Tone.now());
+			sampler.triggerRelease(notesToStop, Tone.immediate());
 		}
 	},
 
@@ -147,7 +176,7 @@ export const audioState = {
 		if (!sampler) return;
 
 		if (playingNotes.size > 0) {
-			sampler.triggerRelease(Array.from(playingNotes), Tone.now());
+			sampler.triggerRelease(Array.from(playingNotes), Tone.immediate());
 			playingNotes.clear();
 		}
 	}

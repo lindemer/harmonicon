@@ -173,11 +173,8 @@ export const appState = {
 		mode = mode === 'major' ? 'minor' : 'major';
 	},
 
-	// Detect chord from currently pressed notes within a two-octave range
-	// Range: from (chordDisplayOctave - 1) up to (but not including) chordDisplayOctave + 1
-	// e.g., if chordDisplayOctave is 3, range is C2 to B3 (octaves 2 and 3)
+	// Detect chord from all currently pressed notes (across all octaves)
 	get detectedChord(): DetectedChord | null {
-		const octave = chordDisplayOctave;
 		const notesWithPitch: Array<{ note: string; pitch: number }> = [];
 
 		for (const noteStr of pressedNotes) {
@@ -185,13 +182,10 @@ export const appState = {
 			if (match) {
 				const noteName = match[1];
 				const noteOctave = parseInt(match[2]);
-				// Include notes in the octave below and the octave of the root C
-				if (noteOctave === octave || noteOctave === octave - 1) {
-					notesWithPitch.push({
-						note: noteName,
-						pitch: getAbsolutePitch(noteName, noteOctave)
-					});
-				}
+				notesWithPitch.push({
+					note: noteName,
+					pitch: getAbsolutePitch(noteName, noteOctave)
+				});
 			}
 		}
 
