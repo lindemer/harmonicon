@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Key, Chord } from 'tonal';
+	import { Key, Chord, Note } from 'tonal';
 	import { appState } from '$lib/stores/app.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
@@ -8,8 +8,8 @@
 	import ChordDisplay from './Chord.svelte';
 
 	const CIRCLE_DIMENSIONS = {
-		viewBox: 400,
-		center: { x: 200, y: 200 },
+		viewBox: 440,
+		center: { x: 220, y: 220 },
 		radii: {
 			outer: 185,
 			mid: 135,
@@ -175,6 +175,17 @@
 			return hover ? '#1f2937' : '#111827';
 		}
 		return FormatUtil.getDegreeColor(degree, undefined, hover);
+	}
+
+	const FLAT_NUMERALS = ['I', '♭II', 'II', '♭III', 'III', 'IV', '♭V', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+
+	function getChromaticNumeral(segmentIndex: number): string {
+		const segmentRoot = keys[segmentIndex].majorNote;
+		const selectedChroma = Note.chroma(appState.selectedRoot);
+		const segmentChroma = Note.chroma(segmentRoot);
+		if (selectedChroma === undefined || segmentChroma === undefined) return '';
+		const semitones = (segmentChroma - selectedChroma + 12) % 12;
+		return FLAT_NUMERALS[semitones];
 	}
 
 	function isHovered(segmentIndex: number, ring: RingType): boolean {
@@ -456,6 +467,21 @@
 			class="{dimInKey ? 'fill-gray-100' : 'fill-gray-400'} font-music pointer-events-none"
 		>
 			{key.dim}
+		</text>
+
+		<!-- Outer chromatic numeral indicator -->
+		{@const numeralPos = getLabelPosition(radii.outer + 14, midAngle)}
+		{@const numeral = getChromaticNumeral(i)}
+		<text
+			x={numeralPos.x}
+			y={numeralPos.y}
+			text-anchor="middle"
+			dominant-baseline="middle"
+			font-size="13"
+			transform="rotate({midAngle}, {numeralPos.x}, {numeralPos.y})"
+			class="fill-gray-400 font-music pointer-events-none"
+		>
+			{numeral}
 		</text>
 	{/each}
 
