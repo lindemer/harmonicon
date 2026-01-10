@@ -177,7 +177,20 @@
 		return FormatUtil.getDegreeColor(degree, undefined, hover);
 	}
 
-	const FLAT_NUMERALS = ['I', '♭II', 'II', '♭III', 'III', 'IV', '♭V', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+	const FLAT_NUMERALS = [
+		'I',
+		'♭II',
+		'II',
+		'♭III',
+		'III',
+		'IV',
+		'♭V',
+		'V',
+		'♭VI',
+		'VI',
+		'♭VII',
+		'VII'
+	];
 
 	function getChromaticNumeral(segmentIndex: number): string {
 		const segmentRoot = keys[segmentIndex].majorNote;
@@ -479,7 +492,7 @@
 			dominant-baseline="central"
 			font-size="13"
 			transform="rotate({midAngle}, {numeralPos.x}, {numeralPos.y})"
-			class="fill-gray-400 font-music pointer-events-none"
+			class="font-music pointer-events-none fill-gray-400"
 		>
 			{numeral}
 		</text>

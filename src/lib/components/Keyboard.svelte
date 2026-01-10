@@ -77,7 +77,11 @@
 		else if (isSeventh) chordSymbol += isMinor ? '7' : 'maj7';
 
 		// Get roman numeral using FormatUtil
-		const result = FormatUtil.getChordRomanNumeral(chordSymbol, appState.selectedRoot, appState.mode);
+		const result = FormatUtil.getChordRomanNumeral(
+			chordSymbol,
+			appState.selectedRoot,
+			appState.mode
+		);
 		return result?.numeral ?? null;
 	}
 
@@ -297,7 +301,9 @@
 						<span class="key-label">{pk.black}</span>
 						<span class="key-function"
 							><Chord
-								numeral={isChordMode && blackRomanNumeral ? blackRomanNumeral : FormatUtil.formatNote(blackChordInfo.root)}
+								numeral={isChordMode && blackRomanNumeral
+									? blackRomanNumeral
+									: FormatUtil.formatNote(blackChordInfo.root)}
 								inversion={isChordMode ? kb.inversion : 0}
 								isSeventh={isChordMode && kb.tabPressed}
 								isNinth={isChordMode && kb.ninePressed}
