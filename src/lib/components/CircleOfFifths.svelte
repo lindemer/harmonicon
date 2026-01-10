@@ -5,7 +5,7 @@
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { GeometryUtil } from '$lib/utils/geometry.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
-	import RomanNumeral from './RomanNumeral.svelte';
+	import ChordDisplay from './Chord.svelte';
 
 	const CIRCLE_DIMENSIONS = {
 		viewBox: 400,
@@ -487,7 +487,7 @@
 			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
 			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
 				<div class="center-numeral">
-					<RomanNumeral
+					<ChordDisplay
 						numeral={result.numeral}
 						{inversion}
 						isSeventh={chordType === 'seventh'}

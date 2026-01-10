@@ -1,20 +1,24 @@
 <script lang="ts">
 	interface Props {
 		numeral: string;
+		bassNote?: string;
 		inversion?: 0 | 1 | 2 | 3;
 		isSeventh?: boolean;
 		isNinth?: boolean;
 		color?: string;
 		size?: 'sm' | 'md' | 'lg';
+		displayMode?: 'roman' | 'letter';
 	}
 
 	let {
 		numeral,
+		bassNote,
 		inversion = 0,
 		isSeventh = false,
 		isNinth = false,
 		color = 'white',
-		size = 'md'
+		size = 'md',
+		displayMode = 'roman'
 	}: Props = $props();
 
 	// Figured bass notation for triads, 7th chords, and 9th chords
@@ -56,17 +60,67 @@
 	}
 
 	const figuredBass = $derived(getFiguredBass(inversion, isSeventh, isNinth));
+
+	// Letter mode chord suffix (7, 9, etc.)
+	function getLetterSuffix(seventh: boolean, ninth: boolean): string {
+		if (ninth) return '9';
+		if (seventh) return '7';
+		return '';
+	}
+
+	const letterSuffix = $derived(getLetterSuffix(isSeventh, isNinth));
 </script>
 
-<span class="roman-numeral {size} font-music" style:color>
-	<span class="numeral">{numeral}</span>{#if figuredBass}<span class="inversion"
-			><span class="inv-top">{figuredBass.top}</span><span class="inv-bottom"
-				>{figuredBass.bottom}</span
-			></span
-		>{/if}
-</span>
+{#if displayMode === 'letter'}
+	<span class="chord {size} font-music" style:color>
+		<span class="chord-root">{numeral}</span>{#if letterSuffix}<sup class="chord-suffix"
+				>{letterSuffix}</sup
+			>{/if}{#if bassNote}<span class="chord-slash">/{bassNote}</span>{/if}
+	</span>
+{:else}
+	<span class="roman-numeral {size} font-music" style:color>
+		<span class="numeral">{numeral}</span>{#if figuredBass}<span class="inversion"
+				><span class="inv-top">{figuredBass.top}</span><span class="inv-bottom"
+					>{figuredBass.bottom}</span
+				></span
+			>{/if}
+	</span>
+{/if}
 
 <style>
+	/* Letter chord mode styles */
+	.chord {
+		display: inline-flex;
+		align-items: baseline;
+		line-height: 1;
+	}
+
+	.chord.sm {
+		font-size: 14px;
+	}
+	.chord.md {
+		font-size: 20px;
+	}
+	.chord.lg {
+		font-size: 28px;
+	}
+
+	.chord-root {
+		line-height: 1;
+	}
+
+	.chord-suffix {
+		font-size: 0.6em;
+		vertical-align: super;
+		line-height: 0;
+	}
+
+	.chord-slash {
+		font-size: 0.7em;
+		line-height: 1;
+	}
+
+	/* Roman numeral mode styles */
 	.roman-numeral {
 		display: inline-flex;
 		align-items: center;

@@ -157,10 +157,20 @@ function getChordNotesForDegree(
 /** Get chord notes for a given note (for chord mode playback) */
 function getChordNotesForNote(
 	note: string,
-	isMinor: boolean
+	isMinor: boolean,
+	inversion: 0 | 1 | 2 | 3 = 0,
+	isSeventh: boolean = false,
+	isNinth: boolean = false
 ): Array<{ note: string; octave: number }> {
-	// Build chord symbol: C, Cm (always triads for letter key chords)
-	const chordSymbol = note + (isMinor ? 'm' : '');
+	// Build chord symbol based on modifiers
+	let chordSymbol = note + (isMinor ? 'm' : '');
+	if (isNinth) {
+		// Use add9 for triads with 9th, or 9 for dominant 9th
+		chordSymbol += '9';
+	} else if (isSeventh) {
+		// Major chords get maj7, minor chords get m7 (already has 'm')
+		chordSymbol += isMinor ? '7' : 'maj7';
+	}
 
 	const chord = Chord.get(chordSymbol);
 	if (chord.empty || !chord.notes.length) return [];
@@ -168,7 +178,7 @@ function getChordNotesForNote(
 	// Use appState.chordDisplayOctave directly, just like getChordNotesForDegree
 	const voicedNotes = VoicingUtil.getVoicedNotes(
 		chord.notes,
-		0,
+		inversion,
 		appState.chordDisplayOctave,
 		appState.voicingMode
 	);
@@ -456,8 +466,13 @@ export const keyboardState = {
 				if (playingPianoKeyChords.has(mappedKey)) return;
 
 				const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
-				// Letter key chords are always triads (no 7ths/9ths)
-				const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+				const chordNotes = getChordNotesForNote(
+					noteInfo.note,
+					isMinor,
+					keyboardState.inversion,
+					keyboardState.tabPressed,
+					keyboardState.ninePressed
+				);
 				if (chordNotes.length > 0) {
 					playingPianoKeyChords.set(mappedKey, chordNotes);
 					appState.addPressedNotes(chordNotes);
@@ -629,8 +644,13 @@ export const keyboardState = {
 			clickedVirtualKeys.add(noteKey.toLowerCase());
 
 			const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
-			// Letter key chords are always triads (no 7ths/9ths)
-			const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+			const chordNotes = getChordNotesForNote(
+				noteInfo.note,
+				isMinor,
+				keyboardState.inversion,
+				keyboardState.tabPressed,
+				keyboardState.ninePressed
+			);
 			if (chordNotes.length > 0) {
 				mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
 				appState.addPressedNotes(chordNotes);
@@ -662,7 +682,13 @@ export const keyboardState = {
 			// Start new chord
 			clickedVirtualKeys.add(noteKey.toLowerCase());
 			const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
-			const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+			const chordNotes = getChordNotesForNote(
+				noteInfo.note,
+				isMinor,
+				keyboardState.inversion,
+				keyboardState.tabPressed,
+				keyboardState.ninePressed
+			);
 			if (chordNotes.length > 0) {
 				mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
 				appState.addPressedNotes(chordNotes);
@@ -707,7 +733,13 @@ export const keyboardState = {
 					// Start new chord
 					clickedVirtualKeys.add(keyUnderCursor.toLowerCase());
 					const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
-					const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
+					const chordNotes = getChordNotesForNote(
+						noteInfo.note,
+						isMinor,
+						keyboardState.inversion,
+						keyboardState.tabPressed,
+						keyboardState.ninePressed
+					);
 					if (chordNotes.length > 0) {
 						mouseChordNotes.set(keyUnderCursor.toLowerCase(), chordNotes);
 						appState.addPressedNotes(chordNotes);

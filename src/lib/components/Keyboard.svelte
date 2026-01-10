@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { Chord as TonalChord, Note } from 'tonal';
 	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
-	import RomanNumeral from './RomanNumeral.svelte';
+	import Chord from './Chord.svelte';
 	import MidiMenu from './MidiMenu.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
 	import { midiState } from '$lib/stores/midi.svelte';
@@ -62,6 +63,43 @@
 		if (degree === null) return undefined;
 		return FormatUtil.getDegreeColor(degree);
 	}
+
+	// Get chord display info for piano keys (root and bass note for slash notation)
+	function getChordDisplayInfo(
+		note: string,
+		isMinor: boolean,
+		inv: 0 | 1 | 2 | 3,
+		isSeventh: boolean,
+		isNinth: boolean,
+		keyRoot: string
+	): { root: string; bassNote: string | undefined } {
+		// Build chord symbol based on modifiers
+		let chordSymbol = note + (isMinor ? 'm' : '');
+		if (isNinth) {
+			chordSymbol += '9';
+		} else if (isSeventh) {
+			chordSymbol += isMinor ? '7' : 'maj7';
+		}
+
+		const chord = TonalChord.get(chordSymbol);
+		if (chord.empty || !chord.notes.length) {
+			return { root: isMinor ? note.toLowerCase() : note, bassNote: undefined };
+		}
+
+		let bassNote = chord.notes[inv] ?? chord.notes[0];
+		// Simplify enharmonics (E# → F, Fb → E, B# → C, Cb → B)
+		bassNote = Note.simplify(bassNote) || bassNote;
+		// Use flat notation if the key uses flats
+		if (FormatUtil.usesFlatNotation(keyRoot)) {
+			bassNote = FormatUtil.toFlatNotation(bassNote);
+		}
+		const formattedBassNote = FormatUtil.formatNote(bassNote);
+
+		return {
+			root: isMinor ? note.toLowerCase() : note,
+			bassNote: inv > 0 ? formattedBassNote : undefined
+		};
+	}
 </script>
 
 <svelte:window onkeydown={kb.handleKeydown} onkeyup={kb.handleKeyup} onblur={kb.handleBlur} />
@@ -99,7 +137,7 @@
 					<span class="key-label">{key}</span>
 					{#if degree}
 						<span class="key-function"
-							><RomanNumeral
+							><Chord
 								numeral={getRomanNumeral(degree)}
 								inversion={kb.inversion}
 								isSeventh={kb.tabPressed}
@@ -155,7 +193,21 @@
 				<span class="key-label">caps</span>
 			</div>
 			{#each kb.pianoKeys as pk, i (pk.white)}
-				{@const whiteNoteColor = getNoteColor(pk.note)}
+				{@const isChordMode = appState.playMode === 'chords'}
+				{@const whiteChordInfo = isChordMode
+					? getChordDisplayInfo(
+							pk.note,
+							kb.ctrlPressed,
+							kb.inversion,
+							kb.tabPressed,
+							kb.ninePressed,
+							appState.selectedRoot
+						)
+					: { root: pk.note, bassNote: undefined }}
+				{@const whiteNoteColor =
+					isChordMode && whiteChordInfo.bassNote
+						? getNoteColor(FormatUtil.unformatNote(whiteChordInfo.bassNote))
+						: getNoteColor(pk.note)}
 				{@const blackNoteColor = pk.blackNote ? getNoteColor(pk.blackNote) : undefined}
 				<!-- White key (tall, extends from home row up) -->
 				<div
@@ -170,10 +222,15 @@
 					<div class="white-key-top"></div>
 					<div class="white-key-bottom">
 						<span class="key-label">{pk.white}</span>
-						<span class="key-function font-music" style:color={whiteNoteColor ?? '#f3f4f6'}
-							>{appState.playMode === 'chords' && kb.ctrlPressed
-								? pk.note.toLowerCase()
-								: pk.note}</span
+						<span class="key-function"
+							><Chord
+								numeral={whiteChordInfo.root}
+								bassNote={whiteChordInfo.bassNote}
+								isSeventh={isChordMode && kb.tabPressed}
+								isNinth={isChordMode && kb.ninePressed}
+								displayMode="letter"
+								color={whiteNoteColor ?? '#f3f4f6'}
+							/></span
 						>
 					</div>
 				</div>
@@ -182,6 +239,20 @@
 					{@const displayBlackNote = FormatUtil.usesFlatNotation(appState.selectedRoot)
 						? FormatUtil.toFlatNotation(pk.blackNote)
 						: pk.blackNote}
+					{@const blackChordInfo = isChordMode
+						? getChordDisplayInfo(
+								displayBlackNote,
+								kb.ctrlPressed,
+								kb.inversion,
+								kb.tabPressed,
+								kb.ninePressed,
+								appState.selectedRoot
+							)
+						: { root: FormatUtil.formatNote(displayBlackNote), bassNote: undefined }}
+					{@const blackKeyColor =
+						isChordMode && blackChordInfo.bassNote
+							? getNoteColor(FormatUtil.unformatNote(blackChordInfo.bassNote))
+							: blackNoteColor}
 					<div
 						class="black-key dark-key"
 						class:pressed={kb.isKeyPressed(pk.black)}
@@ -192,10 +263,15 @@
 						tabindex="0"
 					>
 						<span class="key-label">{pk.black}</span>
-						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}
-							>{appState.playMode === 'chords' && kb.ctrlPressed
-								? FormatUtil.formatNote(displayBlackNote).toLowerCase()
-								: FormatUtil.formatNote(displayBlackNote)}</span
+						<span class="key-function"
+							><Chord
+								numeral={FormatUtil.formatNote(blackChordInfo.root)}
+								bassNote={blackChordInfo.bassNote}
+								isSeventh={isChordMode && kb.tabPressed}
+								isNinth={isChordMode && kb.ninePressed}
+								displayMode="letter"
+								color={blackKeyColor ?? '#f3f4f6'}
+							/></span
 						>
 					</div>
 				{/if}
@@ -310,9 +386,9 @@
 		<div class="row modifier-row">
 			<div
 				class="key dark-key ctrl-key"
-				class:pressed={kb.ctrlPressed}
+				class:pressed={kb.ctrlPressed && appState.playMode !== 'notes'}
 				class:disabled-key={appState.playMode === 'notes'}
-				onmousedown={() => (kb.ctrlMousePressed = true)}
+				onmousedown={() => appState.playMode !== 'notes' && (kb.ctrlMousePressed = true)}
 				onmouseup={() => (kb.ctrlMousePressed = false)}
 				onmouseleave={() => (kb.ctrlMousePressed = false)}
 				role="button"
