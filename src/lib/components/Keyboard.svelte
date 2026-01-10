@@ -540,9 +540,10 @@
 		margin-left: calc(-0.75 * var(--key-unit));
 	}
 
-	.voicing-label {
+	.dark-key > .voicing-label {
 		font-size: 10px;
 		font-weight: 600;
 		letter-spacing: 0.5px;
+		top: 34px;
 	}
 </style>
