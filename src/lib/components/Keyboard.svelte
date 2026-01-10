@@ -64,6 +64,23 @@
 		return FormatUtil.getDegreeColor(degree);
 	}
 
+	// Get roman numeral for a piano key chord (used in chord mode)
+	function getChordRomanNumeral(
+		note: string,
+		isMinor: boolean,
+		isSeventh: boolean,
+		isNinth: boolean
+	): string | null {
+		// Build chord symbol
+		let chordSymbol = note + (isMinor ? 'm' : '');
+		if (isNinth) chordSymbol += '9';
+		else if (isSeventh) chordSymbol += isMinor ? '7' : 'maj7';
+
+		// Get roman numeral using FormatUtil
+		const result = FormatUtil.getChordRomanNumeral(chordSymbol, appState.selectedRoot, appState.mode);
+		return result?.numeral ?? null;
+	}
+
 	// Get chord display info for piano keys (root and bass note for slash notation)
 	function getChordDisplayInfo(
 		note: string,
@@ -213,6 +230,9 @@
 							appState.selectedRoot
 						)
 					: { root: pk.note, bassNote: undefined }}
+				{@const whiteRomanNumeral = isChordMode
+					? getChordRomanNumeral(pk.note, kb.capsLockOn, kb.tabPressed, kb.ninePressed)
+					: null}
 				{@const whiteNoteColor =
 					isChordMode && whiteChordInfo.bassNote
 						? getNoteColor(FormatUtil.unformatNote(whiteChordInfo.bassNote))
@@ -233,11 +253,11 @@
 						<span class="key-label">{pk.white}</span>
 						<span class="key-function"
 							><Chord
-								numeral={whiteChordInfo.root}
-								bassNote={whiteChordInfo.bassNote}
+								numeral={isChordMode && whiteRomanNumeral ? whiteRomanNumeral : whiteChordInfo.root}
+								inversion={isChordMode ? kb.inversion : 0}
 								isSeventh={isChordMode && kb.tabPressed}
 								isNinth={isChordMode && kb.ninePressed}
-								displayMode="letter"
+								displayMode={isChordMode ? 'roman' : 'letter'}
 								color={whiteNoteColor ?? '#f3f4f6'}
 							/></span
 						>
@@ -262,6 +282,9 @@
 						isChordMode && blackChordInfo.bassNote
 							? getNoteColor(FormatUtil.unformatNote(blackChordInfo.bassNote))
 							: blackNoteColor}
+					{@const blackRomanNumeral = isChordMode
+						? getChordRomanNumeral(displayBlackNote, kb.capsLockOn, kb.tabPressed, kb.ninePressed)
+						: null}
 					<div
 						class="black-key dark-key"
 						class:pressed={kb.isKeyPressed(pk.black)}
@@ -274,11 +297,11 @@
 						<span class="key-label">{pk.black}</span>
 						<span class="key-function"
 							><Chord
-								numeral={FormatUtil.formatNote(blackChordInfo.root)}
-								bassNote={blackChordInfo.bassNote}
+								numeral={isChordMode && blackRomanNumeral ? blackRomanNumeral : FormatUtil.formatNote(blackChordInfo.root)}
+								inversion={isChordMode ? kb.inversion : 0}
 								isSeventh={isChordMode && kb.tabPressed}
 								isNinth={isChordMode && kb.ninePressed}
-								displayMode="letter"
+								displayMode={isChordMode ? 'roman' : 'letter'}
 								color={blackKeyColor ?? '#f3f4f6'}
 							/></span
 						>
