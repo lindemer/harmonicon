@@ -13,11 +13,13 @@
 	const KEYBOARD_NATURAL_WIDTH = 750;
 	const KEYBOARD_NATURAL_HEIGHT = 332;
 	const CONTAINER_PADDING = 32;
+	// Tab key overflows left by 1.5 * 64px + 4px = 100px
+	const TAB_KEY_OVERFLOW = 100;
 
 	const keyboardScale = $derived(
 		containerWidth > 0 && containerHeight > 0
 			? Math.min(
-					(containerWidth - CONTAINER_PADDING) / KEYBOARD_NATURAL_WIDTH,
+					(containerWidth - CONTAINER_PADDING) / (KEYBOARD_NATURAL_WIDTH + TAB_KEY_OVERFLOW),
 					(containerHeight - CONTAINER_PADDING) / KEYBOARD_NATURAL_HEIGHT
 				)
 			: 1
