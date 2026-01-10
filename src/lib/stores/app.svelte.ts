@@ -17,6 +17,7 @@ export interface AppState {
 	selectedChord: string | null;
 	selectedInversion: 0 | 1 | 2 | 3;
 	isSeventhMode: boolean;
+	isNinthMode: boolean;
 	selectChord(chord: string | null, inversion?: 0 | 1 | 2 | 3, toggle?: boolean): void;
 
 	// Octave control
@@ -56,6 +57,7 @@ let mode = $state<Mode>('major');
 let selectedChord = $state<string | null>(null);
 let selectedInversion = $state<0 | 1 | 2 | 3>(0);
 let isSeventhMode = $state(false);
+let isNinthMode = $state(false);
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 let voicingMode = $state<VoicingMode>('open');
@@ -109,6 +111,14 @@ export const appState = {
 
 	set isSeventhMode(value: boolean) {
 		isSeventhMode = value;
+	},
+
+	get isNinthMode() {
+		return isNinthMode;
+	},
+
+	set isNinthMode(value: boolean) {
+		isNinthMode = value;
 	},
 
 	/**

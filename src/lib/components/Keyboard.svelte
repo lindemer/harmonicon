@@ -23,16 +23,22 @@
 			: 1
 	);
 
-	// Get color for a degree key, accounting for inversion and 7th mode
+	// Get color for a degree key, accounting for inversion and 7th/9th mode
 	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
 	function getDegreeColorForInversion(
 		degree: number,
 		inv: 0 | 1 | 2 | 3,
-		isSeventh: boolean
+		isSeventh: boolean,
+		isNinth: boolean
 	): string {
-		const chord = isSeventh
-			? VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode)
-			: VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
+		let chord;
+		if (isNinth) {
+			chord = VoicingUtil.getNinthChordForDegree(degree, appState.selectedRoot, appState.mode);
+		} else if (isSeventh) {
+			chord = VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode);
+		} else {
+			chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
+		}
 		if (!chord || !chord.notes.length) {
 			return FormatUtil.getDegreeColor(degree);
 		}
@@ -78,7 +84,7 @@
 					class="key degree-key"
 					class:pressed={degree !== null && appState.pressedDegree === degree}
 					style:background-color={degree
-						? getDegreeColorForInversion(degree, kb.inversion, kb.tabPressed)
+						? getDegreeColorForInversion(degree, kb.inversion, kb.tabPressed, kb.ninePressed)
 						: undefined}
 					onmousedown={() => degree && kb.handleDegreeMouseDown(degree)}
 					onmouseenter={() => degree && kb.handleDegreeMouseEnter(degree)}
@@ -92,11 +98,30 @@
 								numeral={getRomanNumeral(degree)}
 								inversion={kb.inversion}
 								isSeventh={kb.tabPressed}
+								isNinth={kb.ninePressed}
 							/></span
 						>
 					{/if}
 				</div>
 			{/each}
+			<!-- 8 key placeholder (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">8</span>
+			</div>
+			<!-- 9 key (9th mode toggle) -->
+			<div
+				class="key dark-key"
+				class:pressed={kb.ninePressed}
+				class:disabled-key={kb.tabPressed || kb.altPressed || kb.shiftPressed}
+				onmousedown={() => (kb.nineMousePressed = true)}
+				onmouseup={() => (kb.nineMousePressed = false)}
+				onmouseleave={() => (kb.nineMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
+				<span class="key-label">9</span>
+				<span class="key-function font-music">9<sup>th</sup></span>
+			</div>
 		</div>
 
 		<!-- Piano keys section with Tab key -->
@@ -106,6 +131,7 @@
 			<div
 				class="key wide-key dark-key tab-key"
 				class:pressed={kb.tabPressed}
+				class:disabled-key={kb.ninePressed}
 				onmousedown={() => (kb.tabMousePressed = true)}
 				onmouseup={() => (kb.tabMousePressed = false)}
 				onmouseleave={() => (kb.tabMousePressed = false)}
@@ -162,6 +188,7 @@
 			<div
 				class="key wide-key dark-key"
 				class:pressed={kb.shiftPressed}
+				class:disabled-key={kb.ninePressed}
 				onmousedown={() => (kb.shiftMousePressed = true)}
 				onmouseup={() => (kb.shiftMousePressed = false)}
 				onmouseleave={() => (kb.shiftMousePressed = false)}
@@ -211,6 +238,7 @@
 			<div
 				class="key dark-key"
 				class:pressed={kb.altPressed}
+				class:disabled-key={kb.ninePressed}
 				onmousedown={() => (kb.altMousePressed = true)}
 				onmouseup={() => (kb.altMousePressed = false)}
 				onmouseleave={() => (kb.altMousePressed = false)}
@@ -287,7 +315,8 @@
 	}
 
 	.number-row {
-		margin-left: calc(-4 * var(--key-unit) - 42px);
+		/* Adjusted for 9 keys (1-7 + 8 + 9) instead of 7 keys */
+		margin-left: calc(-2 * var(--key-unit) - 42px);
 	}
 
 	/* Shared transition for interactive elements */
@@ -474,7 +503,7 @@
 		filter: brightness(0.8);
 	}
 
-	/* Disabled keys (ctrl, cmd) - no function */
+	/* Disabled keys (ctrl, cmd, and dynamically disabled modifier keys) */
 	.disabled-key {
 		cursor: default;
 	}
@@ -484,6 +513,10 @@
 	}
 
 	.disabled-key .key-label {
+		color: #4b5563;
+	}
+
+	.disabled-key .key-function {
 		color: #4b5563;
 	}
 

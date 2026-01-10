@@ -51,6 +51,45 @@ export class VoicingUtil {
 	}
 
 	/**
+	 * Get the 9th chord for a scale degree in a given key.
+	 * Built by taking the 7th chord and adding the 9th (2nd scale degree above root).
+	 * @param degree - Scale degree (1-7)
+	 * @param keyRoot - Root note of the key (e.g., 'C', 'G')
+	 * @param mode - 'major' or 'minor'
+	 * @returns Tonal Chord object with 5 notes, or null if invalid degree
+	 */
+	static getNinthChordForDegree(degree: number, keyRoot: string, mode: Mode): ChordType | null {
+		if (degree < 1 || degree > 7) return null;
+
+		// Get the 7th chord first
+		const seventhChord = this.getSeventhChordForDegree(degree, keyRoot, mode);
+		if (!seventhChord || seventhChord.empty) return null;
+
+		// Get the scale to find the 9th (which is the 2nd above the root, i.e., degree + 1 mod 7)
+		const scale =
+			mode === 'major'
+				? Key.majorKey(keyRoot).scale
+				: Key.minorKey(Key.majorKey(keyRoot).minorRelative).natural.scale;
+
+		// The 9th is the note that is a 2nd above the chord root
+		// For degree N, the 9th is scale degree (N + 1) mod 7 (0-indexed: degree itself in 0-6)
+		const ninthDegreeIndex = degree % 7; // degree is 1-7, so this gives 1-7 then wraps to 0 for degree 7
+		const ninthNote = scale[ninthDegreeIndex];
+
+		// Create a new chord-like object with the 9th added
+		// The notes array will be: [root, 3rd, 5th, 7th, 9th]
+		const notes = [...seventhChord.notes, ninthNote];
+
+		// Return a chord-like object
+		return {
+			...seventhChord,
+			notes,
+			intervals: [...seventhChord.intervals, '9M'], // Approximate - actual interval depends on chord quality
+			name: seventhChord.name ? seventhChord.name.replace('7', '9') : ''
+		};
+	}
+
+	/**
 	 * Get voiced chord notes with octave information.
 	 *
 	 * @param chordNotes - Array of note names from Chord.get().notes

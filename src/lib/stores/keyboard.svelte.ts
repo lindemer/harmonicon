@@ -76,6 +76,7 @@ const codeToKey: Record<string, string> = {
 	Digit5: '5',
 	Digit6: '6',
 	Digit7: '7',
+	Digit9: '9',
 	KeyZ: 'z',
 	KeyX: 'x',
 	KeyC: 'c'
@@ -87,9 +88,11 @@ const codeToKey: Record<string, string> = {
 let shiftKeyboardPressed = $state(false);
 let altKeyboardPressed = $state(false);
 let tabKeyboardPressed = $state(false);
+let nineKeyboardPressed = $state(false);
 let shiftMousePressed = $state(false);
 let altMousePressed = $state(false);
 let tabMousePressed = $state(false);
+let nineMousePressed = $state(false);
 let spacePressed = $state(false);
 
 // Visual feedback state
@@ -120,11 +123,17 @@ function getNoteForKey(key: string): { note: string; octave: number } | null {
 function getChordNotesForDegree(
 	degree: number,
 	inversion: 0 | 1 | 2 | 3,
-	seventhMode: boolean = false
+	seventhMode: boolean = false,
+	ninthMode: boolean = false
 ): Array<{ note: string; octave: number }> {
-	const chord = seventhMode
-		? VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode)
-		: VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
+	let chord;
+	if (ninthMode) {
+		chord = VoicingUtil.getNinthChordForDegree(degree, appState.selectedRoot, appState.mode);
+	} else if (seventhMode) {
+		chord = VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode);
+	} else {
+		chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
+	}
 	if (!chord || !chord.notes.length) return [];
 	return VoicingUtil.getVoicedNotes(chord.notes, inversion, appState.chordDisplayOctave, appState.voicingMode);
 }
@@ -201,6 +210,9 @@ export const keyboardState = {
 	get tabPressed() {
 		return tabKeyboardPressed || tabMousePressed;
 	},
+	get ninePressed() {
+		return nineKeyboardPressed || nineMousePressed;
+	},
 	// Mouse-specific setters for virtual keyboard
 	set shiftMousePressed(value: boolean) {
 		shiftMousePressed = value;
@@ -209,8 +221,26 @@ export const keyboardState = {
 		altMousePressed = value;
 	},
 	set tabMousePressed(value: boolean) {
+		// Tab is mutually exclusive with 9 key
+		if (value && (nineKeyboardPressed || nineMousePressed)) return;
 		tabMousePressed = value;
 		appState.isSeventhMode = value || tabKeyboardPressed;
+	},
+	set nineMousePressed(value: boolean) {
+		// 9 key is mutually exclusive with Tab, Alt, Shift
+		if (value && (tabKeyboardPressed || tabMousePressed || altKeyboardPressed || altMousePressed || shiftKeyboardPressed || shiftMousePressed)) return;
+		if (value) {
+			// Clear other modifiers when 9 is pressed
+			tabKeyboardPressed = false;
+			tabMousePressed = false;
+			altKeyboardPressed = false;
+			altMousePressed = false;
+			shiftKeyboardPressed = false;
+			shiftMousePressed = false;
+			appState.isSeventhMode = false;
+		}
+		nineMousePressed = value;
+		appState.isNinthMode = value || nineKeyboardPressed;
 	},
 	get spacePressed() {
 		return spacePressed;
@@ -229,10 +259,14 @@ export const keyboardState = {
 	},
 
 	/** Current inversion based on modifiers and 7th mode
+	 * In 9th mode: always 0 (no inversions)
 	 * In 7th mode: Alt=1st, Shift=2nd, Alt+Shift=3rd
 	 * In triad mode: Alt=1st, Shift=2nd, Alt+Shift=2nd
 	 */
 	get inversion(): 0 | 1 | 2 | 3 {
+		// 9th mode has no inversions
+		if (nineKeyboardPressed || nineMousePressed) return 0;
+
 		const shift = shiftKeyboardPressed || shiftMousePressed;
 		const alt = altKeyboardPressed || altMousePressed;
 		const seventh = tabKeyboardPressed || tabMousePressed;
@@ -279,10 +313,17 @@ export const keyboardState = {
 
 	// Event handlers
 	handleKeydown(e: KeyboardEvent): void {
-		if (e.key === 'Shift') shiftKeyboardPressed = true;
-		if (e.key === 'Alt') altKeyboardPressed = true;
+		const nineActive = nineKeyboardPressed || nineMousePressed;
+
+		// Always prevent default Tab behavior
 		if (e.key === 'Tab') {
-			e.preventDefault(); // Prevent default focus navigation
+			e.preventDefault();
+		}
+
+		// Shift, Alt, Tab are mutually exclusive with 9 key
+		if (e.key === 'Shift' && !nineActive) shiftKeyboardPressed = true;
+		if (e.key === 'Alt' && !nineActive) altKeyboardPressed = true;
+		if (e.key === 'Tab' && !nineActive) {
 			tabKeyboardPressed = true;
 			appState.isSeventhMode = true;
 		}
@@ -293,6 +334,15 @@ export const keyboardState = {
 		}
 
 		const mappedKey = codeToKey[e.code];
+
+		// Handle 9 key for 9th chord mode (mutually exclusive with Tab, Alt, Shift)
+		if (mappedKey === '9' && !e.repeat) {
+			const anyModifierActive = tabKeyboardPressed || tabMousePressed || altKeyboardPressed || altMousePressed || shiftKeyboardPressed || shiftMousePressed;
+			if (!anyModifierActive) {
+				nineKeyboardPressed = true;
+				appState.isNinthMode = true;
+			}
+		}
 
 		if (mappedKey === 'z') {
 			clickedActionKey = 'Z';
@@ -323,22 +373,38 @@ export const keyboardState = {
 		const degree = keyboardState.getDegree(mappedKey);
 		if (degree && !e.repeat && !playingDegreeNotes.has(degree)) {
 			const seventhMode = keyboardState.tabPressed;
+			const ninthMode = keyboardState.ninePressed;
 			// Get chord symbol for this degree
-			const chords = seventhMode
-				? appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).chords
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords
-				: appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).triads
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+			let chords;
+			if (ninthMode) {
+				// For 9th mode, use 7th chords as base (we'll add 9 suffix in display)
+				chords =
+					appState.mode === 'major'
+						? Key.majorKey(appState.selectedRoot).chords
+						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
+			} else if (seventhMode) {
+				chords =
+					appState.mode === 'major'
+						? Key.majorKey(appState.selectedRoot).chords
+						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
+			} else {
+				chords =
+					appState.mode === 'major'
+						? Key.majorKey(appState.selectedRoot).triads
+						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+			}
 			const chord = chords[degree - 1];
 			if (chord) {
-				const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+				let formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+				if (ninthMode) {
+					// Replace 7 with 9 in the chord symbol
+					formatted = formatted.replace('7', '9');
+				}
 				appState.selectedChord = formatted;
 			}
 			appState.pressedDegree = degree;
 			appState.selectedInversion = keyboardState.inversion;
-			const chordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode);
+			const chordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode, ninthMode);
 			if (chordNotes.length > 0) {
 				playingDegreeNotes.set(degree, chordNotes);
 				appState.addPressedNotes(chordNotes);
@@ -359,6 +425,15 @@ export const keyboardState = {
 		if (e.key === ' ') spacePressed = false;
 
 		const mappedKey = codeToKey[e.code];
+
+		// Handle 9 key release
+		if (mappedKey === '9') {
+			nineKeyboardPressed = false;
+			// Only exit ninth mode if mouse 9 is also not pressed
+			if (!nineMousePressed) {
+				appState.isNinthMode = false;
+			}
+		}
 
 		// Handle action key release (Z, X, C)
 		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'c') {
@@ -390,12 +465,15 @@ export const keyboardState = {
 		appState.pressedDegree = null;
 		appState.clearPressedNotes();
 		appState.isSeventhMode = false;
+		appState.isNinthMode = false;
 		shiftKeyboardPressed = false;
 		altKeyboardPressed = false;
 		tabKeyboardPressed = false;
+		nineKeyboardPressed = false;
 		shiftMousePressed = false;
 		altMousePressed = false;
 		tabMousePressed = false;
+		nineMousePressed = false;
 		spacePressed = false;
 		isDraggingDegree = false;
 		isDraggingNote = false;
@@ -404,22 +482,36 @@ export const keyboardState = {
 	handleDegreeMouseDown(degree: number): void {
 		isDraggingDegree = true;
 		const seventhMode = keyboardState.tabPressed;
+		const ninthMode = keyboardState.ninePressed;
 
-		const chords = seventhMode
-			? appState.mode === 'major'
-				? Key.majorKey(appState.selectedRoot).chords
-				: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords
-			: appState.mode === 'major'
-				? Key.majorKey(appState.selectedRoot).triads
-				: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+		let chords;
+		if (ninthMode) {
+			chords =
+				appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).chords
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
+		} else if (seventhMode) {
+			chords =
+				appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).chords
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
+		} else {
+			chords =
+				appState.mode === 'major'
+					? Key.majorKey(appState.selectedRoot).triads
+					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+		}
 		const chord = chords[degree - 1];
 		if (chord) {
-			const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+			let formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+			if (ninthMode) {
+				formatted = formatted.replace('7', '9');
+			}
 			appState.selectedChord = formatted;
 			appState.selectedInversion = keyboardState.inversion;
 			appState.pressedDegree = degree;
 
-			currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode);
+			currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode, ninthMode);
 			if (currentChordNotes.length > 0) {
 				appState.addPressedNotes(currentChordNotes);
 			}
@@ -433,21 +525,35 @@ export const keyboardState = {
 			}
 
 			const seventhMode = keyboardState.tabPressed;
-			const chords = seventhMode
-				? appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).chords
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords
-				: appState.mode === 'major'
-					? Key.majorKey(appState.selectedRoot).triads
-					: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+			const ninthMode = keyboardState.ninePressed;
+			let chords;
+			if (ninthMode) {
+				chords =
+					appState.mode === 'major'
+						? Key.majorKey(appState.selectedRoot).chords
+						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
+			} else if (seventhMode) {
+				chords =
+					appState.mode === 'major'
+						? Key.majorKey(appState.selectedRoot).chords
+						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.chords;
+			} else {
+				chords =
+					appState.mode === 'major'
+						? Key.majorKey(appState.selectedRoot).triads
+						: Key.minorKey(Key.majorKey(appState.selectedRoot).minorRelative).natural.triads;
+			}
 			const chord = chords[degree - 1];
 			if (chord) {
-				const formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+				let formatted = FormatUtil.formatNote(chord).replace('dim', '°');
+				if (ninthMode) {
+					formatted = formatted.replace('7', '9');
+				}
 				appState.selectedChord = formatted;
 				appState.selectedInversion = keyboardState.inversion;
 				appState.pressedDegree = degree;
 
-				currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode);
+				currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode, ninthMode);
 				if (currentChordNotes.length > 0) {
 					appState.addPressedNotes(currentChordNotes);
 				}
