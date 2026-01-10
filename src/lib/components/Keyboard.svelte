@@ -255,7 +255,7 @@
 
 		<!-- Modifier row -->
 		<div class="row modifier-row">
-			<div class="key dark-key disabled-key">
+			<div class="key dark-key ctrl-key disabled-key">
 				<span class="key-label">ctrl</span>
 			</div>
 			<div
@@ -554,6 +554,10 @@
 		min-width: calc(var(--key-size) * 5);
 	}
 
+	.ctrl-key {
+		min-width: calc(var(--key-size) * 1.75);
+	}
+
 	/* Space key has slightly different pressed animation due to its width */
 	.space-key.pressed {
 		transform: scale(0.98) translateY(-1px);
@@ -585,7 +589,7 @@
 
 	.modifier-row {
 		justify-content: flex-start;
-		margin-left: calc(-0.75 * var(--key-unit));
+		margin-left: calc(-1.5 * var(--key-size) - var(--key-gap));
 	}
 
 	.dark-key > .voicing-label,
