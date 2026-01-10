@@ -204,7 +204,7 @@
 				tabindex="0"
 			>
 				<span class="key-label">⇧</span>
-				<span class="key-function font-music">2<sup>nd</sup></span>
+				<span class="key-function font-music">{#if kb.tabPressed && kb.altPressed}3<sup>rd</sup>{:else}2<sup>nd</sup>{/if}</span>
 			</div>
 
 			{#each kb.bottomRow as key (key)}
@@ -269,7 +269,7 @@
 				tabindex="0"
 			>
 				<span class="key-label">⌥</span>
-				<span class="key-function font-music">1<sup>st</sup></span>
+				<span class="key-function font-music">{#if kb.tabPressed && kb.shiftPressed}3<sup>rd</sup>{:else}1<sup>st</sup>{/if}</span>
 			</div>
 			<div class="key dark-key disabled-key">
 				<span class="key-label">⌘</span>
