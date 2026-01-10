@@ -69,6 +69,7 @@
 	bind:clientHeight={containerHeight}
 	onmouseup={kb.handleMouseUp}
 	onmouseleave={kb.handleMouseUp}
+	oncontextmenu={(e) => e.preventDefault()}
 	role="application"
 >
 	<div
@@ -258,6 +259,14 @@
 			<div class="key dark-key disabled-key">
 				<span class="key-label">M</span>
 			</div>
+			<!-- Comma key (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">,</span>
+			</div>
+			<!-- Period key (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">.</span>
+			</div>
 		</div>
 
 		<!-- Modifier row -->
@@ -319,6 +328,26 @@
 					<span>TOGGLE MODE</span>
 					<span class="space-mode">{appState.mode === 'major' ? 'MAJOR' : 'MINOR'}</span>
 				</span>
+			</div>
+			<!-- Second command key (disabled) -->
+			<div class="key dark-key disabled-key">
+				<span class="key-label">⌘</span>
+			</div>
+			<!-- Second alt key (mirrors first alt key) -->
+			<div
+				class="key dark-key"
+				class:pressed={kb.altPressed}
+				class:disabled-key={kb.ninePressed}
+				onmousedown={() => (kb.altMousePressed = true)}
+				onmouseup={() => (kb.altMousePressed = false)}
+				onmouseleave={() => (kb.altMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
+				<span class="key-label">⌥</span>
+				<span class="key-function font-music"
+					>{#if kb.tabPressed && kb.shiftPressed}3<sup>rd</sup>{:else}1<sup>st</sup>{/if}</span
+				>
 			</div>
 		</div>
 	</div>
