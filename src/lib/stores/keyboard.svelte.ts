@@ -76,7 +76,6 @@ const codeToKey: Record<string, string> = {
 	Digit5: '5',
 	Digit6: '6',
 	Digit7: '7',
-	Digit9: '9',
 	KeyZ: 'z',
 	KeyX: 'x',
 	KeyC: 'c',
@@ -90,12 +89,12 @@ const codeToKey: Record<string, string> = {
 let shiftKeyboardPressed = $state(false);
 let altKeyboardPressed = $state(false);
 let tabKeyboardPressed = $state(false);
-let nineKeyboardPressed = $state(false);
+let ctrlKeyboardPressed = $state(false);
 let capsLockOn = $state(false);
 let shiftMousePressed = $state(false);
 let altMousePressed = $state(false);
 let tabMousePressed = $state(false);
-let nineMousePressed = $state(false);
+let ctrlMousePressed = $state(false);
 let spacePressed = $state(false);
 
 // Visual feedback state
@@ -262,7 +261,7 @@ export const keyboardState = {
 		return tabKeyboardPressed || tabMousePressed;
 	},
 	get ninePressed() {
-		return nineKeyboardPressed || nineMousePressed;
+		return ctrlKeyboardPressed || ctrlMousePressed;
 	},
 	get capsLockOn() {
 		return capsLockOn;
@@ -275,13 +274,13 @@ export const keyboardState = {
 		altMousePressed = value;
 	},
 	set tabMousePressed(value: boolean) {
-		// Tab is mutually exclusive with 9 key
-		if (value && (nineKeyboardPressed || nineMousePressed)) return;
+		// Tab is mutually exclusive with ctrl (9th mode)
+		if (value && (ctrlKeyboardPressed || ctrlMousePressed)) return;
 		tabMousePressed = value;
 		appState.isSeventhMode = value || tabKeyboardPressed;
 	},
-	set nineMousePressed(value: boolean) {
-		// 9 key is mutually exclusive with Tab, Alt, Shift
+	set ctrlMousePressed(value: boolean) {
+		// Ctrl (9th mode) is mutually exclusive with Tab, Alt, Shift
 		if (
 			value &&
 			(tabKeyboardPressed ||
@@ -293,7 +292,7 @@ export const keyboardState = {
 		)
 			return;
 		if (value) {
-			// Clear other modifiers when 9 is pressed
+			// Clear other modifiers when ctrl is pressed
 			tabKeyboardPressed = false;
 			tabMousePressed = false;
 			altKeyboardPressed = false;
@@ -302,8 +301,8 @@ export const keyboardState = {
 			shiftMousePressed = false;
 			appState.isSeventhMode = false;
 		}
-		nineMousePressed = value;
-		appState.isNinthMode = value || nineKeyboardPressed;
+		ctrlMousePressed = value;
+		appState.isNinthMode = value || ctrlKeyboardPressed;
 	},
 	get spacePressed() {
 		return spacePressed;
@@ -334,7 +333,7 @@ export const keyboardState = {
 	 */
 	get inversion(): 0 | 1 | 2 | 3 {
 		// 9th mode has no inversions
-		if (nineKeyboardPressed || nineMousePressed) return 0;
+		if (ctrlKeyboardPressed || ctrlMousePressed) return 0;
 
 		const shift = shiftKeyboardPressed || shiftMousePressed;
 		const alt = altKeyboardPressed || altMousePressed;
@@ -388,7 +387,7 @@ export const keyboardState = {
 
 	// Event handlers
 	handleKeydown(e: KeyboardEvent): void {
-		const nineActive = nineKeyboardPressed || nineMousePressed;
+		const ctrlActive = ctrlKeyboardPressed || ctrlMousePressed;
 
 		// Always prevent default Tab behavior
 		if (e.key === 'Tab') {
@@ -398,10 +397,10 @@ export const keyboardState = {
 		// Track Caps Lock state (toggle key, not hold key)
 		capsLockOn = e.getModifierState('CapsLock');
 
-		// Shift, Alt, Tab are mutually exclusive with 9 key
-		if (e.key === 'Shift' && !nineActive) shiftKeyboardPressed = true;
-		if (e.key === 'Alt' && !nineActive) altKeyboardPressed = true;
-		if (e.key === 'Tab' && !nineActive) {
+		// Shift, Alt, Tab are mutually exclusive with ctrl (9th mode)
+		if (e.key === 'Shift' && !ctrlActive) shiftKeyboardPressed = true;
+		if (e.key === 'Alt' && !ctrlActive) altKeyboardPressed = true;
+		if (e.key === 'Tab' && !ctrlActive) {
 			tabKeyboardPressed = true;
 			appState.isSeventhMode = true;
 		}
@@ -411,10 +410,8 @@ export const keyboardState = {
 			appState.toggleMode();
 		}
 
-		const mappedKey = codeToKey[e.code];
-
-		// Handle 9 key for 9th chord mode (mutually exclusive with Tab, Alt, Shift)
-		if (mappedKey === '9' && !e.repeat) {
+		// Handle Ctrl key for 9th chord mode (mutually exclusive with Tab, Alt, Shift)
+		if (e.key === 'Control' && !e.repeat) {
 			const anyModifierActive =
 				tabKeyboardPressed ||
 				tabMousePressed ||
@@ -423,10 +420,12 @@ export const keyboardState = {
 				shiftKeyboardPressed ||
 				shiftMousePressed;
 			if (!anyModifierActive) {
-				nineKeyboardPressed = true;
+				ctrlKeyboardPressed = true;
 				appState.isNinthMode = true;
 			}
 		}
+
+		const mappedKey = codeToKey[e.code];
 
 		if (mappedKey === 'z') {
 			clickedActionKey = 'Z';
@@ -512,16 +511,16 @@ export const keyboardState = {
 		}
 		if (e.key === ' ') spacePressed = false;
 
-		const mappedKey = codeToKey[e.code];
-
-		// Handle 9 key release
-		if (mappedKey === '9') {
-			nineKeyboardPressed = false;
-			// Only exit ninth mode if mouse 9 is also not pressed
-			if (!nineMousePressed) {
+		// Handle Ctrl key release
+		if (e.key === 'Control') {
+			ctrlKeyboardPressed = false;
+			// Only exit ninth mode if mouse ctrl is also not pressed
+			if (!ctrlMousePressed) {
 				appState.isNinthMode = false;
 			}
 		}
+
+		const mappedKey = codeToKey[e.code];
 
 		// Handle action key release (Z, X, V, C)
 		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c') {
@@ -571,11 +570,11 @@ export const keyboardState = {
 		shiftKeyboardPressed = false;
 		altKeyboardPressed = false;
 		tabKeyboardPressed = false;
-		nineKeyboardPressed = false;
+		ctrlKeyboardPressed = false;
 		shiftMousePressed = false;
 		altMousePressed = false;
 		tabMousePressed = false;
-		nineMousePressed = false;
+		ctrlMousePressed = false;
 		spacePressed = false;
 		// Note: capsLockOn is not reset on blur - it's a hardware toggle state
 		mKeyPressed = false;

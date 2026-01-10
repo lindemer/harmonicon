@@ -172,19 +172,9 @@
 			<div class="key dark-key disabled-key">
 				<span class="key-label">8</span>
 			</div>
-			<!-- 9 key (9th mode toggle) -->
-			<div
-				class="key dark-key"
-				class:pressed={kb.ninePressed}
-				class:disabled-key={kb.tabPressed || kb.altPressed || kb.shiftPressed}
-				onmousedown={() => (kb.nineMousePressed = true)}
-				onmouseup={() => (kb.nineMousePressed = false)}
-				onmouseleave={() => (kb.nineMousePressed = false)}
-				role="button"
-				tabindex="0"
-			>
+			<!-- 9 key placeholder (disabled) -->
+			<div class="key dark-key disabled-key">
 				<span class="key-label">9</span>
-				<span class="key-function font-music">9<sup>th</sup></span>
 			</div>
 			<!-- 0 key placeholder (disabled) -->
 			<div class="key dark-key disabled-key">
@@ -422,8 +412,18 @@
 
 		<!-- Modifier row -->
 		<div class="row modifier-row">
-			<div class="key dark-key ctrl-key disabled-key">
+			<div
+				class="key dark-key ctrl-key"
+				class:pressed={kb.ninePressed}
+				class:disabled-key={kb.tabPressed || kb.altPressed || kb.shiftPressed}
+				onmousedown={() => (kb.ctrlMousePressed = true)}
+				onmouseup={() => (kb.ctrlMousePressed = false)}
+				onmouseleave={() => (kb.ctrlMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
 				<span class="key-label">ctrl</span>
+				<span class="key-function font-music">9<sup>th</sup></span>
 			</div>
 			<div
 				class="key dark-key"
@@ -749,7 +749,7 @@
 	}
 
 	.ctrl-key {
-		min-width: calc(var(--key-size) * 1.75);
+		min-width: var(--key-size);
 	}
 
 	/* Space key has slightly different pressed animation due to its width */
@@ -783,7 +783,7 @@
 
 	.modifier-row {
 		justify-content: flex-start;
-		margin-left: calc(-1.5 * var(--key-size) - var(--key-gap));
+		margin-left: calc(-0.75 * var(--key-size) - var(--key-gap));
 	}
 
 	.dark-key > .voicing-label,
