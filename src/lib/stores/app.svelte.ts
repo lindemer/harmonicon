@@ -73,6 +73,36 @@ let pressedDegree = $state<number | null>(null);
 const pressedNotes = new SvelteSet<string>();
 
 /**
+ * Convert a note name and octave to an absolute pitch value for sorting.
+ * Higher values = higher pitch. Used to ensure correct bass note detection.
+ */
+function getAbsolutePitch(note: string, octave: number): number {
+	const chromaticMap: Record<string, number> = {
+		C: 0,
+		'C#': 1,
+		Db: 1,
+		D: 2,
+		'D#': 3,
+		Eb: 3,
+		E: 4,
+		Fb: 4,
+		F: 5,
+		'E#': 5,
+		'F#': 6,
+		Gb: 6,
+		G: 7,
+		'G#': 8,
+		Ab: 8,
+		A: 9,
+		'A#': 10,
+		Bb: 10,
+		B: 11,
+		Cb: 11
+	};
+	return octave * 12 + (chromaticMap[note] ?? 0);
+}
+
+/**
  * Select the preferred chord interpretation from Chord.detect() results.
  * Prefers simpler chord types (major/minor) over complex ones (augmented/altered).
  * For inversions, prefers slash chords of simple types over root-position complex chords.
@@ -148,23 +178,36 @@ export const appState = {
 	// e.g., if chordDisplayOctave is 3, range is C2 to B3 (octaves 2 and 3)
 	get detectedChord(): DetectedChord | null {
 		const octave = chordDisplayOctave;
-		const notesInRange: string[] = [];
+		const notesWithPitch: Array<{ note: string; pitch: number }> = [];
 
 		for (const noteStr of pressedNotes) {
 			const match = noteStr.match(/^([A-G][#b]?)(\d+)$/);
 			if (match) {
+				const noteName = match[1];
 				const noteOctave = parseInt(match[2]);
 				// Include notes in the octave below and the octave of the root C
 				if (noteOctave === octave || noteOctave === octave - 1) {
-					notesInRange.push(match[1]); // Just the pitch class
+					notesWithPitch.push({
+						note: noteName,
+						pitch: getAbsolutePitch(noteName, noteOctave)
+					});
 				}
 			}
 		}
 
-		if (notesInRange.length < 2) return null; // Need at least 2 notes for a chord
+		if (notesWithPitch.length < 3) return null; // Need at least 3 notes for a chord
+
+		// Sort by actual pitch (lowest first) for correct bass note / inversion detection
+		notesWithPitch.sort((a, b) => a.pitch - b.pitch);
+
+		// Extract pitch classes in sorted order
+		const notesInRange = notesWithPitch.map((n) => n.note);
 
 		// Count unique pitch classes (ignore octave duplicates)
 		const uniquePitchClasses = new Set(notesInRange).size;
+
+		// Need at least 3 unique pitch classes for chord detection
+		if (uniquePitchClasses < 3) return null;
 
 		// If too many unique notes are pressed (more than a 9th chord = 5 notes),
 		// the detection is likely to be unreliable
