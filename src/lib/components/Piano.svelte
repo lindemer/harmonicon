@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { Chord, Note } from 'tonal';
+	import { Note } from 'tonal';
 	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
-	import { VoicingUtil } from '$lib/utils/voicing.util';
 
 	const PIANO_DIMENSIONS = {
 		whiteKey: {
@@ -101,28 +100,17 @@
 	}
 
 	function getChordInterval(noteName: string, noteOctave: number): string | null {
-		if (!appState.selectedChord) return null;
-		const chordSymbol = FormatUtil.unformatNote(appState.selectedChord);
-		const chord = Chord.get(chordSymbol);
-		if (chord.empty) return null;
+		if (!appState.selectedChord || highlightedNotes.length === 0) return null;
 
-		// Get voiced notes using VoicingUtil
-		const voicedNotes = VoicingUtil.getVoicedNotes(
-			chord.notes,
-			appState.selectedInversion,
-			appState.chordDisplayOctave,
-			appState.voicingMode
-		);
-
-		// Check if this piano key matches any voiced chord note
+		// Check if this piano key matches any highlighted note
 		const noteChroma = Note.chroma(noteName);
-		const matchedNote = voicedNotes.find(
+		const matchedNote = highlightedNotes.find(
 			(vn) => Note.chroma(vn.note) === noteChroma && vn.octave === noteOctave
 		);
 		if (!matchedNote) return null;
 
-		// Calculate interval from bass note to this note
-		const bassChroma = Note.chroma(voicedNotes[0].note);
+		// Calculate interval from bass note (first highlighted note) to this note
+		const bassChroma = Note.chroma(highlightedNotes[0].note);
 		if (bassChroma === undefined || noteChroma === undefined) return null;
 
 		const semitones = (noteChroma - bassChroma + 12) % 12;

@@ -248,9 +248,11 @@ export const appState = {
 
 		// Chord highlighting from degree key (1-7)
 		if (pressedDegree !== null) {
-			const chord = isSeventhMode
-				? VoicingUtil.getSeventhChordForDegree(pressedDegree, selectedRoot, mode)
-				: VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
+			const chord = isNinthMode
+				? VoicingUtil.getNinthChordForDegree(pressedDegree, selectedRoot, mode)
+				: isSeventhMode
+					? VoicingUtil.getSeventhChordForDegree(pressedDegree, selectedRoot, mode)
+					: VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
 			if (chord && chord.notes.length) {
 				results.push(
 					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave, voicingMode)

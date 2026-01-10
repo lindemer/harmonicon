@@ -417,7 +417,7 @@
 	/* Piano section - positioned layout */
 	.piano-section {
 		position: relative;
-		height: calc(2 * var(--key-size));
+		height: calc(2 * var(--key-size) + var(--key-gap));
 		width: calc(10 * var(--key-unit));
 		overflow: visible;
 	}
@@ -443,7 +443,7 @@
 		position: absolute;
 		left: calc(var(--key-index) * var(--key-unit));
 		width: var(--key-size);
-		height: calc(2 * var(--key-size));
+		height: calc(2 * var(--key-size) + var(--key-gap));
 		display: flex;
 		flex-direction: column;
 		border-radius: 6px;
