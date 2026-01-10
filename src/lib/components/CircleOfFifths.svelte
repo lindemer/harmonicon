@@ -17,8 +17,8 @@
 			center: 65
 		},
 		fontSizes: {
-			major: 18,
-			minor: 14,
+			major: 20,
+			minor: 16,
 			dim: 11
 		},
 		segmentAngle: 30,
@@ -72,8 +72,8 @@
 		const dimRoot = dimChord.replace('dim', '');
 		return {
 			major: FormatUtil.formatNote(root),
-			minor: FormatUtil.formatNote(relativeMinor) + 'm',
-			dim: FormatUtil.formatNote(dimRoot) + '°',
+			minor: FormatUtil.formatNote(relativeMinor).toLowerCase(),
+			dim: FormatUtil.formatNote(dimRoot).toLowerCase() + '°',
 			majorNote: root,
 			minorNote: relativeMinor,
 			dimNote: dimRoot
@@ -430,7 +430,7 @@
 			x={majorPos.x}
 			y={majorPos.y}
 			text-anchor="middle"
-			dominant-baseline="middle"
+			dominant-baseline="central"
 			font-size={fontSizes.major}
 			class="{majorInKey || appState.mode === 'major'
 				? 'fill-gray-100'
@@ -446,7 +446,7 @@
 			x={minorPos.x}
 			y={minorPos.y}
 			text-anchor="middle"
-			dominant-baseline="middle"
+			dominant-baseline="central"
 			font-size={fontSizes.minor}
 			class="{minorInKey || appState.mode === 'minor'
 				? 'fill-gray-100'
@@ -462,7 +462,7 @@
 			x={dimPos.x}
 			y={dimPos.y}
 			text-anchor="middle"
-			dominant-baseline="middle"
+			dominant-baseline="central"
 			font-size={fontSizes.dim}
 			class="{dimInKey ? 'fill-gray-100' : 'fill-gray-400'} font-music pointer-events-none"
 		>
@@ -476,7 +476,7 @@
 			x={numeralPos.x}
 			y={numeralPos.y}
 			text-anchor="middle"
-			dominant-baseline="middle"
+			dominant-baseline="central"
 			font-size="13"
 			transform="rotate({midAngle}, {numeralPos.x}, {numeralPos.y})"
 			class="fill-gray-400 font-music pointer-events-none"
