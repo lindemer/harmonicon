@@ -166,7 +166,7 @@
 					<div class="white-key-bottom">
 						<span class="key-label">{pk.white}</span>
 						<span class="key-function font-music" style:color={whiteNoteColor ?? '#f3f4f6'}
-							>{pk.note}</span
+							>{appState.playMode === 'chords' && kb.ctrlPressed ? pk.note.toLowerCase() : pk.note}</span
 						>
 					</div>
 				</div>
@@ -183,7 +183,7 @@
 					>
 						<span class="key-label">{pk.black}</span>
 						<span class="key-function font-music" style:color={blackNoteColor ?? '#f3f4f6'}
-							>{FormatUtil.formatNote(pk.blackNote)}</span
+							>{appState.playMode === 'chords' && kb.ctrlPressed ? FormatUtil.formatNote(pk.blackNote).toLowerCase() : FormatUtil.formatNote(pk.blackNote)}</span
 						>
 					</div>
 				{/if}
@@ -204,23 +204,24 @@
 				tabindex="0"
 			>
 				<span class="key-label">⇧</span>
-				<span class="key-function font-music">{#if kb.tabPressed && kb.altPressed}3<sup>rd</sup>{:else}2<sup>nd</sup>{/if}</span>
+				<span class="key-function font-music"
+					>{#if kb.tabPressed && kb.altPressed}3<sup>rd</sup>{:else}2<sup>nd</sup>{/if}</span
+				>
 			</div>
 
 			{#each kb.bottomRow as key (key)}
 				{@const action = kb.actionMap[key]}
 				{@const isVoicingKey = key === 'V'}
-				{@const isDisabledKey = key === 'C'}
+				{@const isPlayModeKey = key === 'C'}
 				<div
 					class="key dark-key"
-					class:pressed={!isDisabledKey && kb.isActionKeyPressed(key)}
-					class:disabled-key={isDisabledKey}
+					class:pressed={kb.isActionKeyPressed(key)}
 					onmousedown={() => {
-						if (isDisabledKey) return;
 						kb.clickedActionKey = key;
 						if (key === 'Z') appState.decrementChordOctave();
 						else if (key === 'X') appState.incrementChordOctave();
 						else if (key === 'V') appState.toggleVoicingMode();
+						else if (key === 'C') appState.togglePlayMode();
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -230,8 +231,14 @@
 					<span class="key-label">{key}</span>
 					{#if isVoicingKey}
 						<span class="key-function voicing-label">
-							<span class="voicing-mode">{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span>
+							<span class="voicing-mode">{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
+							>
 							<span>VOICE</span>
+						</span>
+					{:else if isPlayModeKey}
+						<span class="key-function play-mode-label">
+							<span>PLAY</span>
+							<span class="play-mode">{appState.playMode === 'notes' ? 'NOTES' : 'CHORDS'}</span>
 						</span>
 					{:else if action}
 						<span class="key-function octave-label">
@@ -255,8 +262,21 @@
 
 		<!-- Modifier row -->
 		<div class="row modifier-row">
-			<div class="key dark-key ctrl-key disabled-key">
+			<div
+				class="key dark-key ctrl-key"
+				class:pressed={kb.ctrlPressed}
+				class:disabled-key={appState.playMode === 'notes'}
+				onmousedown={() => (kb.ctrlMousePressed = true)}
+				onmouseup={() => (kb.ctrlMousePressed = false)}
+				onmouseleave={() => (kb.ctrlMousePressed = false)}
+				role="button"
+				tabindex="0"
+			>
 				<span class="key-label">ctrl</span>
+				<span class="key-function ctrl-label">
+					<span>PARALLEL</span>
+					<span>MINOR</span>
+				</span>
 			</div>
 			<div
 				class="key dark-key"
@@ -269,7 +289,9 @@
 				tabindex="0"
 			>
 				<span class="key-label">⌥</span>
-				<span class="key-function font-music">{#if kb.tabPressed && kb.shiftPressed}3<sup>rd</sup>{:else}1<sup>st</sup>{/if}</span>
+				<span class="key-function font-music"
+					>{#if kb.tabPressed && kb.shiftPressed}3<sup>rd</sup>{:else}1<sup>st</sup>{/if}</span
+				>
 			</div>
 			<div class="key dark-key disabled-key">
 				<span class="key-label">⌘</span>
@@ -593,7 +615,8 @@
 	}
 
 	.dark-key > .voicing-label,
-	.dark-key > .octave-label {
+	.dark-key > .octave-label,
+	.dark-key > .play-mode-label {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -605,8 +628,25 @@
 		color: white;
 	}
 
-	.voicing-mode {
+	.voicing-mode,
+	.play-mode {
 		color: #f59e0b;
+	}
+
+	.ctrl-key > .ctrl-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
+	}
+
+	.ctrl-key.disabled-key > .ctrl-label {
+		color: #4b5563;
 	}
 
 	.space-key > .space-label {

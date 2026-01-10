@@ -2,7 +2,7 @@ import { Chord } from 'tonal';
 import { SvelteSet } from 'svelte/reactivity';
 import { FormatUtil } from '$lib/utils/format.util';
 import { audioState } from './audio.svelte';
-import type { Mode, VoicingMode } from '$lib/types';
+import type { Mode, VoicingMode, PlayMode } from '$lib/types';
 
 // ============ AppState Interface ============
 
@@ -36,6 +36,10 @@ export interface AppState {
 	setVoicingMode(mode: VoicingMode): void;
 	toggleVoicingMode(): void;
 
+	// Play mode (notes vs chords for letter keys)
+	playMode: PlayMode;
+	togglePlayMode(): void;
+
 	// Pressed state (visual + audio)
 	pressedDegree: number | null;
 	pressedNotes: SvelteSet<string>;
@@ -62,6 +66,7 @@ let isNinthMode = $state(false);
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 let voicingMode = $state<VoicingMode>('open');
+let playMode = $state<PlayMode>('notes');
 let pressedDegree = $state<number | null>(null);
 
 // Track all currently pressed notes as "{note}{octave}" strings (e.g., "C4", "F#3")
@@ -256,6 +261,14 @@ export const appState = {
 
 	toggleVoicingMode() {
 		voicingMode = voicingMode === 'open' ? 'closed' : 'open';
+	},
+
+	get playMode() {
+		return playMode;
+	},
+
+	togglePlayMode() {
+		playMode = playMode === 'notes' ? 'chords' : 'notes';
 	},
 
 	// Pressed key state for visual feedback
