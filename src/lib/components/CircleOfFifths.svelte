@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Key, Chord } from 'tonal';
+	import { Key, Chord, Note } from 'tonal';
 	import { appState } from '$lib/stores/app.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
@@ -8,8 +8,8 @@
 	import ChordDisplay from './Chord.svelte';
 
 	const CIRCLE_DIMENSIONS = {
-		viewBox: 400,
-		center: { x: 200, y: 200 },
+		viewBox: 440,
+		center: { x: 220, y: 220 },
 		radii: {
 			outer: 185,
 			mid: 135,
@@ -17,8 +17,8 @@
 			center: 65
 		},
 		fontSizes: {
-			major: 18,
-			minor: 14,
+			major: 20,
+			minor: 16,
 			dim: 11
 		},
 		segmentAngle: 30,
@@ -72,8 +72,8 @@
 		const dimRoot = dimChord.replace('dim', '');
 		return {
 			major: FormatUtil.formatNote(root),
-			minor: FormatUtil.formatNote(relativeMinor) + 'm',
-			dim: FormatUtil.formatNote(dimRoot) + '°',
+			minor: FormatUtil.formatNote(relativeMinor).toLowerCase(),
+			dim: FormatUtil.formatNote(dimRoot).toLowerCase() + '°',
 			majorNote: root,
 			minorNote: relativeMinor,
 			dimNote: dimRoot
@@ -175,6 +175,30 @@
 			return hover ? '#1f2937' : '#111827';
 		}
 		return FormatUtil.getDegreeColor(degree, undefined, hover);
+	}
+
+	const FLAT_NUMERALS = [
+		'I',
+		'♭II',
+		'II',
+		'♭III',
+		'III',
+		'IV',
+		'♭V',
+		'V',
+		'♭VI',
+		'VI',
+		'♭VII',
+		'VII'
+	];
+
+	function getChromaticNumeral(segmentIndex: number): string {
+		const segmentRoot = keys[segmentIndex].majorNote;
+		const selectedChroma = Note.chroma(appState.selectedRoot);
+		const segmentChroma = Note.chroma(segmentRoot);
+		if (selectedChroma === undefined || segmentChroma === undefined) return '';
+		const semitones = (segmentChroma - selectedChroma + 12) % 12;
+		return FLAT_NUMERALS[semitones];
 	}
 
 	function isHovered(segmentIndex: number, ring: RingType): boolean {
@@ -419,7 +443,7 @@
 			x={majorPos.x}
 			y={majorPos.y}
 			text-anchor="middle"
-			dominant-baseline="middle"
+			dominant-baseline="central"
 			font-size={fontSizes.major}
 			class="{majorInKey || appState.mode === 'major'
 				? 'fill-gray-100'
@@ -435,7 +459,7 @@
 			x={minorPos.x}
 			y={minorPos.y}
 			text-anchor="middle"
-			dominant-baseline="middle"
+			dominant-baseline="central"
 			font-size={fontSizes.minor}
 			class="{minorInKey || appState.mode === 'minor'
 				? 'fill-gray-100'
@@ -451,11 +475,26 @@
 			x={dimPos.x}
 			y={dimPos.y}
 			text-anchor="middle"
-			dominant-baseline="middle"
+			dominant-baseline="central"
 			font-size={fontSizes.dim}
 			class="{dimInKey ? 'fill-gray-100' : 'fill-gray-400'} font-music pointer-events-none"
 		>
 			{key.dim}
+		</text>
+
+		<!-- Outer chromatic numeral indicator -->
+		{@const numeralPos = getLabelPosition(radii.outer + 14, midAngle)}
+		{@const numeral = getChromaticNumeral(i)}
+		<text
+			x={numeralPos.x}
+			y={numeralPos.y}
+			text-anchor="middle"
+			dominant-baseline="central"
+			font-size="13"
+			transform="rotate({midAngle}, {numeralPos.x}, {numeralPos.y})"
+			class="font-music pointer-events-none fill-gray-400"
+		>
+			{numeral}
 		</text>
 	{/each}
 
