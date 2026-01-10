@@ -1,4 +1,4 @@
-import type { Mode } from '$lib/types';
+import type { Mode, VoicingMode } from '$lib/types';
 import { Key, Chord, Note } from 'tonal';
 
 export type ChordType = ReturnType<typeof Chord.get>;
@@ -52,18 +52,18 @@ export class VoicingUtil {
 
 	/**
 	 * Get voiced chord notes with octave information.
-	 * Bass note is always placed between baseOctave-1's C and baseOctave's C.
-	 * Harmony notes are placed as high as possible while staying below baseOctave+1's C.
 	 *
 	 * @param chordNotes - Array of note names from Chord.get().notes
 	 * @param inversion - 0 (root), 1 (first), 2 (second), or 3 (third for 7th chords)
 	 * @param baseOctave - Base octave for voicing (e.g., 3)
+	 * @param voicingMode - 'spread' or 'close' voicing style
 	 * @returns Array of {note, octave} objects
 	 */
 	static getVoicedNotes(
 		chordNotes: string[],
 		inversion: 0 | 1 | 2 | 3,
-		baseOctave: number
+		baseOctave: number,
+		voicingMode: VoicingMode = 'spread'
 	): Array<{ note: string; octave: number }> {
 		if (!chordNotes.length) return [];
 
@@ -77,24 +77,85 @@ export class VoicingUtil {
 			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
 		}
 
-		// Bass note always in the octave below baseOctave (between C(baseOctave-1) and C(baseOctave))
+		if (voicingMode === 'close') {
+			return this.getCloseVoicing(invertedNotes, baseOctave);
+		}
+
+		return this.getSpreadVoicing(invertedNotes, baseOctave);
+	}
+
+	/**
+	 * Spread voicing: bass in lower octave, harmony in upper octave.
+	 */
+	private static getSpreadVoicing(
+		invertedNotes: string[],
+		baseOctave: number
+	): Array<{ note: string; octave: number }> {
 		const bassOctave = baseOctave - 1;
 
-		// Build voiced notes: bass goes low, harmony notes go as high as possible below baseOctave+1's C
+		return invertedNotes.map((noteName, index) => {
+			if (index === 0) {
+				// Bass note in lower octave
+				return { note: noteName, octave: bassOctave };
+			}
+			// Harmony notes in upper octave
+			return { note: noteName, octave: baseOctave };
+		});
+	}
+
+	/**
+	 * Close voicing: all notes within the 2-octave range, bass placed closest to baseOctave's C.
+	 * All notes must fit between C(baseOctave-1) and B(baseOctave).
+	 */
+	private static getCloseVoicing(
+		invertedNotes: string[],
+		baseOctave: number
+	): Array<{ note: string; octave: number }> {
+		const bassChroma = Note.chroma(invertedNotes[0]);
+		if (bassChroma === undefined) {
+			return invertedNotes.map((note) => ({ note, octave: baseOctave - 1 }));
+		}
+
+		// Calculate which octave places bass closest to C{baseOctave}
+		// C{baseOctave} is our target reference point
+		const targetC = 12 * baseOctave;
+		const bassInLower = 12 * (baseOctave - 1) + bassChroma;
+		const bassInUpper = 12 * baseOctave + bassChroma;
+
+		let bassOctave =
+			Math.abs(bassInLower - targetC) <= Math.abs(bassInUpper - targetC)
+				? baseOctave - 1
+				: baseOctave;
+
+		// Place all notes ascending from bass, wrapping octave when chroma decreases
+		let currentOctave = bassOctave;
+		let prevChroma = bassChroma;
+
 		const voicedNotes = invertedNotes.map((noteName, index) => {
 			const noteChroma = Note.chroma(noteName);
-			if (noteChroma === undefined) return { note: noteName, octave: bassOctave };
+			if (noteChroma === undefined) return { note: noteName, octave: currentOctave };
 
 			if (index === 0) {
-				// Bass note always in lower octave
 				return { note: noteName, octave: bassOctave };
 			}
 
-			// Harmony notes: place at baseOctave (high)
-			// All notes have chroma 0-11, so placing at baseOctave means they'll be between
-			// C(baseOctave) and B(baseOctave), which is below C(baseOctave+1)
-			return { note: noteName, octave: baseOctave };
+			// If chroma decreased or equal, we've wrapped around to next octave
+			if (noteChroma <= prevChroma) {
+				currentOctave++;
+			}
+			prevChroma = noteChroma;
+
+			return { note: noteName, octave: currentOctave };
 		});
+
+		// Check if any note exceeds the ceiling (C of baseOctave+1, i.e., octave >= baseOctave+1)
+		// If so, shift the entire chord down by one octave
+		const ceiling = baseOctave;
+		const anyAboveCeiling = voicedNotes.some((vn) => vn.octave > ceiling);
+
+		if (anyAboveCeiling) {
+			return voicedNotes.map((vn) => ({ note: vn.note, octave: vn.octave - 1 }));
+		}
 
 		return voicedNotes;
 	}
@@ -106,15 +167,17 @@ export class VoicingUtil {
 	 * @param chordSymbol - Chord symbol (e.g., 'C', 'Am', 'Bdim', 'Cmaj7')
 	 * @param inversion - 0 (root), 1 (first), 2 (second), or 3 (third for 7th chords)
 	 * @param baseOctave - Base octave for voicing
+	 * @param voicingMode - 'spread' or 'close' voicing style
 	 * @returns Array of {note, octave} objects, or empty array if invalid chord
 	 */
 	static getVoicedNotesFromSymbol(
 		chordSymbol: string,
 		inversion: 0 | 1 | 2 | 3,
-		baseOctave: number
+		baseOctave: number,
+		voicingMode: VoicingMode = 'spread'
 	): Array<{ note: string; octave: number }> {
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty || !chord.notes.length) return [];
-		return this.getVoicedNotes(chord.notes, inversion, baseOctave);
+		return this.getVoicedNotes(chord.notes, inversion, baseOctave, voicingMode);
 	}
 }

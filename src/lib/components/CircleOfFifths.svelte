@@ -174,7 +174,8 @@
 		const notes = VoicingUtil.getVoicedNotesFromSymbol(
 			unformatted,
 			inv,
-			appState.chordDisplayOctave
+			appState.chordDisplayOctave,
+			appState.voicingMode
 		);
 		if (notes.length > 0) {
 			currentChordNotes = notes;

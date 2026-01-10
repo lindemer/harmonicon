@@ -174,13 +174,17 @@
 
 			{#each kb.bottomRow as key (key)}
 				{@const action = kb.actionMap[key]}
+				{@const isVoicingKey = key === 'C' || key === 'V'}
+				{@const isActiveVoicing = (key === 'C' && appState.voicingMode === 'spread') || (key === 'V' && appState.voicingMode === 'close')}
 				<div
 					class="key dark-key"
 					class:pressed={kb.isActionKeyPressed(key)}
 					onmousedown={() => {
 						kb.clickedActionKey = key;
 						if (key === 'Z') appState.decrementChordOctave();
-						else appState.incrementChordOctave();
+						else if (key === 'X') appState.incrementChordOctave();
+						else if (key === 'C') appState.setVoicingMode('spread');
+						else if (key === 'V') appState.setVoicingMode('close');
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -189,7 +193,12 @@
 				>
 					<span class="key-label">{key}</span>
 					{#if action}
-						<span class="key-function font-music">{action.text}<sup>{action.sup}</sup></span>
+						<span
+							class="key-function"
+							class:font-music={!isVoicingKey}
+							class:voicing-label={isVoicingKey}
+							style:color={isActiveVoicing ? '#f59e0b' : undefined}
+						>{action.text}{#if action.sup}<sup>{action.sup}</sup>{/if}</span>
 					{/if}
 				</div>
 			{/each}
@@ -501,5 +510,11 @@
 	.modifier-row {
 		justify-content: flex-start;
 		margin-left: calc(-0.75 * var(--key-unit));
+	}
+
+	.voicing-label {
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.5px;
 	}
 </style>

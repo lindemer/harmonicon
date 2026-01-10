@@ -3,7 +3,7 @@ import { SvelteSet } from 'svelte/reactivity';
 import { FormatUtil } from '$lib/utils/format.util';
 import { VoicingUtil } from '$lib/utils/voicing.util';
 import { audioState } from './audio.svelte';
-import type { Mode } from '$lib/types';
+import type { Mode, VoicingMode } from '$lib/types';
 
 // ============ AppState Interface ============
 
@@ -24,6 +24,10 @@ export interface AppState {
 	chordDisplayOctave: number;
 	incrementChordOctave(): void;
 	decrementChordOctave(): void;
+
+	// Voicing mode
+	voicingMode: VoicingMode;
+	setVoicingMode(mode: VoicingMode): void;
 
 	// Pressed state (visual + audio)
 	pressedDegree: number | null;
@@ -54,6 +58,7 @@ let selectedInversion = $state<0 | 1 | 2 | 3>(0);
 let isSeventhMode = $state(false);
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
+let voicingMode = $state<VoicingMode>('spread');
 let pressedDegree = $state<number | null>(null);
 let isChordPressed = $state(false);
 
@@ -143,6 +148,14 @@ export const appState = {
 		if (chordDisplayOctave > 3) chordDisplayOctave--;
 	},
 
+	get voicingMode() {
+		return voicingMode;
+	},
+
+	setVoicingMode(mode: VoicingMode) {
+		voicingMode = mode;
+	},
+
 	// Pressed key state for visual feedback
 	get pressedDegree() {
 		return pressedDegree;
@@ -226,7 +239,7 @@ export const appState = {
 				: VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
 			if (chord && chord.notes.length) {
 				results.push(
-					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave)
+					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave, voicingMode)
 				);
 			}
 		}
@@ -237,7 +250,7 @@ export const appState = {
 			const chord = Chord.get(chordSymbol);
 			if (!chord.empty && chord.notes.length) {
 				results.push(
-					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave)
+					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave, voicingMode)
 				);
 			}
 		}

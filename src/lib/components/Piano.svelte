@@ -110,7 +110,8 @@
 		const voicedNotes = VoicingUtil.getVoicedNotes(
 			chord.notes,
 			appState.selectedInversion,
-			appState.chordDisplayOctave
+			appState.chordDisplayOctave,
+			appState.voicingMode
 		);
 
 		// Check if this piano key matches any voiced chord note
@@ -123,8 +124,8 @@
 		// Calculate interval from bass note to this note
 		const bassChroma = Note.chroma(voicedNotes[0].note);
 		if (bassChroma === undefined || noteChroma === undefined) return null;
-		const semitones = (noteChroma - bassChroma + 12) % 12;
 
+		const semitones = (noteChroma - bassChroma + 12) % 12;
 		return FormatUtil.formatFiguredBassInterval(semitones);
 	}
 
