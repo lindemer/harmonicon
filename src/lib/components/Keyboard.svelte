@@ -195,11 +195,19 @@
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const isChordMode = appState.playMode === 'chords'}
 				{@const whiteChordInfo = isChordMode
-					? getChordDisplayInfo(pk.note, kb.ctrlPressed, kb.inversion, kb.tabPressed, kb.ninePressed, appState.selectedRoot)
+					? getChordDisplayInfo(
+							pk.note,
+							kb.ctrlPressed,
+							kb.inversion,
+							kb.tabPressed,
+							kb.ninePressed,
+							appState.selectedRoot
+						)
 					: { root: pk.note, bassNote: undefined }}
-				{@const whiteNoteColor = isChordMode && whiteChordInfo.bassNote
-					? getNoteColor(FormatUtil.unformatNote(whiteChordInfo.bassNote))
-					: getNoteColor(pk.note)}
+				{@const whiteNoteColor =
+					isChordMode && whiteChordInfo.bassNote
+						? getNoteColor(FormatUtil.unformatNote(whiteChordInfo.bassNote))
+						: getNoteColor(pk.note)}
 				{@const blackNoteColor = pk.blackNote ? getNoteColor(pk.blackNote) : undefined}
 				<!-- White key (tall, extends from home row up) -->
 				<div
@@ -232,11 +240,19 @@
 						? FormatUtil.toFlatNotation(pk.blackNote)
 						: pk.blackNote}
 					{@const blackChordInfo = isChordMode
-						? getChordDisplayInfo(displayBlackNote, kb.ctrlPressed, kb.inversion, kb.tabPressed, kb.ninePressed, appState.selectedRoot)
+						? getChordDisplayInfo(
+								displayBlackNote,
+								kb.ctrlPressed,
+								kb.inversion,
+								kb.tabPressed,
+								kb.ninePressed,
+								appState.selectedRoot
+							)
 						: { root: FormatUtil.formatNote(displayBlackNote), bassNote: undefined }}
-					{@const blackKeyColor = isChordMode && blackChordInfo.bassNote
-						? getNoteColor(FormatUtil.unformatNote(blackChordInfo.bassNote))
-						: blackNoteColor}
+					{@const blackKeyColor =
+						isChordMode && blackChordInfo.bassNote
+							? getNoteColor(FormatUtil.unformatNote(blackChordInfo.bassNote))
+							: blackNoteColor}
 					<div
 						class="black-key dark-key"
 						class:pressed={kb.isKeyPressed(pk.black)}
