@@ -691,7 +691,7 @@ export const keyboardState = {
 					// Start new chord
 					clickedVirtualKeys.add(keyUnderCursor.toLowerCase());
 					const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
-					const chordNotes = getChordNotesForNote(noteInfo.note, noteInfo.octave, isMinor, false, false);
+					const chordNotes = getChordNotesForNote(noteInfo.note, isMinor);
 					if (chordNotes.length > 0) {
 						mouseChordNotes.set(keyUnderCursor.toLowerCase(), chordNotes);
 						appState.addPressedNotes(chordNotes);
