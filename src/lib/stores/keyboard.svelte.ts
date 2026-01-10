@@ -91,12 +91,11 @@ let shiftKeyboardPressed = $state(false);
 let altKeyboardPressed = $state(false);
 let tabKeyboardPressed = $state(false);
 let nineKeyboardPressed = $state(false);
-let ctrlKeyboardPressed = $state(false);
+let capsLockOn = $state(false);
 let shiftMousePressed = $state(false);
 let altMousePressed = $state(false);
 let tabMousePressed = $state(false);
 let nineMousePressed = $state(false);
-let ctrlMousePressed = $state(false);
 let spacePressed = $state(false);
 
 // Visual feedback state
@@ -265,11 +264,8 @@ export const keyboardState = {
 	get ninePressed() {
 		return nineKeyboardPressed || nineMousePressed;
 	},
-	get ctrlPressed() {
-		return ctrlKeyboardPressed || ctrlMousePressed;
-	},
-	set ctrlMousePressed(value: boolean) {
-		ctrlMousePressed = value;
+	get capsLockOn() {
+		return capsLockOn;
 	},
 	// Mouse-specific setters for virtual keyboard
 	set shiftMousePressed(value: boolean) {
@@ -399,11 +395,8 @@ export const keyboardState = {
 			e.preventDefault();
 		}
 
-		// Track Control key
-		if (e.key === 'Control') {
-			ctrlKeyboardPressed = true;
-			return;
-		}
+		// Track Caps Lock state (toggle key, not hold key)
+		capsLockOn = e.getModifierState('CapsLock');
 
 		// Shift, Alt, Tab are mutually exclusive with 9 key
 		if (e.key === 'Shift' && !nineActive) shiftKeyboardPressed = true;
@@ -465,7 +458,7 @@ export const keyboardState = {
 			if (appState.playMode === 'chords') {
 				if (playingPianoKeyChords.has(mappedKey)) return;
 
-				const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+				const isMinor = capsLockOn;
 				const chordNotes = getChordNotesForNote(
 					noteInfo.note,
 					isMinor,
@@ -505,9 +498,11 @@ export const keyboardState = {
 	},
 
 	handleKeyup(e: KeyboardEvent): void {
+		// Track Caps Lock state on keyup too (in case it changed)
+		capsLockOn = e.getModifierState('CapsLock');
+
 		if (e.key === 'Shift') shiftKeyboardPressed = false;
 		if (e.key === 'Alt') altKeyboardPressed = false;
-		if (e.key === 'Control') ctrlKeyboardPressed = false;
 		if (e.key === 'Tab') {
 			tabKeyboardPressed = false;
 			// Only exit seventh mode if mouse tab is also not pressed
@@ -577,13 +572,12 @@ export const keyboardState = {
 		altKeyboardPressed = false;
 		tabKeyboardPressed = false;
 		nineKeyboardPressed = false;
-		ctrlKeyboardPressed = false;
 		shiftMousePressed = false;
 		altMousePressed = false;
 		tabMousePressed = false;
 		nineMousePressed = false;
-		ctrlMousePressed = false;
 		spacePressed = false;
+		// Note: capsLockOn is not reset on blur - it's a hardware toggle state
 		mKeyPressed = false;
 		isDraggingDegree = false;
 		isDraggingNote = false;
@@ -643,7 +637,7 @@ export const keyboardState = {
 			// Track which key is clicked for visual feedback
 			clickedVirtualKeys.add(noteKey.toLowerCase());
 
-			const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+			const isMinor = capsLockOn;
 			const chordNotes = getChordNotesForNote(
 				noteInfo.note,
 				isMinor,
@@ -681,7 +675,7 @@ export const keyboardState = {
 
 			// Start new chord
 			clickedVirtualKeys.add(noteKey.toLowerCase());
-			const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+			const isMinor = capsLockOn;
 			const chordNotes = getChordNotesForNote(
 				noteInfo.note,
 				isMinor,
@@ -732,7 +726,7 @@ export const keyboardState = {
 
 					// Start new chord
 					clickedVirtualKeys.add(keyUnderCursor.toLowerCase());
-					const isMinor = ctrlKeyboardPressed || ctrlMousePressed;
+					const isMinor = capsLockOn;
 					const chordNotes = getChordNotesForNote(
 						noteInfo.note,
 						isMinor,
