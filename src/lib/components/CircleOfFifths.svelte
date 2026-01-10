@@ -118,7 +118,12 @@
 		return distance < radii.center - centerPadding;
 	}
 
-	function getChordSymbol(segmentIndex: number, ring: RingType, seventh: boolean = false, ninth: boolean = false): string {
+	function getChordSymbol(
+		segmentIndex: number,
+		ring: RingType,
+		seventh: boolean = false,
+		ninth: boolean = false
+	): string {
 		const key = keys[segmentIndex];
 		if (ninth) {
 			// 9th chord symbols: maj9 for major, m9 for minor, m9b5 for diminished
@@ -282,7 +287,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
 	viewBox="0 0 {viewBox} {viewBox}"
-	class="max-h-full max-w-full select-none touch-none"
+	class="max-h-full max-w-full touch-none select-none"
 	role="application"
 	aria-label="Circle of fifths - click or drag to select a key"
 	bind:this={svgElement}

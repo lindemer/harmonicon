@@ -135,7 +135,12 @@ function getChordNotesForDegree(
 		chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
 	}
 	if (!chord || !chord.notes.length) return [];
-	return VoicingUtil.getVoicedNotes(chord.notes, inversion, appState.chordDisplayOctave, appState.voicingMode);
+	return VoicingUtil.getVoicedNotes(
+		chord.notes,
+		inversion,
+		appState.chordDisplayOctave,
+		appState.voicingMode
+	);
 }
 
 /** Piano key layout: each key is 64px wide with 4px gap, total 68px per key */
@@ -228,7 +233,16 @@ export const keyboardState = {
 	},
 	set nineMousePressed(value: boolean) {
 		// 9 key is mutually exclusive with Tab, Alt, Shift
-		if (value && (tabKeyboardPressed || tabMousePressed || altKeyboardPressed || altMousePressed || shiftKeyboardPressed || shiftMousePressed)) return;
+		if (
+			value &&
+			(tabKeyboardPressed ||
+				tabMousePressed ||
+				altKeyboardPressed ||
+				altMousePressed ||
+				shiftKeyboardPressed ||
+				shiftMousePressed)
+		)
+			return;
 		if (value) {
 			// Clear other modifiers when 9 is pressed
 			tabKeyboardPressed = false;
@@ -337,7 +351,13 @@ export const keyboardState = {
 
 		// Handle 9 key for 9th chord mode (mutually exclusive with Tab, Alt, Shift)
 		if (mappedKey === '9' && !e.repeat) {
-			const anyModifierActive = tabKeyboardPressed || tabMousePressed || altKeyboardPressed || altMousePressed || shiftKeyboardPressed || shiftMousePressed;
+			const anyModifierActive =
+				tabKeyboardPressed ||
+				tabMousePressed ||
+				altKeyboardPressed ||
+				altMousePressed ||
+				shiftKeyboardPressed ||
+				shiftMousePressed;
 			if (!anyModifierActive) {
 				nineKeyboardPressed = true;
 				appState.isNinthMode = true;
@@ -404,7 +424,12 @@ export const keyboardState = {
 			}
 			appState.pressedDegree = degree;
 			appState.selectedInversion = keyboardState.inversion;
-			const chordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode, ninthMode);
+			const chordNotes = getChordNotesForDegree(
+				degree,
+				keyboardState.inversion,
+				seventhMode,
+				ninthMode
+			);
 			if (chordNotes.length > 0) {
 				playingDegreeNotes.set(degree, chordNotes);
 				appState.addPressedNotes(chordNotes);
@@ -511,7 +536,12 @@ export const keyboardState = {
 			appState.selectedInversion = keyboardState.inversion;
 			appState.pressedDegree = degree;
 
-			currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode, ninthMode);
+			currentChordNotes = getChordNotesForDegree(
+				degree,
+				keyboardState.inversion,
+				seventhMode,
+				ninthMode
+			);
 			if (currentChordNotes.length > 0) {
 				appState.addPressedNotes(currentChordNotes);
 			}
@@ -553,7 +583,12 @@ export const keyboardState = {
 				appState.selectedInversion = keyboardState.inversion;
 				appState.pressedDegree = degree;
 
-				currentChordNotes = getChordNotesForDegree(degree, keyboardState.inversion, seventhMode, ninthMode);
+				currentChordNotes = getChordNotesForDegree(
+					degree,
+					keyboardState.inversion,
+					seventhMode,
+					ninthMode
+				);
 				if (currentChordNotes.length > 0) {
 					appState.addPressedNotes(currentChordNotes);
 				}

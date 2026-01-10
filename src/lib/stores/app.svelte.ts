@@ -255,7 +255,12 @@ export const appState = {
 					: VoicingUtil.getChordForDegree(pressedDegree, selectedRoot, mode);
 			if (chord && chord.notes.length) {
 				results.push(
-					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave, voicingMode)
+					...VoicingUtil.getVoicedNotes(
+						chord.notes,
+						selectedInversion,
+						chordDisplayOctave,
+						voicingMode
+					)
 				);
 			}
 		}
@@ -266,7 +271,12 @@ export const appState = {
 			const chord = Chord.get(chordSymbol);
 			if (!chord.empty && chord.notes.length) {
 				results.push(
-					...VoicingUtil.getVoicedNotes(chord.notes, selectedInversion, chordDisplayOctave, voicingMode)
+					...VoicingUtil.getVoicedNotes(
+						chord.notes,
+						selectedInversion,
+						chordDisplayOctave,
+						voicingMode
+					)
 				);
 			}
 		}

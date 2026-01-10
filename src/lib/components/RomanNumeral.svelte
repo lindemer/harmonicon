@@ -8,7 +8,14 @@
 		size?: 'sm' | 'md' | 'lg';
 	}
 
-	let { numeral, inversion = 0, isSeventh = false, isNinth = false, color = 'white', size = 'md' }: Props = $props();
+	let {
+		numeral,
+		inversion = 0,
+		isSeventh = false,
+		isNinth = false,
+		color = 'white',
+		size = 'md'
+	}: Props = $props();
 
 	// Figured bass notation for triads, 7th chords, and 9th chords
 	// Triads: root (none), 1st (6), 2nd (6/4)

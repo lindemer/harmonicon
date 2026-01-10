@@ -161,7 +161,7 @@ export class VoicingUtil {
 		const bassInLower = 12 * (baseOctave - 1) + bassChroma;
 		const bassInUpper = 12 * baseOctave + bassChroma;
 
-		let bassOctave =
+		const bassOctave =
 			Math.abs(bassInLower - targetC) <= Math.abs(bassInUpper - targetC)
 				? baseOctave - 1
 				: baseOctave;
