@@ -34,6 +34,11 @@ async function ensureAudioReady(): Promise<void> {
 	}
 
 	initPromise = (async () => {
+		// Create low-latency audio context
+		const context = new Tone.Context({ latencyHint: 'interactive' });
+		Tone.setContext(context);
+		context.lookAhead = 0; // Disable lookahead buffer for immediate response
+
 		if (Tone.getContext().state !== 'running') {
 			await Tone.start();
 		}
@@ -108,7 +113,7 @@ export const audioState = {
 			const noteStr = formatNoteForTone(note, octave);
 			if (playingNotes.has(noteStr)) return;
 			playingNotes.add(noteStr);
-			sampler!.triggerAttack(noteStr, Tone.now());
+			sampler!.triggerAttack(noteStr, Tone.immediate());
 			return;
 		}
 
@@ -118,7 +123,7 @@ export const audioState = {
 			const noteStr = formatNoteForTone(note, octave);
 			if (playingNotes.has(noteStr)) return;
 			playingNotes.add(noteStr);
-			sampler.triggerAttack(noteStr, Tone.now());
+			sampler.triggerAttack(noteStr, Tone.immediate());
 		});
 	},
 
@@ -128,7 +133,7 @@ export const audioState = {
 		const noteStr = formatNoteForTone(note, octave);
 		if (playingNotes.has(noteStr)) {
 			playingNotes.delete(noteStr);
-			sampler.triggerRelease(noteStr, Tone.now());
+			sampler.triggerRelease(noteStr, Tone.immediate());
 		}
 	},
 
@@ -141,7 +146,7 @@ export const audioState = {
 			const newNotes = noteStrings.filter((n) => !playingNotes.has(n));
 			if (newNotes.length > 0) {
 				newNotes.forEach((n) => playingNotes.add(n));
-				sampler.triggerAttack(newNotes, Tone.now());
+				sampler.triggerAttack(newNotes, Tone.immediate());
 			}
 		};
 
@@ -163,7 +168,7 @@ export const audioState = {
 
 		if (notesToStop.length > 0) {
 			notesToStop.forEach((n) => playingNotes.delete(n));
-			sampler.triggerRelease(notesToStop, Tone.now());
+			sampler.triggerRelease(notesToStop, Tone.immediate());
 		}
 	},
 
@@ -171,7 +176,7 @@ export const audioState = {
 		if (!sampler) return;
 
 		if (playingNotes.size > 0) {
-			sampler.triggerRelease(Array.from(playingNotes), Tone.now());
+			sampler.triggerRelease(Array.from(playingNotes), Tone.immediate());
 			playingNotes.clear();
 		}
 	}
