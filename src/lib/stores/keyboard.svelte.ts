@@ -78,8 +78,7 @@ const codeToKey: Record<string, string> = {
 	Digit7: '7',
 	KeyZ: 'z',
 	KeyX: 'x',
-	KeyC: 'c',
-	KeyV: 'v'
+	KeyC: 'c'
 };
 
 // ============ State ============
@@ -185,13 +184,11 @@ export const keyboardState = {
 		{ white: ';', black: 'P', note: 'E', blackNote: 'D#' }
 	],
 
-	bottomRow: ['Z', 'X', 'C', 'V'],
+	bottomRow: ['Z', 'X', 'C'],
 
 	actionMap: {
 		Z: { text: '8', sup: 'vb' },
-		X: { text: '8', sup: 'va' },
-		C: { text: 'SPREAD', sup: '' },
-		V: { text: 'CLOSE', sup: '' }
+		X: { text: '8', sup: 'va' }
 	} as Record<string, { text: string; sup: string }>,
 
 	// State getters/setters - combined state from keyboard and mouse
@@ -305,13 +302,9 @@ export const keyboardState = {
 			clickedActionKey = 'X';
 			appState.incrementChordOctave();
 		}
-		if (mappedKey === 'c') {
+		if (mappedKey === 'c' && !e.repeat) {
 			clickedActionKey = 'C';
-			appState.setVoicingMode('spread');
-		}
-		if (mappedKey === 'v') {
-			clickedActionKey = 'V';
-			appState.setVoicingMode('close');
+			appState.toggleVoicingMode();
 		}
 
 		// Handle piano keys (A-L, W-P)
@@ -367,8 +360,8 @@ export const keyboardState = {
 
 		const mappedKey = codeToKey[e.code];
 
-		// Handle action key release (Z, X, C, V)
-		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'c' || mappedKey === 'v') {
+		// Handle action key release (Z, X, C)
+		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'c') {
 			clickedActionKey = null;
 		}
 

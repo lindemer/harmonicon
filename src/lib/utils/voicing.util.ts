@@ -56,14 +56,14 @@ export class VoicingUtil {
 	 * @param chordNotes - Array of note names from Chord.get().notes
 	 * @param inversion - 0 (root), 1 (first), 2 (second), or 3 (third for 7th chords)
 	 * @param baseOctave - Base octave for voicing (e.g., 3)
-	 * @param voicingMode - 'spread' or 'close' voicing style
+	 * @param voicingMode - 'open' or 'closed' voicing style
 	 * @returns Array of {note, octave} objects
 	 */
 	static getVoicedNotes(
 		chordNotes: string[],
 		inversion: 0 | 1 | 2 | 3,
 		baseOctave: number,
-		voicingMode: VoicingMode = 'spread'
+		voicingMode: VoicingMode = 'open'
 	): Array<{ note: string; octave: number }> {
 		if (!chordNotes.length) return [];
 
@@ -77,17 +77,17 @@ export class VoicingUtil {
 			return invertedNotes.map((note) => ({ note, octave: baseOctave }));
 		}
 
-		if (voicingMode === 'close') {
-			return this.getCloseVoicing(invertedNotes, baseOctave);
+		if (voicingMode === 'closed') {
+			return this.getClosedVoicing(invertedNotes, baseOctave);
 		}
 
-		return this.getSpreadVoicing(invertedNotes, baseOctave);
+		return this.getOpenVoicing(invertedNotes, baseOctave);
 	}
 
 	/**
-	 * Spread voicing: bass in lower octave, harmony in upper octave.
+	 * Open voicing: bass in lower octave, harmony in upper octave.
 	 */
-	private static getSpreadVoicing(
+	private static getOpenVoicing(
 		invertedNotes: string[],
 		baseOctave: number
 	): Array<{ note: string; octave: number }> {
@@ -104,10 +104,10 @@ export class VoicingUtil {
 	}
 
 	/**
-	 * Close voicing: all notes within the 2-octave range, bass placed closest to baseOctave's C.
+	 * Closed voicing: all notes within the 2-octave range, bass placed closest to baseOctave's C.
 	 * All notes must fit between C(baseOctave-1) and B(baseOctave).
 	 */
-	private static getCloseVoicing(
+	private static getClosedVoicing(
 		invertedNotes: string[],
 		baseOctave: number
 	): Array<{ note: string; octave: number }> {
@@ -167,14 +167,14 @@ export class VoicingUtil {
 	 * @param chordSymbol - Chord symbol (e.g., 'C', 'Am', 'Bdim', 'Cmaj7')
 	 * @param inversion - 0 (root), 1 (first), 2 (second), or 3 (third for 7th chords)
 	 * @param baseOctave - Base octave for voicing
-	 * @param voicingMode - 'spread' or 'close' voicing style
+	 * @param voicingMode - 'open' or 'closed' voicing style
 	 * @returns Array of {note, octave} objects, or empty array if invalid chord
 	 */
 	static getVoicedNotesFromSymbol(
 		chordSymbol: string,
 		inversion: 0 | 1 | 2 | 3,
 		baseOctave: number,
-		voicingMode: VoicingMode = 'spread'
+		voicingMode: VoicingMode = 'open'
 	): Array<{ note: string; octave: number }> {
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty || !chord.notes.length) return [];

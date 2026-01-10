@@ -174,8 +174,7 @@
 
 			{#each kb.bottomRow as key (key)}
 				{@const action = kb.actionMap[key]}
-				{@const isVoicingKey = key === 'C' || key === 'V'}
-				{@const isActiveVoicing = (key === 'C' && appState.voicingMode === 'spread') || (key === 'V' && appState.voicingMode === 'close')}
+				{@const isVoicingKey = key === 'C'}
 				<div
 					class="key dark-key"
 					class:pressed={kb.isActionKeyPressed(key)}
@@ -183,8 +182,7 @@
 						kb.clickedActionKey = key;
 						if (key === 'Z') appState.decrementChordOctave();
 						else if (key === 'X') appState.incrementChordOctave();
-						else if (key === 'C') appState.setVoicingMode('spread');
-						else if (key === 'V') appState.setVoicingMode('close');
+						else if (key === 'C') appState.toggleVoicingMode();
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -192,13 +190,14 @@
 					tabindex="0"
 				>
 					<span class="key-label">{key}</span>
-					{#if action}
-						<span
-							class="key-function"
-							class:font-music={!isVoicingKey}
-							class:voicing-label={isVoicingKey}
-							style:color={isActiveVoicing ? '#f59e0b' : undefined}
-						>{action.text}{#if action.sup}<sup>{action.sup}</sup>{/if}</span>
+					{#if isVoicingKey}
+						<span class="key-function voicing-label"
+							>{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
+						>
+					{:else if action}
+						<span class="key-function font-music"
+							>{action.text}{#if action.sup}<sup>{action.sup}</sup>{/if}</span
+						>
 					{/if}
 				</div>
 			{/each}
@@ -303,6 +302,7 @@
 	}
 
 	.key {
+		position: relative;
 		min-width: var(--key-size);
 		height: var(--key-size);
 		display: flex;
@@ -336,6 +336,32 @@
 		font-size: 20px;
 		color: #e5e7eb;
 		line-height: 1;
+	}
+
+	/* Absolute positioning for all square keys (degree keys, dark keys, black piano keys) */
+	.key > .key-label,
+	.black-key > .key-label {
+		position: absolute;
+		top: 10px;
+		width: 100%;
+		text-align: center;
+	}
+
+	.key > .key-function,
+	.black-key > .key-function {
+		position: absolute;
+		top: 30px;
+		width: 100%;
+		text-align: center;
+	}
+
+	/* Dark keys text shifted down slightly to align visually */
+	.dark-key > .key-label {
+		top: 12px;
+	}
+
+	.dark-key > .key-function {
+		top: 32px;
 	}
 
 	/* Piano section - positioned layout */
@@ -426,11 +452,6 @@
 		width: var(--key-size);
 		height: var(--key-size);
 		border-radius: 6px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 3px;
 		z-index: 1;
 	}
 
@@ -478,6 +499,13 @@
 	/* Space key has slightly different pressed animation due to its width */
 	.space-key.pressed {
 		transform: scale(0.98) translateY(-1px);
+	}
+
+	/* Spacebar has only key-function, center it */
+	.space-key > .key-function {
+		position: static;
+		width: auto;
+		text-align: center;
 	}
 
 	.mode-toggle {

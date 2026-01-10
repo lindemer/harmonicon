@@ -58,7 +58,7 @@ let selectedInversion = $state<0 | 1 | 2 | 3>(0);
 let isSeventhMode = $state(false);
 let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
-let voicingMode = $state<VoicingMode>('spread');
+let voicingMode = $state<VoicingMode>('open');
 let pressedDegree = $state<number | null>(null);
 let isChordPressed = $state(false);
 
@@ -154,6 +154,10 @@ export const appState = {
 
 	setVoicingMode(mode: VoicingMode) {
 		voicingMode = mode;
+	},
+
+	toggleVoicingMode() {
+		voicingMode = voicingMode === 'open' ? 'closed' : 'open';
 	},
 
 	// Pressed key state for visual feedback
