@@ -52,8 +52,9 @@
 	const cy = center.y;
 
 	function getChordRomanNumeral(): { numeral: string; isDiatonic: boolean } | null {
-		if (!appState.selectedChord) return null;
-		const chordSymbol = FormatUtil.unformatNote(appState.selectedChord);
+		const detected = appState.detectedChord;
+		if (!detected) return null;
+		const chordSymbol = FormatUtil.unformatNote(detected.symbol);
 		return FormatUtil.getChordRomanNumeral(chordSymbol, appState.selectedRoot, appState.mode);
 	}
 
@@ -220,7 +221,7 @@
 			return;
 		}
 
-		// If it was a tap (not a drag), select and play chord
+		// If it was a tap (not a drag), play chord
 		if (!isTouchDragging) {
 			const touch = e.changedTouches[0];
 			const ring = getRingFromPoint(touch.clientX, touch.clientY);
@@ -229,14 +230,8 @@
 				appState.toggleMode();
 			} else if (ring) {
 				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
-				const seventh = keyboardState.tabPressed;
-				const ninth = keyboardState.ninePressed;
-				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 
-				// Always use root position on mobile (no inversion cycling)
-				appState.selectChord(chordSymbol, 0, false);
-
-				// Play chord briefly then stop
+				// Play chord briefly then stop (chord will be auto-detected from notes)
 				playChordForSegment(segment, ring, 0);
 				setTimeout(() => {
 					if (currentChordNotes.length > 0) {
@@ -302,17 +297,15 @@
 				isDragging = true;
 				const segment = getSegmentFromPoint(e.clientX, e.clientY);
 				currentDragSegment = { segment, ring };
-				appState.isChordPressed = true;
 
-				// Select and play chord
-				const seventh = keyboardState.tabPressed;
-				const ninth = keyboardState.ninePressed;
-				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
+				// Play chord (notes added to pressedNotes, chord will be auto-detected)
 				const inversion = getInversionFromEvent(e);
-				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
 
 				// Set pressedDegree if chord is diatonic
+				const seventh = keyboardState.tabPressed;
+				const ninth = keyboardState.ninePressed;
+				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 				const unformatted = FormatUtil.unformatNote(chordSymbol);
 				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
 				appState.pressedDegree = degree;
@@ -330,10 +323,9 @@
 
 			isDragging = false;
 			currentDragSegment = null;
-			appState.isChordPressed = false;
 			appState.pressedDegree = null;
 
-			// Clear pressed notes (selection persists)
+			// Clear pressed notes
 			if (currentChordNotes.length > 0) {
 				appState.removePressedNotes(currentChordNotes);
 				currentChordNotes = [];
@@ -349,7 +341,6 @@
 		isRightDragging = false;
 		currentDragSegment = null;
 		hoveredSegment = null;
-		appState.isChordPressed = false;
 		appState.pressedDegree = null;
 
 		// Clear pressed notes when leaving
@@ -380,15 +371,14 @@
 					currentChordNotes = [];
 				}
 
-				// Select and play new chord
-				const seventh = keyboardState.tabPressed;
-				const ninth = keyboardState.ninePressed;
-				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
+				// Play new chord (notes added to pressedNotes, chord will be auto-detected)
 				const inversion = getInversionFromEvent(e);
-				appState.selectChord(chordSymbol, inversion, false);
 				playChordForSegment(segment, ring, inversion);
 
 				// Update pressedDegree if chord is diatonic
+				const seventh = keyboardState.tabPressed;
+				const ninth = keyboardState.ninePressed;
+				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 				const unformatted = FormatUtil.unformatNote(chordSymbol);
 				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
 				appState.pressedDegree = degree;
@@ -404,27 +394,21 @@
 		<!-- Outer ring (major keys) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.mid, radii.outer, startAngle, endAngle)}
-			fill={appState.selectedChord === key.major
-				? 'white'
-				: getFillColor(i, 'major', isHovered(i, 'major'))}
+			fill={getFillColor(i, 'major', isHovered(i, 'major'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Middle ring (minor keys) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.inner, radii.mid, startAngle, endAngle)}
-			fill={appState.selectedChord === key.minor
-				? 'white'
-				: getFillColor(i, 'minor', isHovered(i, 'minor'))}
+			fill={getFillColor(i, 'minor', isHovered(i, 'minor'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
 		<!-- Inner ring (diminished chords) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.center, radii.inner, startAngle, endAngle)}
-			fill={appState.selectedChord === key.dim
-				? 'white'
-				: getFillColor(i, 'dim', isHovered(i, 'dim'))}
+			fill={getFillColor(i, 'dim', isHovered(i, 'dim'))}
 			class="cursor-pointer stroke-gray-300 stroke-1"
 		/>
 
@@ -437,12 +421,9 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={fontSizes.major}
-			fill={appState.selectedChord === key.major ? getFillColor(i, 'major') : undefined}
-			class="{appState.selectedChord !== key.major
-				? majorInKey || appState.mode === 'major'
-					? 'fill-gray-100'
-					: 'fill-gray-400'
-				: ''} font-music pointer-events-none"
+			class="{majorInKey || appState.mode === 'major'
+				? 'fill-gray-100'
+				: 'fill-gray-400'} font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -456,12 +437,9 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={fontSizes.minor}
-			fill={appState.selectedChord === key.minor ? getFillColor(i, 'minor') : undefined}
-			class="{appState.selectedChord !== key.minor
-				? minorInKey || appState.mode === 'minor'
-					? 'fill-gray-100'
-					: 'fill-gray-400'
-				: ''} font-music pointer-events-none"
+			class="{minorInKey || appState.mode === 'minor'
+				? 'fill-gray-100'
+				: 'fill-gray-400'} font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -475,12 +453,7 @@
 			text-anchor="middle"
 			dominant-baseline="middle"
 			font-size={fontSizes.dim}
-			fill={appState.selectedChord === key.dim ? getFillColor(i, 'dim') : undefined}
-			class="{appState.selectedChord !== key.dim
-				? dimInKey
-					? 'fill-gray-100'
-					: 'fill-gray-400'
-				: ''} font-music pointer-events-none"
+			class="{dimInKey ? 'fill-gray-100' : 'fill-gray-400'} font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>
@@ -500,15 +473,16 @@
 		tabindex="0"
 		aria-label="Toggle major/minor mode"
 	/>
-	{#if appState.selectedChord}
+	{#if appState.detectedChord}
+		{@const detected = appState.detectedChord}
 		{@const result = getChordRomanNumeral()}
 		{#if result}
-			{@const inversion = appState.selectedInversion}
-			{@const chordSymbol = FormatUtil.unformatNote(appState.selectedChord)}
+			{@const inversion = detected.inversion}
+			{@const chordSymbol = FormatUtil.unformatNote(detected.symbol)}
 			{@const chordType = getChordType(chordSymbol)}
 			{@const chord = Chord.get(chordSymbol)}
 			{@const chordNotes = chord.notes}
-			{@const bassNote = chordNotes[inversion] ?? chordNotes[0]}
+			{@const bassNote = detected.bass ?? chordNotes[0]}
 			{@const bassDegree = FormatUtil.getNoteDegreeInMajorKey(bassNote, appState.selectedRoot)}
 			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
 			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">

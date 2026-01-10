@@ -209,15 +209,18 @@
 
 			{#each kb.bottomRow as key (key)}
 				{@const action = kb.actionMap[key]}
-				{@const isVoicingKey = key === 'C'}
+				{@const isVoicingKey = key === 'V'}
+				{@const isDisabledKey = key === 'C'}
 				<div
 					class="key dark-key"
-					class:pressed={kb.isActionKeyPressed(key)}
+					class:pressed={!isDisabledKey && kb.isActionKeyPressed(key)}
+					class:disabled-key={isDisabledKey}
 					onmousedown={() => {
+						if (isDisabledKey) return;
 						kb.clickedActionKey = key;
 						if (key === 'Z') appState.decrementChordOctave();
 						else if (key === 'X') appState.incrementChordOctave();
-						else if (key === 'C') appState.toggleVoicingMode();
+						else if (key === 'V') appState.toggleVoicingMode();
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -226,20 +229,19 @@
 				>
 					<span class="key-label">{key}</span>
 					{#if isVoicingKey}
-						<span class="key-function voicing-label"
-							>{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
-						>
+						<span class="key-function voicing-label">
+							<span>{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span>
+							<span>VOICE</span>
+						</span>
 					{:else if action}
-						<span class="key-function font-music"
-							>{action.text}{#if action.sup}<sup>{action.sup}</sup>{/if}</span
-						>
+						<span class="key-function octave-label">
+							<span>{action.text}</span>
+							<span>{action.text2}</span>
+						</span>
 					{/if}
 				</div>
 			{/each}
-			<!-- V-M keys (disabled placeholders) -->
-			<div class="key dark-key disabled-key">
-				<span class="key-label">V</span>
-			</div>
+			<!-- B-M keys (disabled placeholders) -->
 			<div class="key dark-key disabled-key">
 				<span class="key-label">B</span>
 			</div>
@@ -602,10 +604,16 @@
 		margin-left: calc(-0.75 * var(--key-unit));
 	}
 
-	.dark-key > .voicing-label {
+	.dark-key > .voicing-label,
+	.dark-key > .octave-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 		font-size: 10px;
-		font-weight: 600;
+		font-weight: 400;
 		letter-spacing: 0.5px;
-		top: 34px;
+		line-height: 1.3;
+		top: 28px;
+		color: white;
 	}
 </style>

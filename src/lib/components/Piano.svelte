@@ -99,8 +99,18 @@
 		return { inMajorScale, color };
 	}
 
+	// Find the lowest pressed note for interval calculations
+	const lowestPressedNote = $derived.by(() => {
+		if (highlightedNotes.length === 0) return null;
+		return highlightedNotes.reduce((lowest, note) => {
+			const lowestMidi = lowest.octave * 12 + (Note.chroma(lowest.note) ?? 0);
+			const noteMidi = note.octave * 12 + (Note.chroma(note.note) ?? 0);
+			return noteMidi < lowestMidi ? note : lowest;
+		});
+	});
+
 	function getChordInterval(noteName: string, noteOctave: number): string | null {
-		if (!appState.selectedChord || highlightedNotes.length === 0) return null;
+		if (highlightedNotes.length < 2 || !lowestPressedNote) return null;
 
 		// Check if this piano key matches any highlighted note
 		const noteChroma = Note.chroma(noteName);
@@ -109,8 +119,8 @@
 		);
 		if (!matchedNote) return null;
 
-		// Calculate interval from bass note (first highlighted note) to this note
-		const bassChroma = Note.chroma(highlightedNotes[0].note);
+		// Calculate interval from lowest pressed note to this note
+		const bassChroma = Note.chroma(lowestPressedNote.note);
 		if (bassChroma === undefined || noteChroma === undefined) return null;
 
 		const semitones = (noteChroma - bassChroma + 12) % 12;
