@@ -24,8 +24,8 @@
 	--bg-primary: #faf7f2; /* warm beige */
 	--bg-secondary: #c4b8a9; /* darker beige for dark keys */
 	--bg-tertiary: #b5a899; /* even darker beige for pressed state */
-	--text-primary: #292524; /* stone-800 */
-	--text-secondary: #57534e; /* stone-600 */
+	--text-primary: #44403c; /* stone-700 */
+	--text-secondary: #78716c; /* stone-500 */
 	--text-tertiary: #44403c; /* stone-700 */
 	--border-color: #a8a29e; /* stone-400 */
 	--circle-segment-default: #faf7f2; /* same as bg-primary */
@@ -111,23 +111,15 @@
 	color: var(--text-primary);
 	margin: 0;
 	letter-spacing: 0.05em;
-}
-
-.header a {
-	font-family: monospace;
-	font-size: 1rem;
-	color: var(--text-secondary);
-	text-decoration: none;
 	transition: color 0.2s ease;
 }
 
-.header a:hover {
-	color: var(--text-primary);
+.header a {
+	text-decoration: none;
 }
 
-.header a svg {
-	width: 36px;
-	height: 36px;
+.header a:hover h1 {
+	color: var(--text-secondary);
 }
 
 .bottom-area {
@@ -155,25 +147,30 @@
 	color: var(--text-primary);
 }
 
-.mobile-icon-btn svg {
-	width: 24px;
-	height: 24px;
+.mobile-icon-btn .theme-icon {
+	font-size: 22px;
+	line-height: 1;
+	display: inline-block;
+	width: 22px;
+	text-align: center;
 }
 
-.mobile-title {
+a.mobile-title {
 	font-family: var(--font-music);
 	font-size: 1.1rem;
 	font-weight: 400;
 	color: var(--text-primary);
-	margin: 0;
 	letter-spacing: 0.05em;
+	text-decoration: none;
+	transition: color 0.2s ease;
+}
+
+a.mobile-title:hover {
+	color: var(--text-secondary);
 }
 
 /* Theme toggle button */
 .theme-toggle {
-	position: absolute;
-	top: 1.5rem;
-	left: 1.5rem;
 	background: none;
 	border: none;
 	padding: 0;
@@ -186,9 +183,12 @@
 	color: var(--text-primary);
 }
 
-.theme-toggle svg {
-	width: 36px;
-	height: 36px;
+.theme-toggle .theme-icon {
+	font-size: 32px;
+	line-height: 1;
+	display: inline-block;
+	width: 32px;
+	text-align: center;
 }
 
 /* ============================================

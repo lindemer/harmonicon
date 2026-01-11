@@ -166,7 +166,7 @@ export class FormatUtil {
 		const tonic = this.getTonicRoot(keyRoot, mode);
 		const scale = mode === 'major' ? Key.majorKey(tonic).scale : Key.minorKey(tonic).natural.scale;
 
-		const noteChroma = Note.chroma(noteName);
+		const noteChroma = Note.chroma(this.unformatNote(noteName));
 		if (noteChroma === undefined) return null;
 
 		const degreeIndex = scale.findIndex((scaleNote) => {
@@ -183,7 +183,7 @@ export class FormatUtil {
 	static getNoteDegreeInMajorKey(noteName: string, keyRoot: string): number | null {
 		const scale = Key.majorKey(keyRoot).scale;
 
-		const noteChroma = Note.chroma(noteName);
+		const noteChroma = Note.chroma(this.unformatNote(noteName));
 		if (noteChroma === undefined) return null;
 
 		const degreeIndex = scale.findIndex((scaleNote) => {

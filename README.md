@@ -1,3 +1,5 @@
-# Harmonicon
+# Harmonicon MIDI
 
-An interactive tool for exploring keys, chords and intervals with the circle of fifths. Inspired by the great educational material from [Hooktheory](https://www.hooktheory.com/) and [David Bennett Piano](https://www.youtube.com/@DavidBennettPiano).
+Use your computer keyboard as a powerful key-aware MIDI controller or explore music theory using an external MIDI piano.
+
+Inspired by the excellent educational material from [Hooktheory](https://www.hooktheory.com/) and [David Bennett Piano](https://www.youtube.com/@DavidBennettPiano).
