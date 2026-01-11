@@ -131,7 +131,34 @@
 		const key = keys[segmentIndex];
 		const useModern7th = appState.seventhStyle === 'modern';
 
-		// Major and minor chords use ChordUtil.buildChordSymbol for consistency
+		// For 7th/9th chords, use diatonic voicing when the chord is in the current key
+		if ((seventh || ninth) && (ring === 'major' || ring === 'minor')) {
+			const chordRoot = ring === 'major' ? key.majorNote : key.minorNote;
+			const triadSymbol = ring === 'major' ? chordRoot : chordRoot + 'm';
+			const degree = FormatUtil.getChordDegree(triadSymbol, appState.selectedRoot, appState.mode);
+
+			if (degree !== null) {
+				// Use diatonic 7th/9th chord from VoicingUtil for chords in the key
+				const chord = ninth
+					? VoicingUtil.getNinthChordForDegree(
+							degree,
+							appState.selectedRoot,
+							appState.mode,
+							useModern7th
+						)
+					: VoicingUtil.getSeventhChordForDegree(
+							degree,
+							appState.selectedRoot,
+							appState.mode,
+							useModern7th
+						);
+				if (chord && chord.symbol) {
+					return FormatUtil.formatNote(chord.symbol);
+				}
+			}
+		}
+
+		// Fall back to building chord symbol directly for triads or non-diatonic chords
 		if (ring === 'major') {
 			return ChordUtil.buildChordSymbol(key.major, false, seventh, ninth, useModern7th);
 		}
