@@ -170,13 +170,11 @@
 				class="key wide-key dark-key caps-key"
 				class:disabled-key={appState.playMode === 'notes'}
 			>
-				<span class="key-label">caps</span>
-				{#if appState.playMode !== 'notes'}
-					<span class="key-function caps-label">
-						<span>PARALLEL</span>
-						<span class="caps-mode">{kb.capsLockOn ? 'MINOR' : 'MAJOR'}</span>
-					</span>
-				{/if}
+				<span class="key-label">caps lock</span>
+				<span class="key-function caps-label" class:muted={appState.playMode === 'notes'}>
+					<span>PARALLEL</span>
+					<span class="caps-mode">{kb.capsLockOn ? 'MINOR' : 'MAJOR'}</span>
+				</span>
 			</div>
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const isChordMode = appState.playMode === 'chords'}
@@ -838,6 +836,14 @@
 
 	.caps-mode {
 		color: var(--accent-color);
+	}
+
+	.caps-label.muted {
+		color: var(--kb-disabled);
+	}
+
+	.caps-label.muted .caps-mode {
+		color: var(--kb-disabled);
 	}
 
 	.space-key > .space-label {
