@@ -308,11 +308,11 @@ export const keyboardState = {
 
 		const mappedKey = KeyboardUtil.codeToKey(e.code);
 
-		if (mappedKey === 'z') {
+		if (mappedKey === 'z' && appState.chordDisplayOctave > 3) {
 			clickedActionKey = 'Z';
 			appState.decrementChordOctave();
 		}
-		if (mappedKey === 'x') {
+		if (mappedKey === 'x' && appState.chordDisplayOctave < 5) {
 			clickedActionKey = 'X';
 			appState.incrementChordOctave();
 		}

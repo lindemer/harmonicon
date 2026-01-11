@@ -211,7 +211,7 @@
 								isSeventh={isChordMode && kb.tabPressed}
 								isNinth={isChordMode && kb.ninePressed}
 								displayMode={isChordMode ? 'roman' : 'letter'}
-								color={whiteNoteColor ?? '#f3f4f6'}
+								color={whiteNoteColor ?? 'var(--text-primary)'}
 							/></span
 						>
 					</div>
@@ -257,7 +257,7 @@
 								isSeventh={isChordMode && kb.tabPressed}
 								isNinth={isChordMode && kb.ninePressed}
 								displayMode={isChordMode ? 'roman' : 'letter'}
-								color={blackKeyColor ?? '#f3f4f6'}
+								color={blackKeyColor ?? 'var(--text-primary)'}
 							/></span
 						>
 					</div>
@@ -288,10 +288,14 @@
 				{@const action = kb.actionMap[key]}
 				{@const isVoicingKey = key === 'V'}
 				{@const isPlayModeKey = key === 'C'}
+				{@const isOctaveDownDisabled = key === 'Z' && appState.chordDisplayOctave <= 3}
+				{@const isOctaveUpDisabled = key === 'X' && appState.chordDisplayOctave >= 5}
 				<div
 					class="key dark-key"
 					class:pressed={kb.isActionKeyPressed(key)}
+					class:disabled-key={isOctaveDownDisabled || isOctaveUpDisabled}
 					onmousedown={() => {
+						if (isOctaveDownDisabled || isOctaveUpDisabled) return;
 						kb.clickedActionKey = key;
 						if (key === 'Z') appState.decrementChordOctave();
 						else if (key === 'X') appState.incrementChordOctave();
@@ -316,7 +320,10 @@
 							<span class="play-mode">{appState.playMode === 'notes' ? 'NOTES' : 'CHORDS'}</span>
 						</span>
 					{:else if action}
-						<span class="key-function octave-label">
+						<span
+							class="key-function octave-label"
+							class:disabled-label={isOctaveDownDisabled || isOctaveUpDisabled}
+						>
 							<span>{action.text}</span>
 							<span>{action.text2}</span>
 						</span>
@@ -527,7 +534,7 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		background: #374151;
+		background: var(--bg-tertiary);
 		border-radius: 6px;
 		padding: 4px 6px;
 		gap: 3px;
@@ -545,14 +552,14 @@
 
 	.key-label {
 		font-size: 10px;
-		color: #9ca3af;
+		color: var(--text-secondary);
 		font-family: system-ui, sans-serif;
 		text-transform: uppercase;
 	}
 
 	.key-function {
 		font-size: 20px;
-		color: #e5e7eb;
+		color: var(--text-primary);
 		line-height: 1;
 	}
 
@@ -621,7 +628,7 @@
 		flex-direction: column;
 		border-radius: 6px;
 		overflow: hidden;
-		background: #4b5563;
+		background: var(--kb-white-key);
 	}
 
 	.white-key:hover {
@@ -649,13 +656,13 @@
 	}
 
 	.white-key .key-function {
-		color: #f3f4f6;
+		color: var(--text-primary);
 		font-size: 20px;
 	}
 
 	/* Dark key style - shared by black piano keys, action keys, modifier keys, spacebar */
 	.dark-key {
-		background: #1f2937;
+		background: var(--bg-secondary);
 	}
 
 	.dark-key:hover {
@@ -663,16 +670,16 @@
 	}
 
 	.dark-key .key-label {
-		color: #9ca3af;
+		color: var(--text-secondary);
 	}
 
 	.dark-key .key-function {
-		color: #f3f4f6;
+		color: var(--text-primary);
 	}
 
 	.dark-key.pressed {
 		transform: scale(0.95) translateY(-1.6px);
-		background: #374151;
+		background: var(--bg-tertiary);
 		filter: brightness(0.9);
 	}
 
@@ -692,7 +699,7 @@
 
 	/* Degree keys (1-7) with colored backgrounds */
 	.degree-key .key-label {
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--degree-label);
 	}
 
 	.degree-key .key-function {
@@ -715,11 +722,11 @@
 	}
 
 	.disabled-key .key-label {
-		color: #4b5563;
+		color: var(--kb-disabled);
 	}
 
 	.disabled-key .key-function {
-		color: #4b5563;
+		color: var(--kb-disabled);
 	}
 
 	/* Wide keys */
@@ -780,12 +787,16 @@
 		letter-spacing: 0.5px;
 		line-height: 1.3;
 		top: 28px;
-		color: white;
+		color: var(--text-primary);
 	}
 
 	.voicing-mode,
 	.play-mode {
-		color: #f59e0b;
+		color: var(--accent-color);
+	}
+
+	.octave-label.disabled-label {
+		color: var(--kb-disabled);
 	}
 
 	.caps-key > .caps-label {
@@ -797,11 +808,11 @@
 		letter-spacing: 0.5px;
 		line-height: 1.3;
 		top: 28px;
-		color: white;
+		color: var(--text-primary);
 	}
 
 	.caps-mode {
-		color: #f59e0b;
+		color: var(--accent-color);
 	}
 
 	.space-key > .space-label {
@@ -813,11 +824,11 @@
 		letter-spacing: 0.5px;
 		line-height: 1.3;
 		top: 28px;
-		color: white;
+		color: var(--text-primary);
 	}
 
 	.space-mode {
-		color: #f59e0b;
+		color: var(--accent-color);
 	}
 
 	.midi-key-wrapper {
@@ -833,10 +844,10 @@
 		letter-spacing: 0.5px;
 		line-height: 1.3;
 		top: 28px;
-		color: white;
+		color: var(--text-primary);
 	}
 
 	.midi-active {
-		color: #f59e0b;
+		color: var(--accent-color);
 	}
 </style>

@@ -2,6 +2,7 @@
 @import '@fontsource/bravura';
 
 :root {
+	/* Scale degree colors (same for both themes) */
 	--degree-1: #f43f5e; /* rose-500 */
 	--degree-2: #f97316; /* orange-500 */
 	--degree-3: #facc15; /* yellow-400 */
@@ -18,6 +19,37 @@
 	--degree-7-hover: #e879f9; /* fuchsia-400 */
 	--font-music: Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
 	--font-bravura: 'Bravura', serif;
+
+	/* Light mode theme colors (default) - beige/parchment style */
+	--bg-primary: #faf7f2; /* warm beige */
+	--bg-secondary: #c4b8a9; /* darker beige for dark keys */
+	--bg-tertiary: #b5a899; /* even darker beige for pressed state */
+	--text-primary: #292524; /* stone-800 */
+	--text-secondary: #57534e; /* stone-600 */
+	--text-tertiary: #44403c; /* stone-700 */
+	--border-color: #a8a29e; /* stone-400 */
+	--circle-segment-default: #faf7f2; /* same as bg-primary */
+	--circle-segment-hover: #f0ebe3; /* light beige */
+	--kb-white-key: #f0ebe3; /* light beige for white keys */
+	--kb-disabled: #a8a29e; /* stone-400 */
+	--accent-color: #b45309; /* amber-700 */
+	--degree-label: rgba(0, 0, 0, 0.5); /* dark text on colored keys */
+}
+
+.dark {
+	--bg-primary: #111827; /* gray-900 */
+	--bg-secondary: #1f2937; /* gray-800 */
+	--bg-tertiary: #374151; /* gray-700 */
+	--text-primary: #e5e7eb; /* gray-200 */
+	--text-secondary: #9ca3af; /* gray-400 */
+	--text-tertiary: #d1d5db; /* gray-300 */
+	--border-color: #d1d5db; /* gray-300 */
+	--circle-segment-default: #111827; /* gray-900 */
+	--circle-segment-hover: #1f2937; /* gray-800 */
+	--kb-white-key: #4b5563; /* gray-600 */
+	--kb-disabled: #4b5563; /* gray-600 */
+	--accent-color: #f59e0b; /* amber-500 */
+	--degree-label: rgba(255, 255, 255, 0.7); /* light text on colored keys */
 }
 
 .font-music {
@@ -32,7 +64,7 @@
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
-	background-color: #111827; /* gray-900 */
+	background-color: var(--bg-primary);
 }
 
 .top-area {
@@ -76,7 +108,7 @@
 	font-family: var(--font-music);
 	font-size: 1.65rem;
 	font-weight: 400;
-	color: #e5e7eb; /* gray-200 */
+	color: var(--text-primary);
 	margin: 0;
 	letter-spacing: 0.05em;
 }
@@ -84,13 +116,13 @@
 .header a {
 	font-family: monospace;
 	font-size: 1rem;
-	color: #9ca3af; /* gray-400 */
+	color: var(--text-secondary);
 	text-decoration: none;
 	transition: color 0.2s ease;
 }
 
 .header a:hover {
-	color: #e5e7eb; /* gray-200 */
+	color: var(--text-primary);
 }
 
 .header a svg {
@@ -100,7 +132,7 @@
 
 .bottom-area {
 	width: 100%;
-	background-color: #1f2937; /* gray-800 */
+	background-color: var(--bg-secondary);
 }
 
 /* Hide all mobile elements by default */
@@ -115,12 +147,12 @@
 	border: none;
 	padding: 0;
 	cursor: pointer;
-	color: #9ca3af;
+	color: var(--text-secondary);
 	transition: color 0.2s ease;
 }
 
 .mobile-icon-btn:hover {
-	color: #e5e7eb;
+	color: var(--text-primary);
 }
 
 .mobile-icon-btn svg {
@@ -132,9 +164,31 @@
 	font-family: var(--font-music);
 	font-size: 1.1rem;
 	font-weight: 400;
-	color: #e5e7eb;
+	color: var(--text-primary);
 	margin: 0;
 	letter-spacing: 0.05em;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+	position: absolute;
+	top: 1.5rem;
+	left: 1.5rem;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	color: var(--text-secondary);
+	transition: color 0.2s ease;
+}
+
+.theme-toggle:hover {
+	color: var(--text-primary);
+}
+
+.theme-toggle svg {
+	width: 36px;
+	height: 36px;
 }
 
 /* ============================================
@@ -144,7 +198,8 @@
 	/* Hide desktop elements */
 	.top-area,
 	.bottom-area,
-	.header {
+	.header,
+	.theme-toggle {
 		display: none;
 	}
 

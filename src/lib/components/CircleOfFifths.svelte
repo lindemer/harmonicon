@@ -129,19 +129,19 @@
 		if (ninth) {
 			// 9th chord symbols: maj9 for major, m9 for minor, m9b5 for diminished
 			if (ring === 'major') return key.major + 'maj9';
-			if (ring === 'minor') return key.minor + '9'; // Minor 9th (e.g., Am9)
+			if (ring === 'minor') return key.minor + 'm9'; // Minor 9th (e.g., Am9)
 			// Diminished becomes half-diminished 9th (m9b5) in 9th mode
 			return FormatUtil.formatNote(key.dimNote) + 'm9b5';
 		}
 		if (seventh) {
 			// 7th chord symbols: Maj7 for major, m7 for minor, m7b5 for diminished
 			if (ring === 'major') return key.major + 'maj7';
-			if (ring === 'minor') return key.minor + '7'; // Minor 7th (e.g., Am7)
+			if (ring === 'minor') return key.minor + 'm7'; // Minor 7th (e.g., Am7)
 			// Diminished becomes half-diminished (m7b5) in 7th mode
 			return FormatUtil.formatNote(key.dimNote) + 'm7b5';
 		}
 		if (ring === 'major') return key.major;
-		if (ring === 'minor') return key.minor;
+		if (ring === 'minor') return key.minor + 'm';
 		return key.dim;
 	}
 
@@ -172,7 +172,7 @@
 	function getFillColor(segmentIndex: number, ring: RingType, hover: boolean = false): string {
 		const degree = getScaleDegree(segmentIndex, ring);
 		if (!degree) {
-			return hover ? '#1f2937' : '#111827';
+			return hover ? 'var(--circle-segment-hover)' : 'var(--circle-segment-default)';
 		}
 		return FormatUtil.getDegreeColor(degree, undefined, hover);
 	}
@@ -419,21 +419,24 @@
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.mid, radii.outer, startAngle, endAngle)}
 			fill={getFillColor(i, 'major', isHovered(i, 'major'))}
-			class="cursor-pointer stroke-gray-300 stroke-1"
+			stroke="var(--border-color)"
+			class="cursor-pointer stroke-1"
 		/>
 
 		<!-- Middle ring (minor keys) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.inner, radii.mid, startAngle, endAngle)}
 			fill={getFillColor(i, 'minor', isHovered(i, 'minor'))}
-			class="cursor-pointer stroke-gray-300 stroke-1"
+			stroke="var(--border-color)"
+			class="cursor-pointer stroke-1"
 		/>
 
 		<!-- Inner ring (diminished chords) -->
 		<path
 			d={GeometryUtil.describeArc(cx, cy, radii.center, radii.inner, startAngle, endAngle)}
 			fill={getFillColor(i, 'dim', isHovered(i, 'dim'))}
-			class="cursor-pointer stroke-gray-300 stroke-1"
+			stroke="var(--border-color)"
+			class="cursor-pointer stroke-1"
 		/>
 
 		<!-- Major key label -->
@@ -445,9 +448,10 @@
 			text-anchor="middle"
 			dominant-baseline="central"
 			font-size={fontSizes.major}
-			class="{majorInKey || appState.mode === 'major'
-				? 'fill-gray-100'
-				: 'fill-gray-400'} font-music pointer-events-none"
+			fill={majorInKey || appState.mode === 'major'
+				? 'var(--text-primary)'
+				: 'var(--text-secondary)'}
+			class="font-music pointer-events-none"
 		>
 			{key.major}
 		</text>
@@ -461,9 +465,10 @@
 			text-anchor="middle"
 			dominant-baseline="central"
 			font-size={fontSizes.minor}
-			class="{minorInKey || appState.mode === 'minor'
-				? 'fill-gray-100'
-				: 'fill-gray-400'} font-music pointer-events-none"
+			fill={minorInKey || appState.mode === 'minor'
+				? 'var(--text-primary)'
+				: 'var(--text-secondary)'}
+			class="font-music pointer-events-none"
 		>
 			{key.minor}
 		</text>
@@ -477,7 +482,8 @@
 			text-anchor="middle"
 			dominant-baseline="central"
 			font-size={fontSizes.dim}
-			class="{dimInKey ? 'fill-gray-100' : 'fill-gray-400'} font-music pointer-events-none"
+			fill={dimInKey ? 'var(--text-primary)' : 'var(--text-secondary)'}
+			class="font-music pointer-events-none"
 		>
 			{key.dim}
 		</text>
@@ -492,7 +498,8 @@
 			dominant-baseline="central"
 			font-size="13"
 			transform="rotate({midAngle}, {numeralPos.x}, {numeralPos.y})"
-			class="font-music pointer-events-none fill-gray-400"
+			fill="var(--text-secondary)"
+			class="font-music pointer-events-none"
 		>
 			{numeral}
 		</text>
@@ -503,7 +510,7 @@
 		{cx}
 		{cy}
 		r={radii.center - centerPadding}
-		fill="#111827"
+		fill="var(--bg-primary)"
 		class="cursor-pointer outline-none"
 		onkeydown={(e) => {
 			if (e.key === 'Enter' || e.key === ' ') appState.toggleMode();
@@ -523,7 +530,9 @@
 			{@const chordNotes = chord.notes}
 			{@const bassNote = detected.bass ?? chordNotes[0]}
 			{@const bassDegree = FormatUtil.getNoteDegreeInMajorKey(bassNote, appState.selectedRoot)}
-			{@const numeralColor = bassDegree ? FormatUtil.getDegreeColor(bassDegree) : 'white'}
+			{@const numeralColor = bassDegree
+				? FormatUtil.getDegreeColor(bassDegree)
+				: 'var(--text-primary)'}
 			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
 				<div class="center-numeral">
 					<ChordDisplay
