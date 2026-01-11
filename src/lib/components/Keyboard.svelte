@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { Chord as TonalChord, Note } from 'tonal';
 	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
-	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import Chord from './Chord.svelte';
 	import MidiMenu from './MidiMenu.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
@@ -25,46 +23,34 @@
 					(containerWidth - CONTAINER_PADDING) / (KEYBOARD_NATURAL_WIDTH + TAB_KEY_OVERFLOW),
 					(containerHeight - CONTAINER_PADDING) / KEYBOARD_NATURAL_HEIGHT
 				)
-			: 1
+			: 0
 	);
 
-	// Get color for a degree key, accounting for inversion and 7th/9th mode
-	// Always uses the bass note's major degree for color - ensures minor mode shows correct colors
+	// Helper functions that delegate to FormatUtil with current app state
 	function getDegreeColorForInversion(
 		degree: number,
 		inv: 0 | 1 | 2 | 3,
 		isSeventh: boolean,
 		isNinth: boolean
 	): string {
-		let chord;
-		if (isNinth) {
-			chord = VoicingUtil.getNinthChordForDegree(degree, appState.selectedRoot, appState.mode);
-		} else if (isSeventh) {
-			chord = VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode);
-		} else {
-			chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
-		}
-		if (!chord || !chord.notes.length) {
-			return FormatUtil.getDegreeColor(degree);
-		}
-		const bassNote = chord.notes[inv] ?? chord.notes[0];
-		const bassDegree = FormatUtil.getNoteDegreeInMajorKey(bassNote, appState.selectedRoot);
-		return FormatUtil.getDegreeColor(bassDegree ?? degree);
+		return FormatUtil.getDegreeColorForInversion(
+			degree,
+			inv,
+			isSeventh,
+			isNinth,
+			appState.selectedRoot,
+			appState.mode
+		);
 	}
 
-	// Get roman numeral for a degree
 	function getRomanNumeral(degree: number): string {
 		return FormatUtil.getDiatonicRomanNumeral(degree, appState.mode);
 	}
 
-	// Get color for a note based on its position in the major scale
 	function getNoteColor(noteName: string): string | undefined {
-		const degree = FormatUtil.getNoteDegreeInMajorKey(noteName, appState.selectedRoot);
-		if (degree === null) return undefined;
-		return FormatUtil.getDegreeColor(degree);
+		return FormatUtil.getNoteColor(noteName, appState.selectedRoot);
 	}
 
-	// Get roman numeral for a piano key chord (used in chord mode)
 	function getChordRomanNumeral(
 		note: string,
 		isMinor: boolean,
@@ -76,7 +62,6 @@
 		if (isNinth) chordSymbol += '9';
 		else if (isSeventh) chordSymbol += isMinor ? '7' : 'maj7';
 
-		// Get roman numeral using FormatUtil
 		const result = FormatUtil.getChordRomanNumeral(
 			chordSymbol,
 			appState.selectedRoot,
@@ -85,7 +70,6 @@
 		return result?.numeral ?? null;
 	}
 
-	// Get chord display info for piano keys (root and bass note for slash notation)
 	function getChordDisplayInfo(
 		note: string,
 		isMinor: boolean,
@@ -94,32 +78,7 @@
 		isNinth: boolean,
 		keyRoot: string
 	): { root: string; bassNote: string | undefined } {
-		// Build chord symbol based on modifiers
-		let chordSymbol = note + (isMinor ? 'm' : '');
-		if (isNinth) {
-			chordSymbol += '9';
-		} else if (isSeventh) {
-			chordSymbol += isMinor ? '7' : 'maj7';
-		}
-
-		const chord = TonalChord.get(chordSymbol);
-		if (chord.empty || !chord.notes.length) {
-			return { root: isMinor ? note.toLowerCase() : note, bassNote: undefined };
-		}
-
-		let bassNote = chord.notes[inv] ?? chord.notes[0];
-		// Simplify enharmonics (E# → F, Fb → E, B# → C, Cb → B)
-		bassNote = Note.simplify(bassNote) || bassNote;
-		// Use flat notation if the key uses flats
-		if (FormatUtil.usesFlatNotation(keyRoot)) {
-			bassNote = FormatUtil.toFlatNotation(bassNote);
-		}
-		const formattedBassNote = FormatUtil.formatNote(bassNote);
-
-		return {
-			root: isMinor ? note.toLowerCase() : note,
-			bassNote: inv > 0 ? formattedBassNote : undefined
-		};
+		return FormatUtil.getChordDisplayInfo(note, isMinor, inv, isSeventh, isNinth, keyRoot);
 	}
 </script>
 
@@ -364,29 +323,53 @@
 					{/if}
 				</div>
 			{/each}
-			<!-- B and N keys (disabled placeholders) -->
+			<!-- B key (disabled placeholder) -->
 			<div class="key dark-key disabled-key">
 				<span class="key-label">B</span>
 			</div>
-			<div class="key dark-key disabled-key">
-				<span class="key-label">N</span>
-			</div>
-			<!-- M key (MIDI menu toggle) -->
+			<!-- N key (MIDI IN toggle) -->
 			<div class="midi-key-wrapper">
 				<div
 					class="key dark-key midi-key-trigger"
-					class:midi-connected={midiState.isConnected}
+					class:pressed={kb.nKeyPressed}
+					onmousedown={() => {
+						kb.nKeyPressed = true;
+						midiState.toggleInputMenu();
+					}}
+					onmouseup={() => (kb.nKeyPressed = false)}
+					onmouseleave={() => (kb.nKeyPressed = false)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							midiState.toggleInputMenu();
+						}
+					}}
+					role="button"
+					tabindex="0"
+				>
+					<span class="key-label">N</span>
+					<span class="key-function midi-label">
+						<span>MIDI</span>
+						<span class:midi-active={midiState.isInputConnected}>IN</span>
+					</span>
+				</div>
+				<MidiMenu type="input" />
+			</div>
+			<!-- M key (MIDI OUT toggle) -->
+			<div class="midi-key-wrapper">
+				<div
+					class="key dark-key midi-key-trigger"
 					class:pressed={kb.mKeyPressed}
 					onmousedown={() => {
 						kb.mKeyPressed = true;
-						midiState.toggleMenu();
+						midiState.toggleOutputMenu();
 					}}
 					onmouseup={() => (kb.mKeyPressed = false)}
 					onmouseleave={() => (kb.mKeyPressed = false)}
 					onkeydown={(e) => {
 						if (e.key === 'Enter') {
 							e.preventDefault();
-							midiState.toggleMenu();
+							midiState.toggleOutputMenu();
 						}
 					}}
 					role="button"
@@ -395,10 +378,10 @@
 					<span class="key-label">M</span>
 					<span class="key-function midi-label">
 						<span>MIDI</span>
-						<span>IN</span>
+						<span class:midi-active={midiState.isOutputConnected}>OUT</span>
 					</span>
 				</div>
-				<MidiMenu />
+				<MidiMenu type="output" />
 			</div>
 			<!-- Comma key (disabled) -->
 			<div class="key dark-key disabled-key">
@@ -853,7 +836,7 @@
 		color: white;
 	}
 
-	.midi-connected > .midi-label {
+	.midi-active {
 		color: #f59e0b;
 	}
 </style>
