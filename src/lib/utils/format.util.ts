@@ -1,6 +1,7 @@
 import type { Mode } from '$lib/types';
 import { Key, Chord, Note, Progression } from 'tonal';
 import { VoicingUtil } from './voicing.util';
+import { ChordUtil } from './chord.util';
 
 /**
  * Centralized utility class for music notation formatting and theory computations.
@@ -350,24 +351,7 @@ export class FormatUtil {
 		keyRoot: string,
 		useModern7th: boolean = false
 	): { root: string; bassNote: string | undefined } {
-		// Build chord symbol based on modifiers
-		let chordSymbol = note + (isMinor ? 'm' : '');
-		if (isNinth) {
-			// In modern mode, C9 means dominant 9; in classic mode, Cmaj9 for major chords
-			if (useModern7th || isMinor) {
-				chordSymbol += '9';
-			} else {
-				chordSymbol += 'maj9';
-			}
-		} else if (isSeventh) {
-			// In modern mode, C7 means dominant 7; in classic mode, Cmaj7 for major chords
-			if (useModern7th || isMinor) {
-				chordSymbol += '7';
-			} else {
-				chordSymbol += 'maj7';
-			}
-		}
-
+		const chordSymbol = ChordUtil.buildChordSymbol(note, isMinor, isSeventh, isNinth, useModern7th);
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty || !chord.notes.length) {
 			return { root: isMinor ? note.toLowerCase() : note, bassNote: undefined };

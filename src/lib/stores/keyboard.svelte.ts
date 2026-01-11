@@ -72,9 +72,19 @@ function getChordNotesForDegree(
 	const useModern7th = appState.seventhStyle === 'modern';
 	let chord;
 	if (ninthMode) {
-		chord = VoicingUtil.getNinthChordForDegree(degree, appState.selectedRoot, appState.mode, useModern7th);
+		chord = VoicingUtil.getNinthChordForDegree(
+			degree,
+			appState.selectedRoot,
+			appState.mode,
+			useModern7th
+		);
 	} else if (seventhMode) {
-		chord = VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode, useModern7th);
+		chord = VoicingUtil.getSeventhChordForDegree(
+			degree,
+			appState.selectedRoot,
+			appState.mode,
+			useModern7th
+		);
 	} else {
 		chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
 	}
@@ -402,7 +412,13 @@ export const keyboardState = {
 		const mappedKey = KeyboardUtil.codeToKey(e.code);
 
 		// Handle action key release (Z, X, V, C, B)
-		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c' || mappedKey === 'b') {
+		if (
+			mappedKey === 'z' ||
+			mappedKey === 'x' ||
+			mappedKey === 'v' ||
+			mappedKey === 'c' ||
+			mappedKey === 'b'
+		) {
 			clickedActionKey = null;
 		}
 		if (mappedKey === 'n') {

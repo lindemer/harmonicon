@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
+	import { ChordUtil } from '$lib/utils/chord.util';
 	import Chord from './Chord.svelte';
 	import MidiMenu from './MidiMenu.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
@@ -57,23 +58,8 @@
 		isSeventh: boolean,
 		isNinth: boolean
 	): string | null {
-		// Build chord symbol based on seventh style
 		const useModern7th = appState.seventhStyle === 'modern';
-		let chordSymbol = note + (isMinor ? 'm' : '');
-		if (isNinth) {
-			if (useModern7th || isMinor) {
-				chordSymbol += '9';
-			} else {
-				chordSymbol += 'maj9';
-			}
-		} else if (isSeventh) {
-			if (useModern7th || isMinor) {
-				chordSymbol += '7';
-			} else {
-				chordSymbol += 'maj7';
-			}
-		}
-
+		const chordSymbol = ChordUtil.buildChordSymbol(note, isMinor, isSeventh, isNinth, useModern7th);
 		const result = FormatUtil.getChordRomanNumeral(
 			chordSymbol,
 			appState.selectedRoot,
@@ -347,7 +333,7 @@
 							<span class="seventh-style"
 								>{appState.seventhStyle === 'classic' ? 'CLASSIC' : 'MODERN'}</span
 							>
-							<span>SEVENS</span>
+							<span>STYLE</span>
 						</span>
 					{:else if action}
 						<span
