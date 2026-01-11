@@ -25,7 +25,7 @@
 					(containerWidth - CONTAINER_PADDING) / (KEYBOARD_NATURAL_WIDTH + TAB_KEY_OVERFLOW),
 					(containerHeight - CONTAINER_PADDING) / KEYBOARD_NATURAL_HEIGHT
 				)
-			: 1
+			: 0
 	);
 
 	// Get color for a degree key, accounting for inversion and 7th/9th mode
