@@ -16,6 +16,9 @@ export type VoicingMode = 'open' | 'closed';
 /** Keyboard play mode - individual notes or full chords */
 export type PlayMode = 'notes' | 'chords';
 
+/** Seventh chord style - classic (diatonic) or modern (always flat 7th) */
+export type SeventhStyle = 'classic' | 'modern';
+
 /** Chord inversion (0 = root position, 1-3 = inversions) */
 export type Inversion = 0 | 1 | 2 | 3;
 

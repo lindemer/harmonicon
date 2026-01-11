@@ -28,7 +28,7 @@ export const pianoKeys: PianoKeyMapping[] = [
 ];
 
 /** Bottom row action keys */
-export const bottomRow = ['Z', 'X', 'C', 'V'];
+export const bottomRow = ['Z', 'X', 'C', 'V', 'B'];
 
 /** Action key mappings */
 export const actionMap: Record<string, ActionMapping> = {

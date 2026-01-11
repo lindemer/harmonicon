@@ -69,11 +69,12 @@ function getChordNotesForDegree(
 	seventhMode: boolean = false,
 	ninthMode: boolean = false
 ): Array<{ note: string; octave: number }> {
+	const useModern7th = appState.seventhStyle === 'modern';
 	let chord;
 	if (ninthMode) {
-		chord = VoicingUtil.getNinthChordForDegree(degree, appState.selectedRoot, appState.mode);
+		chord = VoicingUtil.getNinthChordForDegree(degree, appState.selectedRoot, appState.mode, useModern7th);
 	} else if (seventhMode) {
-		chord = VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode);
+		chord = VoicingUtil.getSeventhChordForDegree(degree, appState.selectedRoot, appState.mode, useModern7th);
 	} else {
 		chord = VoicingUtil.getChordForDegree(degree, appState.selectedRoot, appState.mode);
 	}
@@ -94,6 +95,7 @@ function getChordNotesForNote(
 	isSeventh: boolean = false,
 	isNinth: boolean = false
 ): Array<{ note: string; octave: number }> {
+	const useModern7th = appState.seventhStyle === 'modern';
 	return ChordUtil.getChordNotes(
 		note,
 		isMinor,
@@ -101,7 +103,8 @@ function getChordNotesForNote(
 		isSeventh,
 		isNinth,
 		appState.chordDisplayOctave,
-		appState.voicingMode
+		appState.voicingMode,
+		useModern7th
 	);
 }
 
@@ -324,6 +327,10 @@ export const keyboardState = {
 			clickedActionKey = 'C';
 			appState.togglePlayMode();
 		}
+		if (mappedKey === 'b' && !e.repeat) {
+			clickedActionKey = 'B';
+			appState.toggleSeventhStyle();
+		}
 		if (mappedKey === 'n' && !e.repeat) {
 			nKeyPressed = true;
 			midiState.toggleInputMenu();
@@ -394,8 +401,8 @@ export const keyboardState = {
 
 		const mappedKey = KeyboardUtil.codeToKey(e.code);
 
-		// Handle action key release (Z, X, V, C)
-		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c') {
+		// Handle action key release (Z, X, V, C, B)
+		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c' || mappedKey === 'b') {
 			clickedActionKey = null;
 		}
 		if (mappedKey === 'n') {

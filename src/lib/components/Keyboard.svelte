@@ -57,10 +57,22 @@
 		isSeventh: boolean,
 		isNinth: boolean
 	): string | null {
-		// Build chord symbol
+		// Build chord symbol based on seventh style
+		const useModern7th = appState.seventhStyle === 'modern';
 		let chordSymbol = note + (isMinor ? 'm' : '');
-		if (isNinth) chordSymbol += '9';
-		else if (isSeventh) chordSymbol += isMinor ? '7' : 'maj7';
+		if (isNinth) {
+			if (useModern7th || isMinor) {
+				chordSymbol += '9';
+			} else {
+				chordSymbol += 'maj9';
+			}
+		} else if (isSeventh) {
+			if (useModern7th || isMinor) {
+				chordSymbol += '7';
+			} else {
+				chordSymbol += 'maj7';
+			}
+		}
 
 		const result = FormatUtil.getChordRomanNumeral(
 			chordSymbol,
@@ -78,7 +90,16 @@
 		isNinth: boolean,
 		keyRoot: string
 	): { root: string; bassNote: string | undefined } {
-		return FormatUtil.getChordDisplayInfo(note, isMinor, inv, isSeventh, isNinth, keyRoot);
+		const useModern7th = appState.seventhStyle === 'modern';
+		return FormatUtil.getChordDisplayInfo(
+			note,
+			isMinor,
+			inv,
+			isSeventh,
+			isNinth,
+			keyRoot,
+			useModern7th
+		);
 	}
 </script>
 
@@ -288,6 +309,7 @@
 				{@const action = kb.actionMap[key]}
 				{@const isVoicingKey = key === 'V'}
 				{@const isPlayModeKey = key === 'C'}
+				{@const isSeventhStyleKey = key === 'B'}
 				{@const isOctaveDownDisabled = key === 'Z' && appState.chordDisplayOctave <= 3}
 				{@const isOctaveUpDisabled = key === 'X' && appState.chordDisplayOctave >= 5}
 				<div
@@ -301,6 +323,7 @@
 						else if (key === 'X') appState.incrementChordOctave();
 						else if (key === 'V') appState.toggleVoicingMode();
 						else if (key === 'C') appState.togglePlayMode();
+						else if (key === 'B') appState.toggleSeventhStyle();
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -312,12 +335,19 @@
 						<span class="key-function voicing-label">
 							<span class="voicing-mode">{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
 							>
-							<span>VOICE</span>
+							<span>VOICING</span>
 						</span>
 					{:else if isPlayModeKey}
 						<span class="key-function play-mode-label">
 							<span>PLAY</span>
 							<span class="play-mode">{appState.playMode === 'notes' ? 'NOTES' : 'CHORDS'}</span>
+						</span>
+					{:else if isSeventhStyleKey}
+						<span class="key-function seventh-style-label">
+							<span class="seventh-style"
+								>{appState.seventhStyle === 'classic' ? 'CLASSIC' : 'MODERN'}</span
+							>
+							<span>SEVENS</span>
 						</span>
 					{:else if action}
 						<span
@@ -330,10 +360,6 @@
 					{/if}
 				</div>
 			{/each}
-			<!-- B key (disabled placeholder) -->
-			<div class="key dark-key disabled-key">
-				<span class="key-label">B</span>
-			</div>
 			<!-- N key (MIDI IN toggle) -->
 			<div class="midi-key-wrapper">
 				<div
@@ -791,8 +817,21 @@
 	}
 
 	.voicing-mode,
-	.play-mode {
+	.play-mode,
+	.seventh-style {
 		color: var(--accent-color);
+	}
+
+	.dark-key > .seventh-style-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: var(--text-primary);
 	}
 
 	.octave-label.disabled-label {

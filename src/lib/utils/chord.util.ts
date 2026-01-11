@@ -16,19 +16,31 @@ export class ChordUtil {
 	 * @param isMinor - Use minor chord quality
 	 * @param isSeventh - Add 7th extension
 	 * @param isNinth - Add 9th extension (implies 7th)
-	 * @returns Chord symbol like 'C', 'Cm', 'Cmaj7', 'Cm7', 'C9', 'Cm9'
+	 * @param useModern7th - If true, always use flat 7 (dominant); if false, use diatonic (maj7 for major)
+	 * @returns Chord symbol like 'C', 'Cm', 'Cmaj7', 'Cm7', 'C7', 'C9', 'Cm9'
 	 */
 	static buildChordSymbol(
 		note: string,
 		isMinor: boolean,
 		isSeventh: boolean,
-		isNinth: boolean
+		isNinth: boolean,
+		useModern7th: boolean = false
 	): string {
 		let chordSymbol = note + (isMinor ? 'm' : '');
 		if (isNinth) {
-			chordSymbol += '9';
+			// In modern mode, C9 means dominant 9; in classic mode, Cmaj9 for major chords
+			if (useModern7th || isMinor) {
+				chordSymbol += '9';
+			} else {
+				chordSymbol += 'maj9';
+			}
 		} else if (isSeventh) {
-			chordSymbol += isMinor ? '7' : 'maj7';
+			// In modern mode, C7 means dominant 7; in classic mode, Cmaj7 for major chords
+			if (useModern7th || isMinor) {
+				chordSymbol += '7';
+			} else {
+				chordSymbol += 'maj7';
+			}
 		}
 		return chordSymbol;
 	}
@@ -42,6 +54,7 @@ export class ChordUtil {
 	 * @param isNinth - Add 9th extension
 	 * @param baseOctave - Base octave for voicing
 	 * @param voicingMode - 'open' or 'closed' voicing style
+	 * @param useModern7th - If true, always use flat 7 (dominant); if false, use diatonic
 	 * @returns Array of {note, octave} objects with simplified enharmonic spellings
 	 */
 	static getChordNotes(
@@ -51,9 +64,10 @@ export class ChordUtil {
 		isSeventh: boolean,
 		isNinth: boolean,
 		baseOctave: number,
-		voicingMode: VoicingMode
+		voicingMode: VoicingMode,
+		useModern7th: boolean = false
 	): Array<{ note: string; octave: number }> {
-		const chordSymbol = this.buildChordSymbol(note, isMinor, isSeventh, isNinth);
+		const chordSymbol = this.buildChordSymbol(note, isMinor, isSeventh, isNinth, useModern7th);
 
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty || !chord.notes.length) return [];

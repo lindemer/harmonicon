@@ -347,14 +347,25 @@ export class FormatUtil {
 		inv: 0 | 1 | 2 | 3,
 		isSeventh: boolean,
 		isNinth: boolean,
-		keyRoot: string
+		keyRoot: string,
+		useModern7th: boolean = false
 	): { root: string; bassNote: string | undefined } {
 		// Build chord symbol based on modifiers
 		let chordSymbol = note + (isMinor ? 'm' : '');
 		if (isNinth) {
-			chordSymbol += '9';
+			// In modern mode, C9 means dominant 9; in classic mode, Cmaj9 for major chords
+			if (useModern7th || isMinor) {
+				chordSymbol += '9';
+			} else {
+				chordSymbol += 'maj9';
+			}
 		} else if (isSeventh) {
-			chordSymbol += isMinor ? '7' : 'maj7';
+			// In modern mode, C7 means dominant 7; in classic mode, Cmaj7 for major chords
+			if (useModern7th || isMinor) {
+				chordSymbol += '7';
+			} else {
+				chordSymbol += 'maj7';
+			}
 		}
 
 		const chord = Chord.get(chordSymbol);

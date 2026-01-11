@@ -25,7 +25,7 @@ import {
 	publishNotesOn,
 	publishNotesOff
 } from '$lib/events/note-events';
-import type { Mode, VoicingMode, PlayMode } from '$lib/types';
+import type { Mode, VoicingMode, PlayMode, SeventhStyle } from '$lib/types';
 
 // Re-export DetectedChord type for consumers
 export type { DetectedChord };
@@ -58,6 +58,10 @@ export interface AppState {
 	playMode: PlayMode;
 	togglePlayMode(): void;
 
+	// Seventh style (classic vs modern 7ths)
+	seventhStyle: SeventhStyle;
+	toggleSeventhStyle(): void;
+
 	// Pressed state (visual + MIDI)
 	pressedDegree: number | null;
 	pressedNotes: SvelteSet<string>;
@@ -82,6 +86,7 @@ let pianoStartOctave = $state(2);
 let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 let voicingMode = $state<VoicingMode>('open');
 let playMode = $state<PlayMode>('notes');
+let seventhStyle = $state<SeventhStyle>('classic');
 let pressedDegree = $state<number | null>(null);
 
 // Track all currently pressed notes as "{note}{octave}" strings (e.g., "C4", "F#3")
@@ -167,6 +172,14 @@ export const appState = {
 
 	togglePlayMode() {
 		playMode = playMode === 'notes' ? 'chords' : 'notes';
+	},
+
+	get seventhStyle() {
+		return seventhStyle;
+	},
+
+	toggleSeventhStyle() {
+		seventhStyle = seventhStyle === 'classic' ? 'modern' : 'classic';
 	},
 
 	// Pressed key state for visual feedback

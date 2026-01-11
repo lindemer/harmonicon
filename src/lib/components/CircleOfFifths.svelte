@@ -128,17 +128,22 @@
 		ninth: boolean = false
 	): string {
 		const key = keys[segmentIndex];
+		const useModern7th = appState.seventhStyle === 'modern';
 		if (ninth) {
-			// 9th chord symbols: maj9 for major, m9 for minor, m9b5 for diminished
-			if (ring === 'major') return key.major + 'maj9';
-			if (ring === 'minor') return key.minor + 'm9'; // Minor 9th (e.g., Am9)
+			// 9th chord symbols depend on seventh style
+			if (ring === 'major') {
+				return key.major + (useModern7th ? '9' : 'maj9');
+			}
+			if (ring === 'minor') return key.minor + 'm9';
 			// Diminished becomes half-diminished 9th (m9b5) in 9th mode
 			return FormatUtil.formatNote(key.dimNote) + 'm9b5';
 		}
 		if (seventh) {
-			// 7th chord symbols: Maj7 for major, m7 for minor, m7b5 for diminished
-			if (ring === 'major') return key.major + 'maj7';
-			if (ring === 'minor') return key.minor + 'm7'; // Minor 7th (e.g., Am7)
+			// 7th chord symbols depend on seventh style
+			if (ring === 'major') {
+				return key.major + (useModern7th ? '7' : 'maj7');
+			}
+			if (ring === 'minor') return key.minor + 'm7';
 			// Diminished becomes half-diminished (m7b5) in 7th mode
 			return FormatUtil.formatNote(key.dimNote) + 'm7b5';
 		}
