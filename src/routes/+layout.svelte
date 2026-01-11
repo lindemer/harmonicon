@@ -40,7 +40,7 @@
 				</a>
 				<button class="theme-toggle" onclick={() => themeState.toggle()} aria-label="Toggle theme">
 					{#if themeState.isDark}
-						<span class="theme-icon">⏾</span>
+						<span class="theme-icon">🌖</span>
 					{:else}
 						<span class="theme-icon">𖤓</span>
 					{/if}
@@ -65,7 +65,7 @@
 		</a>
 		<button class="mobile-icon-btn" onclick={() => themeState.toggle()} aria-label="Toggle theme">
 			{#if themeState.isDark}
-				<span class="theme-icon">☽</span>
+				<span class="theme-icon">🌖</span>
 			{:else}
 				<span class="theme-icon">𖤓</span>
 			{/if}
