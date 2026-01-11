@@ -241,9 +241,14 @@
 	}
 
 	// Play chord audio for a segment
-	function playChordForSegment(segmentIndex: number, ring: RingType, inv: 0 | 1 | 2 | 3 = 0) {
+	function playChordForSegment(
+		segmentIndex: number,
+		ring: RingType,
+		inv: 0 | 1 | 2 | 3 = 0,
+		forceNinth: boolean = false
+	) {
 		const seventh = keyboardState.tabPressed;
-		const ninth = keyboardState.ninePressed;
+		const ninth = keyboardState.ninePressed || forceNinth;
 		const chordSymbol = getChordSymbol(segmentIndex, ring, seventh, ninth);
 		const unformatted = FormatUtil.unformatNote(chordSymbol);
 		const notes = VoicingUtil.getVoicedNotesFromSymbol(
@@ -356,7 +361,12 @@
 	onmousedown={(e) => {
 		if (isInCenterCircle(e.clientX, e.clientY)) return;
 
-		if (e.button === 0) {
+		// On macOS, Ctrl+Click sends button === 2 (right-click)
+		// Treat Ctrl+Click as left-click for playing 9th chords
+		const isLeftClick = e.button === 0 || (e.button === 2 && e.ctrlKey);
+		const isRightClick = e.button === 2 && !e.ctrlKey;
+
+		if (isLeftClick) {
 			const ring = getRingFromPoint(e.clientX, e.clientY);
 			if (ring) {
 				isDragging = true;
@@ -365,22 +375,27 @@
 
 				// Play chord (notes added to pressedNotes, chord will be auto-detected)
 				const inversion = getInversionFromEvent(e);
-				playChordForSegment(segment, ring, inversion);
+				playChordForSegment(segment, ring, inversion, e.ctrlKey);
 
 				// Set pressedDegree if chord is diatonic
 				const seventh = keyboardState.tabPressed;
-				const ninth = keyboardState.ninePressed;
+				const ninth = keyboardState.ninePressed || e.ctrlKey;
 				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 				const unformatted = FormatUtil.unformatNote(chordSymbol);
 				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
 				appState.pressedDegree = degree;
 			}
-		} else if (e.button === 2) {
+		} else if (isRightClick) {
 			isRightDragging = true;
 		}
 	}}
 	onmouseup={(e) => {
-		if (e.button === 0) {
+		// On macOS, Ctrl+Click sends button === 2 (right-click)
+		// Treat Ctrl+Click release as left-click release
+		const isLeftClick = e.button === 0 || (e.button === 2 && e.ctrlKey);
+		const isRightClick = e.button === 2 && !e.ctrlKey;
+
+		if (isLeftClick) {
 			// Check for center circle click (not drag) - skip on touch devices
 			if (!isTouchDevice && !isDragging && isInCenterCircle(e.clientX, e.clientY)) {
 				appState.toggleMode();
@@ -395,7 +410,7 @@
 				appState.removePressedNotes(currentChordNotes);
 				currentChordNotes = [];
 			}
-		} else if (e.button === 2) {
+		} else if (isRightClick) {
 			appState.selectedRoot =
 				FormatUtil.CIRCLE_OF_FIFTHS[getSegmentFromPoint(e.clientX, e.clientY)];
 			isRightDragging = false;
@@ -441,11 +456,11 @@
 
 				// Play new chord (notes added to pressedNotes, chord will be auto-detected)
 				const inversion = getInversionFromEvent(e);
-				playChordForSegment(segment, ring, inversion);
+				playChordForSegment(segment, ring, inversion, e.ctrlKey);
 
 				// Update pressedDegree if chord is diatonic
 				const seventh = keyboardState.tabPressed;
-				const ninth = keyboardState.ninePressed;
+				const ninth = keyboardState.ninePressed || e.ctrlKey;
 				const chordSymbol = getChordSymbol(segment, ring, seventh, ninth);
 				const unformatted = FormatUtil.unformatNote(chordSymbol);
 				const degree = FormatUtil.getChordDegree(unformatted, appState.selectedRoot, appState.mode);
