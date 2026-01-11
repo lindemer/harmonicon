@@ -1,11 +1,25 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import './layout.css';
 	import CircleOfFifths from '$lib/components/CircleOfFifths.svelte';
 	import Piano from '$lib/components/Piano.svelte';
 	import Keyboard from '$lib/components/Keyboard.svelte';
+	import { appState } from '$lib/stores/app.svelte';
+	import { midiState } from '$lib/stores/midi.svelte';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();
+
+	// Wire up MIDI input to appState (visual feedback only, no MIDI echo)
+	midiState.setMidiInputHandlers(
+		(note, octave) => appState.addPressedNoteFromMidi(note, octave),
+		(note, octave) => appState.removePressedNoteFromMidi(note, octave)
+	);
+
+	// Initialize MIDI on mount (browser only)
+	onMount(() => {
+		midiState.initialize();
+	});
 </script>
 
 <svelte:head>

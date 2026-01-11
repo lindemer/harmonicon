@@ -1,5 +1,6 @@
 import type { Mode } from '$lib/types';
 import { Key, Chord, Note, Progression } from 'tonal';
+import { VoicingUtil } from './voicing.util';
 
 /**
  * Centralized utility class for music notation formatting and theory computations.
@@ -292,5 +293,83 @@ export class FormatUtil {
 			11: 'M7'
 		};
 		return intervals[semitones] ?? String(semitones);
+	}
+
+	// === Component Helpers ===
+
+	/**
+	 * Get color for a degree key, accounting for inversion and 7th/9th mode.
+	 * Always uses the bass note's major degree for color - ensures minor mode shows correct colors.
+	 */
+	static getDegreeColorForInversion(
+		degree: number,
+		inv: 0 | 1 | 2 | 3,
+		isSeventh: boolean,
+		isNinth: boolean,
+		selectedRoot: string,
+		mode: Mode
+	): string {
+		let chord;
+		if (isNinth) {
+			chord = VoicingUtil.getNinthChordForDegree(degree, selectedRoot, mode);
+		} else if (isSeventh) {
+			chord = VoicingUtil.getSeventhChordForDegree(degree, selectedRoot, mode);
+		} else {
+			chord = VoicingUtil.getChordForDegree(degree, selectedRoot, mode);
+		}
+		if (!chord || !chord.notes.length) {
+			return this.getDegreeColor(degree);
+		}
+		const bassNote = chord.notes[inv] ?? chord.notes[0];
+		const bassDegree = this.getNoteDegreeInMajorKey(bassNote, selectedRoot);
+		return this.getDegreeColor(bassDegree ?? degree);
+	}
+
+	/**
+	 * Get color for a note based on its position in the major scale.
+	 */
+	static getNoteColor(noteName: string, selectedRoot: string): string | undefined {
+		const degree = this.getNoteDegreeInMajorKey(noteName, selectedRoot);
+		if (degree === null) return undefined;
+		return this.getDegreeColor(degree);
+	}
+
+	/**
+	 * Get chord display info for piano keys (root and bass note for slash notation).
+	 */
+	static getChordDisplayInfo(
+		note: string,
+		isMinor: boolean,
+		inv: 0 | 1 | 2 | 3,
+		isSeventh: boolean,
+		isNinth: boolean,
+		keyRoot: string
+	): { root: string; bassNote: string | undefined } {
+		// Build chord symbol based on modifiers
+		let chordSymbol = note + (isMinor ? 'm' : '');
+		if (isNinth) {
+			chordSymbol += '9';
+		} else if (isSeventh) {
+			chordSymbol += isMinor ? '7' : 'maj7';
+		}
+
+		const chord = Chord.get(chordSymbol);
+		if (chord.empty || !chord.notes.length) {
+			return { root: isMinor ? note.toLowerCase() : note, bassNote: undefined };
+		}
+
+		let bassNote = chord.notes[inv] ?? chord.notes[0];
+		// Simplify enharmonics (E# → F, Fb → E, B# → C, Cb → B)
+		bassNote = Note.simplify(bassNote) || bassNote;
+		// Use flat notation if the key uses flats
+		if (this.usesFlatNotation(keyRoot)) {
+			bassNote = this.toFlatNotation(bassNote);
+		}
+		const formattedBassNote = this.formatNote(bassNote);
+
+		return {
+			root: isMinor ? note.toLowerCase() : note,
+			bassNote: inv > 0 ? formattedBassNote : undefined
+		};
 	}
 }

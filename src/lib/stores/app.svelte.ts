@@ -1,16 +1,34 @@
-import { Chord } from 'tonal';
+/**
+ * Application State Store
+ *
+ * Central state management for the Harmonicon app.
+ * This is the "source of truth" for:
+ * - Key/mode selection (selectedRoot, mode)
+ * - Currently pressed notes (pressedNotes)
+ * - Chord detection (derived from pressedNotes)
+ * - Display settings (voicingMode, playMode, octave)
+ *
+ * Data flow:
+ * - Input (keyboard/mouse/MIDI) -> keyboardState -> appState.addPressedNote()
+ * - appState publishes note events -> midiState sends MIDI output
+ * - MIDI input -> midiState -> appState.addPressedNoteFromMidi() (no MIDI echo)
+ *
+ * Note: This store does NOT directly import midiState to avoid circular deps.
+ * MIDI output is handled via the note-events pub/sub system.
+ */
+
 import { SvelteSet } from 'svelte/reactivity';
-import { FormatUtil } from '$lib/utils/format.util';
-import { midiState } from './midi.svelte';
+import { ChordUtil, type DetectedChord } from '$lib/utils/chord.util';
+import {
+	publishNoteOn,
+	publishNoteOff,
+	publishNotesOn,
+	publishNotesOff
+} from '$lib/events/note-events';
 import type { Mode, VoicingMode, PlayMode } from '$lib/types';
 
-// ============ AppState Interface ============
-
-export interface DetectedChord {
-	symbol: string; // Full chord symbol (e.g., "Am7")
-	bass: string | null; // Bass note if inverted (e.g., "E")
-	inversion: 0 | 1 | 2 | 3;
-}
+// Re-export DetectedChord type for consumers
+export type { DetectedChord };
 
 export interface AppState {
 	// Key/Mode selection
@@ -69,86 +87,6 @@ let pressedDegree = $state<number | null>(null);
 // Track all currently pressed notes as "{note}{octave}" strings (e.g., "C4", "F#3")
 const pressedNotes = new SvelteSet<string>();
 
-/**
- * Convert a note name and octave to an absolute pitch value for sorting.
- * Higher values = higher pitch. Used to ensure correct bass note detection.
- */
-function getAbsolutePitch(note: string, octave: number): number {
-	const chromaticMap: Record<string, number> = {
-		C: 0,
-		'C#': 1,
-		Db: 1,
-		D: 2,
-		'D#': 3,
-		Eb: 3,
-		E: 4,
-		Fb: 4,
-		F: 5,
-		'E#': 5,
-		'F#': 6,
-		Gb: 6,
-		G: 7,
-		'G#': 8,
-		Ab: 8,
-		A: 9,
-		'A#': 10,
-		Bb: 10,
-		B: 11,
-		Cb: 11
-	};
-	return octave * 12 + (chromaticMap[note] ?? 0);
-}
-
-/**
- * Select the preferred chord interpretation from Chord.detect() results.
- * Prefers simpler chord types (major/minor) over complex ones (augmented/altered).
- * For inversions, prefers slash chords of simple types over root-position complex chords.
- */
-function selectPreferredChord(detected: string[]): string {
-	if (detected.length === 1) return detected[0];
-
-	// Score each chord - lower is better
-	const scoreChord = (chord: string): number => {
-		const isSlash = chord.includes('/');
-		const baseChord = isSlash ? chord.substring(0, chord.indexOf('/')) : chord;
-
-		// Extract quality from chord symbol (after the root note)
-		const qualityMatch = baseChord.match(/^[A-G][#b]?(.*)/);
-		const quality = qualityMatch ? qualityMatch[1] : '';
-
-		// Prefer these common chord types (lower score = more preferred)
-		if (quality === 'M' || quality === '' || quality === 'maj') return isSlash ? 1 : 0; // Major triad
-		if (quality === 'm') return isSlash ? 1 : 0; // Minor triad
-		if (quality === 'dim' || quality === 'o' || quality === '°') return isSlash ? 2 : 1; // Diminished
-		if (quality === 'maj7' || quality === 'M7') return isSlash ? 2 : 1; // Major 7
-		if (quality === 'm7') return isSlash ? 2 : 1; // Minor 7
-		if (quality === '7') return isSlash ? 2 : 1; // Dominant 7
-		if (quality === 'dim7' || quality === 'o7') return isSlash ? 3 : 2; // Diminished 7
-		if (quality === 'm7b5' || quality === 'ø' || quality === 'ø7') return isSlash ? 3 : 2; // Half-dim
-		if (quality.includes('9')) return isSlash ? 3 : 2; // 9th chords
-
-		// Penalize augmented and altered chords heavily
-		if (quality.includes('#5') || quality.includes('+') || quality === 'aug') return 10;
-		if (quality.includes('b5') && !quality.includes('m7b5')) return 10;
-
-		return 5; // Default for other chord types
-	};
-
-	// Find the chord with the lowest score
-	let bestChord = detected[0];
-	let bestScore = scoreChord(detected[0]);
-
-	for (let i = 1; i < detected.length; i++) {
-		const score = scoreChord(detected[i]);
-		if (score < bestScore) {
-			bestScore = score;
-			bestChord = detected[i];
-		}
-	}
-
-	return bestChord;
-}
-
 export const appState = {
 	get selectedRoot() {
 		return selectedRoot;
@@ -172,81 +110,7 @@ export const appState = {
 
 	// Detect chord from all currently pressed notes (across all octaves)
 	get detectedChord(): DetectedChord | null {
-		const notesWithPitch: Array<{ note: string; pitch: number }> = [];
-
-		for (const noteStr of pressedNotes) {
-			const match = noteStr.match(/^([A-G][#b]?)(\d+)$/);
-			if (match) {
-				const noteName = match[1];
-				const noteOctave = parseInt(match[2]);
-				notesWithPitch.push({
-					note: noteName,
-					pitch: getAbsolutePitch(noteName, noteOctave)
-				});
-			}
-		}
-
-		if (notesWithPitch.length < 3) return null; // Need at least 3 notes for a chord
-
-		// Sort by actual pitch (lowest first) for correct bass note / inversion detection
-		notesWithPitch.sort((a, b) => a.pitch - b.pitch);
-
-		// Extract pitch classes in sorted order
-		const notesInRange = notesWithPitch.map((n) => n.note);
-
-		// Count unique pitch classes (ignore octave duplicates)
-		const uniquePitchClasses = new SvelteSet(notesInRange).size;
-
-		// Need at least 3 unique pitch classes for chord detection
-		if (uniquePitchClasses < 3) return null;
-
-		// If too many unique notes are pressed (more than a 9th chord = 5 notes),
-		// the detection is likely to be unreliable
-		if (uniquePitchClasses > 5) return null;
-
-		const detected = Chord.detect(notesInRange);
-		if (detected.length === 0) return null;
-
-		// Chord.detect() returns multiple interpretations. For inversions, it often returns
-		// an obscure chord first (e.g., "Bbm#5") and the slash chord second (e.g., "GbM/Bb").
-		// Prefer simpler chord types: major/minor triads and 7ths over augmented/diminished variants.
-		const preferredChord = selectPreferredChord(detected);
-
-		// Parse slash chord for inversions (e.g., "Am7/E")
-		const slashIndex = preferredChord.indexOf('/');
-		if (slashIndex === -1) {
-			return {
-				symbol: FormatUtil.formatNote(preferredChord),
-				bass: null,
-				inversion: 0
-			};
-		}
-
-		const symbol = preferredChord.substring(0, slashIndex);
-		const bass = preferredChord.substring(slashIndex + 1);
-
-		// Determine inversion by finding bass note position in chord
-		const chord = Chord.get(symbol);
-		if (chord.empty) {
-			return {
-				symbol: FormatUtil.formatNote(symbol),
-				bass: FormatUtil.formatNote(bass),
-				inversion: 0
-			};
-		}
-
-		const bassIndex = chord.notes.findIndex(
-			(n) =>
-				n.toUpperCase() === bass.toUpperCase() ||
-				FormatUtil.formatNote(n) === FormatUtil.formatNote(bass)
-		);
-		const inversion = (bassIndex >= 0 && bassIndex <= 3 ? bassIndex : 0) as 0 | 1 | 2 | 3;
-
-		return {
-			symbol: FormatUtil.formatNote(symbol),
-			bass: FormatUtil.formatNote(bass),
-			inversion
-		};
+		return ChordUtil.detectChord(pressedNotes);
 	},
 
 	get isSeventhMode() {
@@ -318,16 +182,16 @@ export const appState = {
 		return pressedNotes;
 	},
 
-	// Add a note from UI/keyboard and send MIDI OUT
+	// Add a note from UI/keyboard and publish event for MIDI OUT
 	addPressedNote(note: string, octave: number) {
 		pressedNotes.add(`${note}${octave}`);
-		midiState.sendNoteOn(note, octave);
+		publishNoteOn(note, octave);
 	},
 
-	// Remove a note from UI/keyboard and send MIDI OFF
+	// Remove a note from UI/keyboard and publish event for MIDI OFF
 	removePressedNote(note: string, octave: number) {
 		pressedNotes.delete(`${note}${octave}`);
-		midiState.sendNoteOff(note, octave);
+		publishNoteOff(note, octave);
 	},
 
 	// Add a note from MIDI IN (visual only, no MIDI OUT)
@@ -340,20 +204,20 @@ export const appState = {
 		pressedNotes.delete(`${note}${octave}`);
 	},
 
-	// Add multiple notes at once (for chords) and send MIDI OUT
+	// Add multiple notes at once (for chords) and publish events for MIDI OUT
 	addPressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.add(`${n.note}${n.octave}`);
-			midiState.sendNoteOn(n.note, n.octave);
 		}
+		publishNotesOn(notes);
 	},
 
-	// Remove multiple notes at once (for chords) and send MIDI OFF
+	// Remove multiple notes at once (for chords) and publish events for MIDI OFF
 	removePressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.delete(`${n.note}${n.octave}`);
-			midiState.sendNoteOff(n.note, n.octave);
 		}
+		publishNotesOff(notes);
 	},
 
 	// Clear all pressed notes

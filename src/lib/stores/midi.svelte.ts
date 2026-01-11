@@ -1,5 +1,30 @@
+/**
+ * MIDI State Store
+ *
+ * Handles Web MIDI API integration for both input and output:
+ * - Device enumeration and selection
+ * - MIDI input handling (from external controllers)
+ * - MIDI output (to external synthesizers)
+ *
+ * Architecture notes:
+ * - Subscribes to note-events for MIDI output (decoupled from appState)
+ * - Uses callbacks for MIDI input to avoid circular dependency with appState
+ * - Initialize must be called explicitly from app root (onMount in +layout.svelte)
+ *
+ * MIDI IN flow:
+ *   External controller -> handleMidiMessage -> onMidiNoteOn callback -> appState
+ *   (MIDI IN does NOT echo back to MIDI OUT to prevent feedback loops)
+ *
+ * MIDI OUT flow:
+ *   appState.addPressedNote -> publishNoteOn -> handleNoteEvent -> sendNoteOn
+ */
+
 import { SvelteMap } from 'svelte/reactivity';
-import { appState } from '$lib/stores/app.svelte';
+import { subscribeToNoteEvents, type NoteEvent } from '$lib/events/note-events';
+
+// Callback for MIDI input events - set by external code to avoid circular dependency
+let onMidiNoteOn: ((note: string, octave: number) => void) | null = null;
+let onMidiNoteOff: ((note: string, octave: number) => void) | null = null;
 
 // MIDI note names for conversion
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -62,12 +87,12 @@ function handleMidiMessage(event: MIDIMessageEvent): void {
 	if (isNoteOn) {
 		const noteInfo = midiNoteToNoteInfo(noteNumber);
 		pressedMidiNotes.set(noteNumber, noteInfo);
-		appState.addPressedNoteFromMidi(noteInfo.note, noteInfo.octave);
+		onMidiNoteOn?.(noteInfo.note, noteInfo.octave);
 	} else if (isNoteOff) {
 		const noteInfo = pressedMidiNotes.get(noteNumber);
 		if (noteInfo) {
 			pressedMidiNotes.delete(noteNumber);
-			appState.removePressedNoteFromMidi(noteInfo.note, noteInfo.octave);
+			onMidiNoteOff?.(noteInfo.note, noteInfo.octave);
 		}
 	}
 }
@@ -122,7 +147,7 @@ function selectInput(inputId: string | null): void {
 
 	// Clear any hanging notes
 	for (const [, noteInfo] of pressedMidiNotes) {
-		appState.removePressedNoteFromMidi(noteInfo.note, noteInfo.octave);
+		onMidiNoteOff?.(noteInfo.note, noteInfo.octave);
 	}
 	pressedMidiNotes.clear();
 
@@ -164,6 +189,15 @@ function sendNoteOff(note: string, octave: number): void {
 	output.send([0x80, midiNote, 0]);
 }
 
+/** Handle note events from the app (for MIDI output) */
+function handleNoteEvent(event: NoteEvent): void {
+	if (event.type === 'note-on') {
+		sendNoteOn(event.note, event.octave, event.velocity ?? 80);
+	} else {
+		sendNoteOff(event.note, event.octave);
+	}
+}
+
 /** Initialize MIDI access */
 async function initialize(): Promise<void> {
 	if (initialized || !isSupported) {
@@ -174,6 +208,9 @@ async function initialize(): Promise<void> {
 	}
 
 	initialized = true;
+
+	// Subscribe to note events for MIDI output
+	subscribeToNoteEvents(handleNoteEvent);
 
 	try {
 		midiAccess = await navigator.requestMIDIAccess();
@@ -192,10 +229,7 @@ async function initialize(): Promise<void> {
 	}
 }
 
-// Auto-initialize on module load (browser only)
-if (typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator) {
-	initialize();
-}
+// Note: MIDI initialization is now explicit - call midiState.initialize() from the app root
 
 export const midiState = {
 	get isSupported() {
@@ -248,6 +282,19 @@ export const midiState = {
 	selectOutput,
 	sendNoteOn,
 	sendNoteOff,
+
+	/**
+	 * Set callbacks for MIDI input events.
+	 * This allows decoupling from appState - the caller provides handlers
+	 * that will be called when MIDI notes are received.
+	 */
+	setMidiInputHandlers(
+		noteOnHandler: (note: string, octave: number) => void,
+		noteOffHandler: (note: string, octave: number) => void
+	): void {
+		onMidiNoteOn = noteOnHandler;
+		onMidiNoteOff = noteOffHandler;
+	},
 
 	toggleInputMenu(): void {
 		isInputMenuOpen = !isInputMenuOpen;

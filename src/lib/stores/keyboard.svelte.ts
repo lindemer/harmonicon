@@ -1,150 +1,35 @@
+/**
+ * Keyboard State & Event Handling
+ *
+ * Manages keyboard/mouse input for the virtual keyboard.
+ * Coordinates between UI events, app state, and MIDI.
+ *
+ * Re-exports from focused modules:
+ * - $lib/constants/keyboard.constants.ts: Static layout constants
+ * - modifiers.svelte.ts: Modifier key state management
+ */
+
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
 import { VoicingUtil } from '$lib/utils/voicing.util';
 import { KeyboardUtil } from '$lib/utils/keyboard.util';
 import { ChordUtil } from '$lib/utils/chord.util';
 import { midiState } from '$lib/stores/midi.svelte';
+import { modifierState } from '$lib/stores/modifiers.svelte';
+import {
+	numberRow,
+	pianoKeys,
+	bottomRow,
+	actionMap,
+	KEY_WIDTH,
+	BLACK_KEY_OFFSET
+} from '$lib/constants/keyboard.constants';
 
-// ============ Modifier State Class ============
-
-type ModifierName = 'shift' | 'alt' | 'tab' | 'ctrl';
-
-interface ModifierConfig {
-	name: ModifierName;
-	blockedBy?: ModifierName[];
-	clearsOnActivate?: ModifierName[];
-	onActivate?: () => void;
-	onDeactivate?: () => void;
-}
-
-class ModifierState {
-	private keyboardPressed = $state(false);
-	private mousePressed = $state(false);
-
-	constructor(
-		private config: ModifierConfig,
-		private getModifier: (name: ModifierName) => ModifierState
-	) {}
-
-	get pressed(): boolean {
-		return this.keyboardPressed || this.mousePressed;
-	}
-
-	private isBlocked(): boolean {
-		if (!this.config.blockedBy) return false;
-		return this.config.blockedBy.some((name) => this.getModifier(name).pressed);
-	}
-
-	private clearConflicting(): void {
-		if (!this.config.clearsOnActivate) return;
-		for (const name of this.config.clearsOnActivate) {
-			this.getModifier(name).reset();
-		}
-	}
-
-	setKeyboard(value: boolean): void {
-		if (value && this.isBlocked()) return;
-		if (value) this.clearConflicting();
-
-		const wasPressedBefore = this.pressed;
-		this.keyboardPressed = value;
-		this.handleStateChange(wasPressedBefore);
-	}
-
-	setMouse(value: boolean): void {
-		if (value && this.isBlocked()) return;
-		if (value) this.clearConflicting();
-
-		const wasPressedBefore = this.pressed;
-		this.mousePressed = value;
-		this.handleStateChange(wasPressedBefore);
-	}
-
-	private handleStateChange(wasPressedBefore: boolean): void {
-		const isPressedNow = this.pressed;
-
-		if (!wasPressedBefore && isPressedNow) {
-			this.config.onActivate?.();
-		} else if (wasPressedBefore && !isPressedNow) {
-			this.config.onDeactivate?.();
-		}
-	}
-
-	reset(): void {
-		const wasPressedBefore = this.pressed;
-		this.keyboardPressed = false;
-		this.mousePressed = false;
-		if (wasPressedBefore) {
-			this.config.onDeactivate?.();
-		}
-	}
-}
+// Re-export layout constants for backwards compatibility
+export { numberRow, pianoKeys, bottomRow, actionMap } from '$lib/constants/keyboard.constants';
+export { modifierState } from '$lib/stores/modifiers.svelte';
 
 // ============ State ============
-
-// Modifier state instances - unified keyboard/mouse tracking with validation
-const modifiers = new SvelteMap<ModifierName, ModifierState>();
-
-function getModifier(name: ModifierName): ModifierState {
-	return modifiers.get(name)!;
-}
-
-modifiers.set(
-	'shift',
-	new ModifierState(
-		{
-			name: 'shift',
-			blockedBy: ['ctrl']
-		},
-		getModifier
-	)
-);
-
-modifiers.set(
-	'alt',
-	new ModifierState(
-		{
-			name: 'alt',
-			blockedBy: ['ctrl']
-		},
-		getModifier
-	)
-);
-
-modifiers.set(
-	'tab',
-	new ModifierState(
-		{
-			name: 'tab',
-			blockedBy: ['ctrl'],
-			onActivate: () => {
-				appState.isSeventhMode = true;
-			},
-			onDeactivate: () => {
-				appState.isSeventhMode = false;
-			}
-		},
-		getModifier
-	)
-);
-
-modifiers.set(
-	'ctrl',
-	new ModifierState(
-		{
-			name: 'ctrl',
-			blockedBy: ['shift', 'alt', 'tab'],
-			clearsOnActivate: ['shift', 'alt', 'tab'],
-			onActivate: () => {
-				appState.isNinthMode = true;
-			},
-			onDeactivate: () => {
-				appState.isNinthMode = false;
-			}
-		},
-		getModifier
-	)
-);
 
 // Keyboard state (exported via keyboardState object)
 let capsLockOn = $state(false);
@@ -240,8 +125,8 @@ function playMouseNoteOrChord(noteKey: string): void {
 			noteInfo.note,
 			isMinor,
 			keyboardState.inversion,
-			keyboardState.tabPressed,
-			keyboardState.ninePressed
+			modifierState.tabPressed,
+			modifierState.ctrlPressed
 		);
 		if (chordNotes.length > 0) {
 			mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
@@ -257,14 +142,8 @@ function playMouseNoteOrChord(noteKey: string): void {
 	}
 }
 
-/** Piano key layout: each key is 64px wide with 4px gap, total 68px per key */
-const KEY_WIDTH = 68;
-const BLACK_KEY_OFFSET = 26; // Black keys are offset 26px to the left of white key boundary
-
 /** Find which key character is at the given X position */
 function findKeyAtPosition(x: number, inBlackZone: boolean): string | null {
-	const pianoKeys = keyboardState.pianoKeys;
-
 	if (inBlackZone) {
 		// Check black keys - they're positioned between white keys
 		for (let i = 0; i < pianoKeys.length; i++) {
@@ -296,28 +175,11 @@ function findKeyAtPosition(x: number, inBlackZone: boolean): string | null {
 // ============ Exported State ============
 
 export const keyboardState = {
-	// Layout constants
-	numberRow: ['1', '2', '3', '4', '5', '6', '7'],
-
-	pianoKeys: [
-		{ white: 'A', black: null, note: 'C', blackNote: null },
-		{ white: 'S', black: 'W', note: 'D', blackNote: 'C#' },
-		{ white: 'D', black: 'E', note: 'E', blackNote: 'D#' },
-		{ white: 'F', black: null, note: 'F', blackNote: null },
-		{ white: 'G', black: 'T', note: 'G', blackNote: 'F#' },
-		{ white: 'H', black: 'Y', note: 'A', blackNote: 'G#' },
-		{ white: 'J', black: 'U', note: 'B', blackNote: 'A#' },
-		{ white: 'K', black: null, note: 'C', blackNote: null },
-		{ white: 'L', black: 'O', note: 'D', blackNote: 'C#' },
-		{ white: ';', black: 'P', note: 'E', blackNote: 'D#' }
-	],
-
-	bottomRow: ['Z', 'X', 'C', 'V'],
-
-	actionMap: {
-		Z: { text: 'OCTAVE', text2: 'DOWN' },
-		X: { text: 'OCTAVE', text2: 'UP' }
-	} as Record<string, { text: string; text2: string }>,
+	// Layout constants (re-exported for convenience)
+	numberRow,
+	pianoKeys,
+	bottomRow,
+	actionMap,
 
 	// State accessors
 	get capsLockOn() {
@@ -351,53 +213,37 @@ export const keyboardState = {
 		mKeyPressed = value;
 	},
 
-	// Computed modifier state (combined keyboard + mouse)
+	// Modifier state (delegated to modifierState)
 	get shiftPressed() {
-		return getModifier('shift').pressed;
+		return modifierState.shiftPressed;
 	},
 	get altPressed() {
-		return getModifier('alt').pressed;
+		return modifierState.altPressed;
 	},
 	get tabPressed() {
-		return getModifier('tab').pressed;
+		return modifierState.tabPressed;
 	},
 	get ninePressed() {
-		return getModifier('ctrl').pressed;
+		return modifierState.ctrlPressed;
 	},
+
 	// Mouse-specific setters for virtual keyboard
 	set shiftMousePressed(value: boolean) {
-		getModifier('shift').setMouse(value);
+		modifierState.setShiftMouse(value);
 	},
 	set altMousePressed(value: boolean) {
-		getModifier('alt').setMouse(value);
+		modifierState.setAltMouse(value);
 	},
 	set tabMousePressed(value: boolean) {
-		getModifier('tab').setMouse(value);
+		modifierState.setTabMouse(value);
 	},
 	set ctrlMousePressed(value: boolean) {
-		getModifier('ctrl').setMouse(value);
+		modifierState.setCtrlMouse(value);
 	},
 
-	/** Current inversion based on modifiers and 7th mode
-	 * In 9th mode: always 0 (no inversions)
-	 * In 7th mode: Alt=1st, Shift=2nd, Alt+Shift=3rd
-	 * In triad mode: Alt=1st, Shift=2nd, Alt+Shift=2nd
-	 */
+	/** Current inversion (delegated to modifierState) */
 	get inversion(): 0 | 1 | 2 | 3 {
-		// 9th mode has no inversions
-		if (getModifier('ctrl').pressed) return 0;
-
-		const shift = getModifier('shift').pressed;
-		const alt = getModifier('alt').pressed;
-		const seventh = getModifier('tab').pressed;
-
-		if (shift && alt) {
-			// Both pressed: 3rd inversion in 7th mode, 2nd inversion otherwise
-			return seventh ? 3 : 2;
-		}
-		if (shift) return 2; // Shift alone = 2nd
-		if (alt) return 1; // Alt alone = 1st
-		return 0;
+		return modifierState.inversion;
 	},
 
 	// Helper methods
@@ -448,11 +294,11 @@ export const keyboardState = {
 		// Track Caps Lock state (toggle key, not hold key)
 		capsLockOn = e.getModifierState('CapsLock');
 
-		// Modifier keys - validation is handled by ModifierState
-		if (e.key === 'Shift') getModifier('shift').setKeyboard(true);
-		if (e.key === 'Alt') getModifier('alt').setKeyboard(true);
-		if (e.key === 'Tab') getModifier('tab').setKeyboard(true);
-		if (e.key === 'Control' && !e.repeat) getModifier('ctrl').setKeyboard(true);
+		// Modifier keys - validation is handled by modifierState
+		if (e.key === 'Shift') modifierState.setShiftKeyboard(true);
+		if (e.key === 'Alt') modifierState.setAltKeyboard(true);
+		if (e.key === 'Tab') modifierState.setTabKeyboard(true);
+		if (e.key === 'Control' && !e.repeat) modifierState.setCtrlKeyboard(true);
 
 		if (e.key === ' ' && !e.repeat) {
 			e.preventDefault();
@@ -501,8 +347,8 @@ export const keyboardState = {
 					noteInfo.note,
 					isMinor,
 					keyboardState.inversion,
-					keyboardState.tabPressed,
-					keyboardState.ninePressed
+					modifierState.tabPressed,
+					modifierState.ctrlPressed
 				);
 				if (chordNotes.length > 0) {
 					playingPianoKeyChords.set(mappedKey, chordNotes);
@@ -519,8 +365,8 @@ export const keyboardState = {
 		// Handle degree keys (1-7) for chord playback
 		const degree = keyboardState.getDegree(mappedKey);
 		if (degree && !e.repeat && !playingDegreeNotes.has(degree)) {
-			const seventhMode = keyboardState.tabPressed;
-			const ninthMode = keyboardState.ninePressed;
+			const seventhMode = modifierState.tabPressed;
+			const ninthMode = modifierState.ctrlPressed;
 			appState.pressedDegree = degree;
 			const chordNotes = getChordNotesForDegree(
 				degree,
@@ -539,11 +385,11 @@ export const keyboardState = {
 		// Track Caps Lock state on keyup too (in case it changed)
 		capsLockOn = e.getModifierState('CapsLock');
 
-		// Modifier keys - release logic handled by ModifierState
-		if (e.key === 'Shift') getModifier('shift').setKeyboard(false);
-		if (e.key === 'Alt') getModifier('alt').setKeyboard(false);
-		if (e.key === 'Tab') getModifier('tab').setKeyboard(false);
-		if (e.key === 'Control') getModifier('ctrl').setKeyboard(false);
+		// Modifier keys - release logic handled by modifierState
+		if (e.key === 'Shift') modifierState.setShiftKeyboard(false);
+		if (e.key === 'Alt') modifierState.setAltKeyboard(false);
+		if (e.key === 'Tab') modifierState.setTabKeyboard(false);
+		if (e.key === 'Control') modifierState.setCtrlKeyboard(false);
 		if (e.key === ' ') spacePressed = false;
 
 		const mappedKey = KeyboardUtil.codeToKey(e.code);
@@ -596,9 +442,7 @@ export const keyboardState = {
 		appState.clearPressedNotes();
 
 		// Reset all modifiers
-		for (const modifier of modifiers.values()) {
-			modifier.reset();
-		}
+		modifierState.resetAll();
 
 		spacePressed = false;
 		// Note: capsLockOn is not reset on blur - it's a hardware toggle state
@@ -610,8 +454,8 @@ export const keyboardState = {
 
 	handleDegreeMouseDown(degree: number): void {
 		isDraggingDegree = true;
-		const seventhMode = keyboardState.tabPressed;
-		const ninthMode = keyboardState.ninePressed;
+		const seventhMode = modifierState.tabPressed;
+		const ninthMode = modifierState.ctrlPressed;
 
 		appState.pressedDegree = degree;
 		currentChordNotes = getChordNotesForDegree(
@@ -631,8 +475,8 @@ export const keyboardState = {
 				appState.removePressedNotes(currentChordNotes);
 			}
 
-			const seventhMode = keyboardState.tabPressed;
-			const ninthMode = keyboardState.ninePressed;
+			const seventhMode = modifierState.tabPressed;
+			const ninthMode = modifierState.ctrlPressed;
 			appState.pressedDegree = degree;
 			currentChordNotes = getChordNotesForDegree(
 				degree,
@@ -667,8 +511,8 @@ export const keyboardState = {
 				noteInfo.note,
 				isMinor,
 				keyboardState.inversion,
-				keyboardState.tabPressed,
-				keyboardState.ninePressed
+				modifierState.tabPressed,
+				modifierState.ctrlPressed
 			);
 			if (chordNotes.length > 0) {
 				mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
