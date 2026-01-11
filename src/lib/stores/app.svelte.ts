@@ -1,7 +1,6 @@
 import { Chord } from 'tonal';
 import { SvelteSet } from 'svelte/reactivity';
 import { FormatUtil } from '$lib/utils/format.util';
-import { audioState } from './audio.svelte';
 import { midiState } from './midi.svelte';
 import type { Mode, VoicingMode, PlayMode } from '$lib/types';
 
@@ -41,19 +40,16 @@ export interface AppState {
 	playMode: PlayMode;
 	togglePlayMode(): void;
 
-	// Pressed state (visual + audio)
+	// Pressed state (visual + MIDI)
 	pressedDegree: number | null;
 	pressedNotes: SvelteSet<string>;
 	addPressedNote(note: string, octave: number): void;
 	removePressedNote(note: string, octave: number): void;
+	addPressedNoteFromMidi(note: string, octave: number): void;
+	removePressedNoteFromMidi(note: string, octave: number): void;
 	addPressedNotes(notes: Array<{ note: string; octave: number }>): void;
 	removePressedNotes(notes: Array<{ note: string; octave: number }>): void;
 	clearPressedNotes(): void;
-
-	// Audio mute
-	isMuted: boolean;
-	setMuted(value: boolean): void;
-	toggleMuted(): void;
 
 	// Derived
 	getHighlightedPianoNotes(): Array<{ note: string; octave: number }>;
@@ -322,58 +318,47 @@ export const appState = {
 		return pressedNotes;
 	},
 
-	// Add a note to the pressed set and play audio
+	// Add a note from UI/keyboard and send MIDI OUT
 	addPressedNote(note: string, octave: number) {
 		pressedNotes.add(`${note}${octave}`);
-		audioState.playNote(note, octave);
 		midiState.sendNoteOn(note, octave);
 	},
 
-	// Remove a note from the pressed set and stop audio
+	// Remove a note from UI/keyboard and send MIDI OFF
 	removePressedNote(note: string, octave: number) {
 		pressedNotes.delete(`${note}${octave}`);
-		audioState.stopNote(note, octave);
 		midiState.sendNoteOff(note, octave);
 	},
 
-	// Add multiple notes at once (for chords) and play audio
+	// Add a note from MIDI IN (visual only, no MIDI OUT)
+	addPressedNoteFromMidi(note: string, octave: number) {
+		pressedNotes.add(`${note}${octave}`);
+	},
+
+	// Remove a note from MIDI IN (visual only, no MIDI OUT)
+	removePressedNoteFromMidi(note: string, octave: number) {
+		pressedNotes.delete(`${note}${octave}`);
+	},
+
+	// Add multiple notes at once (for chords) and send MIDI OUT
 	addPressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.add(`${n.note}${n.octave}`);
 			midiState.sendNoteOn(n.note, n.octave);
 		}
-		audioState.playNotes(notes);
 	},
 
-	// Remove multiple notes at once (for chords) and stop audio
+	// Remove multiple notes at once (for chords) and send MIDI OFF
 	removePressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.delete(`${n.note}${n.octave}`);
 			midiState.sendNoteOff(n.note, n.octave);
 		}
-		audioState.stopNotes(notes);
 	},
 
-	// Clear all pressed notes and stop all audio
+	// Clear all pressed notes
 	clearPressedNotes() {
 		pressedNotes.clear();
-		audioState.stopAllNotes();
-	},
-
-	// Audio mute controls
-	get isMuted() {
-		return audioState.muted;
-	},
-
-	setMuted(value: boolean) {
-		if (value) {
-			this.clearPressedNotes();
-		}
-		audioState.muted = value;
-	},
-
-	toggleMuted() {
-		this.setMuted(!audioState.muted);
 	},
 
 	// Get the notes that should be highlighted on the piano based on pressed notes

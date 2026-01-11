@@ -62,12 +62,12 @@ function handleMidiMessage(event: MIDIMessageEvent): void {
 	if (isNoteOn) {
 		const noteInfo = midiNoteToNoteInfo(noteNumber);
 		pressedMidiNotes.set(noteNumber, noteInfo);
-		appState.addPressedNote(noteInfo.note, noteInfo.octave);
+		appState.addPressedNoteFromMidi(noteInfo.note, noteInfo.octave);
 	} else if (isNoteOff) {
 		const noteInfo = pressedMidiNotes.get(noteNumber);
 		if (noteInfo) {
 			pressedMidiNotes.delete(noteNumber);
-			appState.removePressedNote(noteInfo.note, noteInfo.octave);
+			appState.removePressedNoteFromMidi(noteInfo.note, noteInfo.octave);
 		}
 	}
 }
@@ -122,7 +122,7 @@ function selectInput(inputId: string | null): void {
 
 	// Clear any hanging notes
 	for (const [, noteInfo] of pressedMidiNotes) {
-		appState.removePressedNote(noteInfo.note, noteInfo.octave);
+		appState.removePressedNoteFromMidi(noteInfo.note, noteInfo.octave);
 	}
 	pressedMidiNotes.clear();
 
@@ -143,7 +143,7 @@ function selectOutput(outputId: string | null): void {
 }
 
 /** Send MIDI Note On message */
-function sendNoteOn(note: string, octave: number, velocity: number = 100): void {
+function sendNoteOn(note: string, octave: number, velocity: number = 80): void {
 	if (!selectedOutputId || !midiAccess) return;
 	const output = midiAccess.outputs.get(selectedOutputId);
 	if (!output) return;
