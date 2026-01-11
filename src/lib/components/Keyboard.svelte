@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { appState } from '$lib/stores/app.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
+	import { ChordUtil } from '$lib/utils/chord.util';
 	import Chord from './Chord.svelte';
 	import MidiMenu from './MidiMenu.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
@@ -57,11 +58,8 @@
 		isSeventh: boolean,
 		isNinth: boolean
 	): string | null {
-		// Build chord symbol
-		let chordSymbol = note + (isMinor ? 'm' : '');
-		if (isNinth) chordSymbol += '9';
-		else if (isSeventh) chordSymbol += isMinor ? '7' : 'maj7';
-
+		const useModern7th = appState.seventhStyle === 'modern';
+		const chordSymbol = ChordUtil.buildChordSymbol(note, isMinor, isSeventh, isNinth, useModern7th);
 		const result = FormatUtil.getChordRomanNumeral(
 			chordSymbol,
 			appState.selectedRoot,
@@ -78,7 +76,16 @@
 		isNinth: boolean,
 		keyRoot: string
 	): { root: string; bassNote: string | undefined } {
-		return FormatUtil.getChordDisplayInfo(note, isMinor, inv, isSeventh, isNinth, keyRoot);
+		const useModern7th = appState.seventhStyle === 'modern';
+		return FormatUtil.getChordDisplayInfo(
+			note,
+			isMinor,
+			inv,
+			isSeventh,
+			isNinth,
+			keyRoot,
+			useModern7th
+		);
 	}
 </script>
 
@@ -163,13 +170,11 @@
 				class="key wide-key dark-key caps-key"
 				class:disabled-key={appState.playMode === 'notes'}
 			>
-				<span class="key-label">caps</span>
-				{#if appState.playMode !== 'notes'}
-					<span class="key-function caps-label">
-						<span>PARALLEL</span>
-						<span class="caps-mode">{kb.capsLockOn ? 'MINOR' : 'MAJOR'}</span>
-					</span>
-				{/if}
+				<span class="key-label">caps lock</span>
+				<span class="key-function caps-label" class:muted={appState.playMode === 'notes'}>
+					<span>PARALLEL</span>
+					<span class="caps-mode">{kb.capsLockOn ? 'MINOR' : 'MAJOR'}</span>
+				</span>
 			</div>
 			{#each kb.pianoKeys as pk, i (pk.white)}
 				{@const isChordMode = appState.playMode === 'chords'}
@@ -288,6 +293,7 @@
 				{@const action = kb.actionMap[key]}
 				{@const isVoicingKey = key === 'V'}
 				{@const isPlayModeKey = key === 'C'}
+				{@const isSeventhStyleKey = key === 'B'}
 				{@const isOctaveDownDisabled = key === 'Z' && appState.chordDisplayOctave <= 3}
 				{@const isOctaveUpDisabled = key === 'X' && appState.chordDisplayOctave >= 5}
 				<div
@@ -301,6 +307,7 @@
 						else if (key === 'X') appState.incrementChordOctave();
 						else if (key === 'V') appState.toggleVoicingMode();
 						else if (key === 'C') appState.togglePlayMode();
+						else if (key === 'B') appState.toggleSeventhStyle();
 					}}
 					onmouseup={() => (kb.clickedActionKey = null)}
 					onmouseleave={() => (kb.clickedActionKey = null)}
@@ -312,12 +319,19 @@
 						<span class="key-function voicing-label">
 							<span class="voicing-mode">{appState.voicingMode === 'open' ? 'OPEN' : 'CLOSED'}</span
 							>
-							<span>VOICE</span>
+							<span>VOICING</span>
 						</span>
 					{:else if isPlayModeKey}
 						<span class="key-function play-mode-label">
 							<span>PLAY</span>
 							<span class="play-mode">{appState.playMode === 'notes' ? 'NOTES' : 'CHORDS'}</span>
+						</span>
+					{:else if isSeventhStyleKey}
+						<span class="key-function seventh-style-label">
+							<span class="seventh-style"
+								>{appState.seventhStyle === 'classic' ? 'CLASSIC' : 'MODERN'}</span
+							>
+							<span>STYLE</span>
 						</span>
 					{:else if action}
 						<span
@@ -330,10 +344,6 @@
 					{/if}
 				</div>
 			{/each}
-			<!-- B key (disabled placeholder) -->
-			<div class="key dark-key disabled-key">
-				<span class="key-label">B</span>
-			</div>
 			<!-- N key (MIDI IN toggle) -->
 			<div class="midi-key-wrapper">
 				<div
@@ -791,8 +801,21 @@
 	}
 
 	.voicing-mode,
-	.play-mode {
+	.play-mode,
+	.seventh-style {
 		color: var(--accent-color);
+	}
+
+	.dark-key > .seventh-style-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: var(--text-primary);
 	}
 
 	.octave-label.disabled-label {
@@ -813,6 +836,14 @@
 
 	.caps-mode {
 		color: var(--accent-color);
+	}
+
+	.caps-label.muted {
+		color: var(--kb-disabled);
+	}
+
+	.caps-label.muted .caps-mode {
+		color: var(--kb-disabled);
 	}
 
 	.space-key > .space-label {

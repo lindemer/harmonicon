@@ -56,6 +56,7 @@ export class KeyboardUtil {
 		KeyX: 'x',
 		KeyC: 'c',
 		KeyV: 'v',
+		KeyB: 'b',
 		KeyN: 'n',
 		KeyM: 'm'
 	};

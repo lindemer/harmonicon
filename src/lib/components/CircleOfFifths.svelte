@@ -3,6 +3,7 @@
 	import { appState } from '$lib/stores/app.svelte';
 	import { keyboardState } from '$lib/stores/keyboard.svelte';
 	import { FormatUtil } from '$lib/utils/format.util';
+	import { ChordUtil } from '$lib/utils/chord.util';
 	import { GeometryUtil } from '$lib/utils/geometry.util';
 	import { VoicingUtil } from '$lib/utils/voicing.util';
 	import ChordDisplay from './Chord.svelte';
@@ -128,22 +129,23 @@
 		ninth: boolean = false
 	): string {
 		const key = keys[segmentIndex];
+		const useModern7th = appState.seventhStyle === 'modern';
+
+		// Major and minor chords use ChordUtil.buildChordSymbol for consistency
+		if (ring === 'major') {
+			return ChordUtil.buildChordSymbol(key.major, false, seventh, ninth, useModern7th);
+		}
+		if (ring === 'minor') {
+			return ChordUtil.buildChordSymbol(key.minor, true, seventh, ninth, useModern7th);
+		}
+
+		// Diminished ring: special handling - becomes half-diminished in 7th/9th mode
 		if (ninth) {
-			// 9th chord symbols: maj9 for major, m9 for minor, m9b5 for diminished
-			if (ring === 'major') return key.major + 'maj9';
-			if (ring === 'minor') return key.minor + 'm9'; // Minor 9th (e.g., Am9)
-			// Diminished becomes half-diminished 9th (m9b5) in 9th mode
 			return FormatUtil.formatNote(key.dimNote) + 'm9b5';
 		}
 		if (seventh) {
-			// 7th chord symbols: Maj7 for major, m7 for minor, m7b5 for diminished
-			if (ring === 'major') return key.major + 'maj7';
-			if (ring === 'minor') return key.minor + 'm7'; // Minor 7th (e.g., Am7)
-			// Diminished becomes half-diminished (m7b5) in 7th mode
 			return FormatUtil.formatNote(key.dimNote) + 'm7b5';
 		}
-		if (ring === 'major') return key.major;
-		if (ring === 'minor') return key.minor + 'm';
 		return key.dim;
 	}
 

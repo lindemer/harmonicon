@@ -34,9 +34,15 @@ export class VoicingUtil {
 	 * @param degree - Scale degree (1-7)
 	 * @param keyRoot - Root note of the key (e.g., 'C', 'G')
 	 * @param mode - 'major' or 'minor'
+	 * @param useModern7th - If true, convert maj7 chords to dominant 7 (flat 7)
 	 * @returns Tonal Chord object or null if invalid degree
 	 */
-	static getSeventhChordForDegree(degree: number, keyRoot: string, mode: Mode): ChordType | null {
+	static getSeventhChordForDegree(
+		degree: number,
+		keyRoot: string,
+		mode: Mode,
+		useModern7th: boolean = false
+	): ChordType | null {
 		if (degree < 1 || degree > 7) return null;
 
 		// Get 7th chords based on mode
@@ -46,8 +52,17 @@ export class VoicingUtil {
 				? Key.majorKey(keyRoot).chords
 				: Key.minorKey(Key.majorKey(keyRoot).minorRelative).natural.chords;
 
-		const chord = chords[degree - 1];
-		return Chord.get(chord);
+		const chordSymbol = chords[degree - 1];
+		const chord = Chord.get(chordSymbol);
+
+		// In modern mode, convert maj7 chords to dominant 7 (lower the 7th by a semitone)
+		if (useModern7th && chord.quality === 'Major' && chordSymbol.includes('maj7')) {
+			// Get the chord root and build a dominant 7 chord instead
+			const root = chord.notes[0];
+			return Chord.get(root + '7');
+		}
+
+		return chord;
 	}
 
 	/**
@@ -56,13 +71,19 @@ export class VoicingUtil {
 	 * @param degree - Scale degree (1-7)
 	 * @param keyRoot - Root note of the key (e.g., 'C', 'G')
 	 * @param mode - 'major' or 'minor'
+	 * @param useModern7th - If true, convert maj9 chords to dominant 9 (flat 7)
 	 * @returns Tonal Chord object with 5 notes, or null if invalid degree
 	 */
-	static getNinthChordForDegree(degree: number, keyRoot: string, mode: Mode): ChordType | null {
+	static getNinthChordForDegree(
+		degree: number,
+		keyRoot: string,
+		mode: Mode,
+		useModern7th: boolean = false
+	): ChordType | null {
 		if (degree < 1 || degree > 7) return null;
 
-		// Get the 7th chord first
-		const seventhChord = this.getSeventhChordForDegree(degree, keyRoot, mode);
+		// Get the 7th chord first (with modern 7th handling)
+		const seventhChord = this.getSeventhChordForDegree(degree, keyRoot, mode, useModern7th);
 		if (!seventhChord || seventhChord.empty) return null;
 
 		// The 9th is always a major 2nd (whole step) above the chord root

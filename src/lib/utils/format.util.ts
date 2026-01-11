@@ -1,6 +1,7 @@
 import type { Mode } from '$lib/types';
 import { Key, Chord, Note, Progression } from 'tonal';
 import { VoicingUtil } from './voicing.util';
+import { ChordUtil } from './chord.util';
 
 /**
  * Centralized utility class for music notation formatting and theory computations.
@@ -347,16 +348,10 @@ export class FormatUtil {
 		inv: 0 | 1 | 2 | 3,
 		isSeventh: boolean,
 		isNinth: boolean,
-		keyRoot: string
+		keyRoot: string,
+		useModern7th: boolean = false
 	): { root: string; bassNote: string | undefined } {
-		// Build chord symbol based on modifiers
-		let chordSymbol = note + (isMinor ? 'm' : '');
-		if (isNinth) {
-			chordSymbol += '9';
-		} else if (isSeventh) {
-			chordSymbol += isMinor ? '7' : 'maj7';
-		}
-
+		const chordSymbol = ChordUtil.buildChordSymbol(note, isMinor, isSeventh, isNinth, useModern7th);
 		const chord = Chord.get(chordSymbol);
 		if (chord.empty || !chord.notes.length) {
 			return { root: isMinor ? note.toLowerCase() : note, bassNote: undefined };
