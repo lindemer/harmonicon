@@ -95,7 +95,7 @@
 	function getNoteInfo(key: KeyInfo): { inMajorScale: boolean; color: string } {
 		const majorDegree = FormatUtil.getNoteDegreeInMajorKey(key.note, appState.selectedRoot);
 		const inMajorScale = majorDegree !== null;
-		const color = FormatUtil.getDegreeColor(majorDegree, '#4b5563');
+		const color = FormatUtil.getDegreeColor(majorDegree, '#57534e'); /* stone-600 */
 		return { inMajorScale, color };
 	}
 
@@ -230,7 +230,7 @@
 	{@const labelX = key.x + (isBlack ? blackKey.width : whiteKey.width) / 2}
 	{@const labelY = isBlack ? blackKey.height - 10 : whiteKey.height - 18}
 	{@const fontSize = isBlack ? 9 : 11}
-	{@const textColor = isBlack ? '#e5e7eb' : '#374151'}
+	{@const textColor = isBlack ? '#e7e5e4' : '#44403c'}
 	{@const intervalOffset = isBlack ? labelRadius + 6 : labelRadius + 8}
 
 	{#if info.inMajorScale}
@@ -270,7 +270,7 @@
 	</defs>
 
 	<!-- Background matching CircleOfFifths -->
-	<rect x="0" y="0" width={svgWidth} height={octaveLabelHeight} fill="#111827" />
+	<rect x="0" y="0" width={svgWidth} height={octaveLabelHeight} fill="var(--bg-primary)" />
 
 	<!-- Octave labels above keyboard -->
 	{#each whiteKeys as key (`${key.note}${key.octave}`)}
@@ -281,7 +281,7 @@
 				text-anchor="middle"
 				dominant-baseline="middle"
 				font-size="8"
-				fill={key.octave === appState.chordDisplayOctave ? '#f59e0b' : '#9ca3af'}
+				fill={key.octave === appState.chordDisplayOctave ? '#f59e0b' : 'var(--text-secondary)'}
 				class="font-music pointer-events-none"
 			>
 				C{key.octave}
@@ -307,7 +307,7 @@
 					height={whiteKey.height + whiteKey.radius}
 					rx={whiteKey.radius}
 					ry={whiteKey.radius}
-					fill={highlighted ? '#d1d5db' : '#ffffff'}
+					fill={highlighted ? '#d6d3d1' : '#ffffff'}
 					class="piano-key white-piano-key cursor-pointer"
 					role="button"
 					tabindex="0"
@@ -336,7 +336,7 @@
 					height={blackKey.height + blackKey.radius}
 					rx={blackKey.radius}
 					ry={blackKey.radius}
-					fill={highlighted ? '#374151' : '#1f2937'}
+					fill={highlighted ? '#44403c' : '#292524'}
 					class="piano-key black-piano-key cursor-pointer"
 					role="button"
 					tabindex="0"
@@ -350,7 +350,7 @@
 	</g>
 
 	<!-- Thin border on top of keys to cover zoom artifacts -->
-	<rect x="0" y={octaveLabelHeight} width={svgWidth} height="1" fill="#111827" />
+	<rect x="0" y={octaveLabelHeight} width={svgWidth} height="1" fill="var(--bg-primary)" />
 </svg>
 
 <style>

@@ -16,7 +16,7 @@
 		inversion = 0,
 		isSeventh = false,
 		isNinth = false,
-		color = 'white',
+		color = 'var(--text-primary)',
 		size = 'md',
 		displayMode = 'roman'
 	}: Props = $props();

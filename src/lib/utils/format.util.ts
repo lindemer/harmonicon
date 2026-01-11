@@ -268,7 +268,11 @@ export class FormatUtil {
 	 * Returns fallback color for null/undefined degrees.
 	 * @param hover - If true, returns the hover variant color
 	 */
-	static getDegreeColor(degree: number | null, fallback = '#1f2937', hover = false): string {
+	static getDegreeColor(
+		degree: number | null,
+		fallback = 'var(--bg-secondary)',
+		hover = false
+	): string {
 		if (!degree) return fallback;
 		return hover ? `var(--degree-${degree}-hover)` : `var(--degree-${degree})`;
 	}
