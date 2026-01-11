@@ -1,110 +1,160 @@
-import { Chord, Note } from 'tonal';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { appState } from '$lib/stores/app.svelte';
 import { VoicingUtil } from '$lib/utils/voicing.util';
+import { KeyboardUtil } from '$lib/utils/keyboard.util';
+import { ChordUtil } from '$lib/utils/chord.util';
 import { midiState } from '$lib/stores/midi.svelte';
 
-// ============ Constants ============
+// ============ Modifier State Class ============
 
-/** Piano keys that trigger note playback */
-const pianoKeyChars = new Set([
-	'a',
-	's',
-	'd',
-	'f',
-	'g',
-	'h',
-	'j',
-	'k',
-	'l',
-	';',
-	'w',
-	'e',
-	't',
-	'y',
-	'u',
-	'o',
-	'p'
-]);
+type ModifierName = 'shift' | 'alt' | 'tab' | 'ctrl';
 
-/** Keyboard key to note mapping (for audio playback) */
-const KEY_TO_NOTE: Record<string, { note: string; octaveOffset: number }> = {
-	// White keys (home row)
-	a: { note: 'C', octaveOffset: 0 },
-	s: { note: 'D', octaveOffset: 0 },
-	d: { note: 'E', octaveOffset: 0 },
-	f: { note: 'F', octaveOffset: 0 },
-	g: { note: 'G', octaveOffset: 0 },
-	h: { note: 'A', octaveOffset: 0 },
-	j: { note: 'B', octaveOffset: 0 },
-	k: { note: 'C', octaveOffset: 1 },
-	l: { note: 'D', octaveOffset: 1 },
-	';': { note: 'E', octaveOffset: 1 },
-	// Black keys (top row)
-	w: { note: 'C#', octaveOffset: 0 },
-	e: { note: 'D#', octaveOffset: 0 },
-	t: { note: 'F#', octaveOffset: 0 },
-	y: { note: 'G#', octaveOffset: 0 },
-	u: { note: 'A#', octaveOffset: 0 },
-	o: { note: 'C#', octaveOffset: 1 },
-	p: { note: 'D#', octaveOffset: 1 }
-};
+interface ModifierConfig {
+	name: ModifierName;
+	blockedBy?: ModifierName[];
+	clearsOnActivate?: ModifierName[];
+	onActivate?: () => void;
+	onDeactivate?: () => void;
+}
 
-/** Map KeyboardEvent.code to key characters (handles Alt+key on macOS) */
-const codeToKey: Record<string, string> = {
-	KeyA: 'a',
-	KeyS: 's',
-	KeyD: 'd',
-	KeyF: 'f',
-	KeyG: 'g',
-	KeyH: 'h',
-	KeyJ: 'j',
-	KeyK: 'k',
-	KeyL: 'l',
-	Semicolon: ';',
-	KeyW: 'w',
-	KeyE: 'e',
-	KeyT: 't',
-	KeyY: 'y',
-	KeyU: 'u',
-	KeyO: 'o',
-	KeyP: 'p',
-	Digit1: '1',
-	Digit2: '2',
-	Digit3: '3',
-	Digit4: '4',
-	Digit5: '5',
-	Digit6: '6',
-	Digit7: '7',
-	KeyZ: 'z',
-	KeyX: 'x',
-	KeyC: 'c',
-	KeyV: 'v',
-	KeyN: 'n',
-	KeyM: 'm'
-};
+class ModifierState {
+	private keyboardPressed = $state(false);
+	private mousePressed = $state(false);
+
+	constructor(
+		private config: ModifierConfig,
+		private getModifier: (name: ModifierName) => ModifierState
+	) {}
+
+	get pressed(): boolean {
+		return this.keyboardPressed || this.mousePressed;
+	}
+
+	private isBlocked(): boolean {
+		if (!this.config.blockedBy) return false;
+		return this.config.blockedBy.some((name) => this.getModifier(name).pressed);
+	}
+
+	private clearConflicting(): void {
+		if (!this.config.clearsOnActivate) return;
+		for (const name of this.config.clearsOnActivate) {
+			this.getModifier(name).reset();
+		}
+	}
+
+	setKeyboard(value: boolean): void {
+		if (value && this.isBlocked()) return;
+		if (value) this.clearConflicting();
+
+		const wasPressedBefore = this.pressed;
+		this.keyboardPressed = value;
+		this.handleStateChange(wasPressedBefore);
+	}
+
+	setMouse(value: boolean): void {
+		if (value && this.isBlocked()) return;
+		if (value) this.clearConflicting();
+
+		const wasPressedBefore = this.pressed;
+		this.mousePressed = value;
+		this.handleStateChange(wasPressedBefore);
+	}
+
+	private handleStateChange(wasPressedBefore: boolean): void {
+		const isPressedNow = this.pressed;
+
+		if (!wasPressedBefore && isPressedNow) {
+			this.config.onActivate?.();
+		} else if (wasPressedBefore && !isPressedNow) {
+			this.config.onDeactivate?.();
+		}
+	}
+
+	reset(): void {
+		const wasPressedBefore = this.pressed;
+		this.keyboardPressed = false;
+		this.mousePressed = false;
+		if (wasPressedBefore) {
+			this.config.onDeactivate?.();
+		}
+	}
+}
 
 // ============ State ============
 
-// Modifier states - track physical keyboard and virtual keyboard (mouse) separately
-let shiftKeyboardPressed = $state(false);
-let altKeyboardPressed = $state(false);
-let tabKeyboardPressed = $state(false);
-let ctrlKeyboardPressed = $state(false);
-let capsLockOn = $state(false);
-let shiftMousePressed = $state(false);
-let altMousePressed = $state(false);
-let tabMousePressed = $state(false);
-let ctrlMousePressed = $state(false);
-let spacePressed = $state(false);
+// Modifier state instances - unified keyboard/mouse tracking with validation
+const modifiers = new SvelteMap<ModifierName, ModifierState>();
 
-// Visual feedback state
-let clickedActionKey = $state<string | null>(null);
+function getModifier(name: ModifierName): ModifierState {
+	return modifiers.get(name)!;
+}
+
+modifiers.set(
+	'shift',
+	new ModifierState(
+		{
+			name: 'shift',
+			blockedBy: ['ctrl']
+		},
+		getModifier
+	)
+);
+
+modifiers.set(
+	'alt',
+	new ModifierState(
+		{
+			name: 'alt',
+			blockedBy: ['ctrl']
+		},
+		getModifier
+	)
+);
+
+modifiers.set(
+	'tab',
+	new ModifierState(
+		{
+			name: 'tab',
+			blockedBy: ['ctrl'],
+			onActivate: () => {
+				appState.isSeventhMode = true;
+			},
+			onDeactivate: () => {
+				appState.isSeventhMode = false;
+			}
+		},
+		getModifier
+	)
+);
+
+modifiers.set(
+	'ctrl',
+	new ModifierState(
+		{
+			name: 'ctrl',
+			blockedBy: ['shift', 'alt', 'tab'],
+			clearsOnActivate: ['shift', 'alt', 'tab'],
+			onActivate: () => {
+				appState.isNinthMode = true;
+			},
+			onDeactivate: () => {
+				appState.isNinthMode = false;
+			}
+		},
+		getModifier
+	)
+);
+
+// Keyboard state (exported via keyboardState object)
+let capsLockOn = $state(false);
+let spacePressed = $state(false);
 let spaceClicked = $state(false);
+let clickedActionKey = $state<string | null>(null);
 let nKeyPressed = $state(false);
 let mKeyPressed = $state(false);
 
-// Drag states
+// Internal drag states (not exported)
 let isDraggingDegree = $state(false);
 let isDraggingNote = $state(false);
 let mouseInBlackKeyZone = $state(false); // For realistic glissando behavior
@@ -124,10 +174,7 @@ const mouseChordNotes = new SvelteMap<string, Array<{ note: string; octave: numb
 
 /** Get note info for audio playback */
 function getNoteForKey(key: string): { note: string; octave: number } | null {
-	const keyInfo = KEY_TO_NOTE[key.toLowerCase()];
-	if (!keyInfo) return null;
-	const octave = appState.chordDisplayOctave + 1 + keyInfo.octaveOffset;
-	return { note: keyInfo.note, octave };
+	return KeyboardUtil.getNoteForKey(key, appState.chordDisplayOctave);
 }
 
 /** Get chord notes for a scale degree */
@@ -162,32 +209,52 @@ function getChordNotesForNote(
 	isSeventh: boolean = false,
 	isNinth: boolean = false
 ): Array<{ note: string; octave: number }> {
-	// Build chord symbol based on modifiers
-	let chordSymbol = note + (isMinor ? 'm' : '');
-	if (isNinth) {
-		// Use add9 for triads with 9th, or 9 for dominant 9th
-		chordSymbol += '9';
-	} else if (isSeventh) {
-		// Major chords get maj7, minor chords get m7 (already has 'm')
-		chordSymbol += isMinor ? '7' : 'maj7';
-	}
-
-	const chord = Chord.get(chordSymbol);
-	if (chord.empty || !chord.notes.length) return [];
-
-	// Use appState.chordDisplayOctave directly, just like getChordNotesForDegree
-	const voicedNotes = VoicingUtil.getVoicedNotes(
-		chord.notes,
+	return ChordUtil.getChordNotes(
+		note,
+		isMinor,
 		inversion,
+		isSeventh,
+		isNinth,
 		appState.chordDisplayOctave,
 		appState.voicingMode
 	);
+}
 
-	// Normalize any double sharps/flats to simpler enharmonics (e.g., F## -> G)
-	return voicedNotes.map((vn) => ({
-		note: Note.simplify(vn.note) || vn.note,
-		octave: vn.octave
-	}));
+/** Play a note or chord at the given key (used during mouse drag) */
+function playMouseNoteOrChord(noteKey: string): void {
+	const noteInfo = getNoteForKey(noteKey);
+	if (!noteInfo) return;
+
+	if (appState.playMode === 'chords') {
+		// Stop previous chord notes
+		for (const [key, notes] of mouseChordNotes) {
+			appState.removePressedNotes(notes);
+			clickedVirtualKeys.delete(key);
+		}
+		mouseChordNotes.clear();
+
+		// Start new chord
+		clickedVirtualKeys.add(noteKey.toLowerCase());
+		const isMinor = capsLockOn;
+		const chordNotes = getChordNotesForNote(
+			noteInfo.note,
+			isMinor,
+			keyboardState.inversion,
+			keyboardState.tabPressed,
+			keyboardState.ninePressed
+		);
+		if (chordNotes.length > 0) {
+			mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
+			appState.addPressedNotes(chordNotes);
+		}
+	} else {
+		// Notes mode
+		if (currentNoteInfo) {
+			appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
+		}
+		currentNoteInfo = noteInfo;
+		appState.addPressedNote(noteInfo.note, noteInfo.octave);
+	}
 }
 
 /** Piano key layout: each key is 64px wide with 4px gap, total 68px per key */
@@ -252,74 +319,24 @@ export const keyboardState = {
 		X: { text: 'OCTAVE', text2: 'UP' }
 	} as Record<string, { text: string; text2: string }>,
 
-	// State getters/setters - combined state from keyboard and mouse
-	get shiftPressed() {
-		return shiftKeyboardPressed || shiftMousePressed;
-	},
-	get altPressed() {
-		return altKeyboardPressed || altMousePressed;
-	},
-	get tabPressed() {
-		return tabKeyboardPressed || tabMousePressed;
-	},
-	get ninePressed() {
-		return ctrlKeyboardPressed || ctrlMousePressed;
-	},
+	// State accessors
 	get capsLockOn() {
 		return capsLockOn;
 	},
-	// Mouse-specific setters for virtual keyboard
-	set shiftMousePressed(value: boolean) {
-		shiftMousePressed = value;
-	},
-	set altMousePressed(value: boolean) {
-		altMousePressed = value;
-	},
-	set tabMousePressed(value: boolean) {
-		// Tab is mutually exclusive with ctrl (9th mode)
-		if (value && (ctrlKeyboardPressed || ctrlMousePressed)) return;
-		tabMousePressed = value;
-		appState.isSeventhMode = value || tabKeyboardPressed;
-	},
-	set ctrlMousePressed(value: boolean) {
-		// Ctrl (9th mode) is mutually exclusive with Tab, Alt, Shift
-		if (
-			value &&
-			(tabKeyboardPressed ||
-				tabMousePressed ||
-				altKeyboardPressed ||
-				altMousePressed ||
-				shiftKeyboardPressed ||
-				shiftMousePressed)
-		)
-			return;
-		if (value) {
-			// Clear other modifiers when ctrl is pressed
-			tabKeyboardPressed = false;
-			tabMousePressed = false;
-			altKeyboardPressed = false;
-			altMousePressed = false;
-			shiftKeyboardPressed = false;
-			shiftMousePressed = false;
-			appState.isSeventhMode = false;
-		}
-		ctrlMousePressed = value;
-		appState.isNinthMode = value || ctrlKeyboardPressed;
-	},
 	get spacePressed() {
 		return spacePressed;
-	},
-	get clickedActionKey() {
-		return clickedActionKey;
-	},
-	set clickedActionKey(value: string | null) {
-		clickedActionKey = value;
 	},
 	get spaceClicked() {
 		return spaceClicked;
 	},
 	set spaceClicked(value: boolean) {
 		spaceClicked = value;
+	},
+	get clickedActionKey() {
+		return clickedActionKey;
+	},
+	set clickedActionKey(value: string | null) {
+		clickedActionKey = value;
 	},
 	get nKeyPressed() {
 		return nKeyPressed;
@@ -334,6 +351,33 @@ export const keyboardState = {
 		mKeyPressed = value;
 	},
 
+	// Computed modifier state (combined keyboard + mouse)
+	get shiftPressed() {
+		return getModifier('shift').pressed;
+	},
+	get altPressed() {
+		return getModifier('alt').pressed;
+	},
+	get tabPressed() {
+		return getModifier('tab').pressed;
+	},
+	get ninePressed() {
+		return getModifier('ctrl').pressed;
+	},
+	// Mouse-specific setters for virtual keyboard
+	set shiftMousePressed(value: boolean) {
+		getModifier('shift').setMouse(value);
+	},
+	set altMousePressed(value: boolean) {
+		getModifier('alt').setMouse(value);
+	},
+	set tabMousePressed(value: boolean) {
+		getModifier('tab').setMouse(value);
+	},
+	set ctrlMousePressed(value: boolean) {
+		getModifier('ctrl').setMouse(value);
+	},
+
 	/** Current inversion based on modifiers and 7th mode
 	 * In 9th mode: always 0 (no inversions)
 	 * In 7th mode: Alt=1st, Shift=2nd, Alt+Shift=3rd
@@ -341,11 +385,11 @@ export const keyboardState = {
 	 */
 	get inversion(): 0 | 1 | 2 | 3 {
 		// 9th mode has no inversions
-		if (ctrlKeyboardPressed || ctrlMousePressed) return 0;
+		if (getModifier('ctrl').pressed) return 0;
 
-		const shift = shiftKeyboardPressed || shiftMousePressed;
-		const alt = altKeyboardPressed || altMousePressed;
-		const seventh = tabKeyboardPressed || tabMousePressed;
+		const shift = getModifier('shift').pressed;
+		const alt = getModifier('alt').pressed;
+		const seventh = getModifier('tab').pressed;
 
 		if (shift && alt) {
 			// Both pressed: 3rd inversion in 7th mode, 2nd inversion otherwise
@@ -361,7 +405,7 @@ export const keyboardState = {
 		const keyLower = key.toLowerCase();
 
 		// For piano keys, check if this key specifically is pressed
-		const noteInfo = KEY_TO_NOTE[keyLower];
+		const noteInfo = KeyboardUtil.KEY_TO_NOTE[keyLower];
 		if (noteInfo) {
 			if (appState.playMode === 'chords') {
 				// In chord mode: check if the key itself is pressed (keyboard or mouse)
@@ -387,7 +431,8 @@ export const keyboardState = {
 		return clickedActionKey === key;
 	},
 
-	getDegree(key: string): number | null {
+	getDegree(key: string | undefined): number | null {
+		if (!key) return null;
 		const num = parseInt(key);
 		if (num >= 1 && num <= 7) return num;
 		return null;
@@ -395,8 +440,6 @@ export const keyboardState = {
 
 	// Event handlers
 	handleKeydown(e: KeyboardEvent): void {
-		const ctrlActive = ctrlKeyboardPressed || ctrlMousePressed;
-
 		// Always prevent default Tab behavior
 		if (e.key === 'Tab') {
 			e.preventDefault();
@@ -405,35 +448,19 @@ export const keyboardState = {
 		// Track Caps Lock state (toggle key, not hold key)
 		capsLockOn = e.getModifierState('CapsLock');
 
-		// Shift, Alt, Tab are mutually exclusive with ctrl (9th mode)
-		if (e.key === 'Shift' && !ctrlActive) shiftKeyboardPressed = true;
-		if (e.key === 'Alt' && !ctrlActive) altKeyboardPressed = true;
-		if (e.key === 'Tab' && !ctrlActive) {
-			tabKeyboardPressed = true;
-			appState.isSeventhMode = true;
-		}
+		// Modifier keys - validation is handled by ModifierState
+		if (e.key === 'Shift') getModifier('shift').setKeyboard(true);
+		if (e.key === 'Alt') getModifier('alt').setKeyboard(true);
+		if (e.key === 'Tab') getModifier('tab').setKeyboard(true);
+		if (e.key === 'Control' && !e.repeat) getModifier('ctrl').setKeyboard(true);
+
 		if (e.key === ' ' && !e.repeat) {
 			e.preventDefault();
 			spacePressed = true;
 			appState.toggleMode();
 		}
 
-		// Handle Ctrl key for 9th chord mode (mutually exclusive with Tab, Alt, Shift)
-		if (e.key === 'Control' && !e.repeat) {
-			const anyModifierActive =
-				tabKeyboardPressed ||
-				tabMousePressed ||
-				altKeyboardPressed ||
-				altMousePressed ||
-				shiftKeyboardPressed ||
-				shiftMousePressed;
-			if (!anyModifierActive) {
-				ctrlKeyboardPressed = true;
-				appState.isNinthMode = true;
-			}
-		}
-
-		const mappedKey = codeToKey[e.code];
+		const mappedKey = KeyboardUtil.codeToKey(e.code);
 
 		if (mappedKey === 'z') {
 			clickedActionKey = 'Z';
@@ -461,7 +488,7 @@ export const keyboardState = {
 		}
 
 		// Handle piano keys (A-L, W-P)
-		if (mappedKey && pianoKeyChars.has(mappedKey) && !e.repeat) {
+		if (mappedKey && KeyboardUtil.isPianoKey(mappedKey) && !e.repeat) {
 			const noteInfo = getNoteForKey(mappedKey);
 			if (!noteInfo) return;
 
@@ -512,27 +539,14 @@ export const keyboardState = {
 		// Track Caps Lock state on keyup too (in case it changed)
 		capsLockOn = e.getModifierState('CapsLock');
 
-		if (e.key === 'Shift') shiftKeyboardPressed = false;
-		if (e.key === 'Alt') altKeyboardPressed = false;
-		if (e.key === 'Tab') {
-			tabKeyboardPressed = false;
-			// Only exit seventh mode if mouse tab is also not pressed
-			if (!tabMousePressed) {
-				appState.isSeventhMode = false;
-			}
-		}
+		// Modifier keys - release logic handled by ModifierState
+		if (e.key === 'Shift') getModifier('shift').setKeyboard(false);
+		if (e.key === 'Alt') getModifier('alt').setKeyboard(false);
+		if (e.key === 'Tab') getModifier('tab').setKeyboard(false);
+		if (e.key === 'Control') getModifier('ctrl').setKeyboard(false);
 		if (e.key === ' ') spacePressed = false;
 
-		// Handle Ctrl key release
-		if (e.key === 'Control') {
-			ctrlKeyboardPressed = false;
-			// Only exit ninth mode if mouse ctrl is also not pressed
-			if (!ctrlMousePressed) {
-				appState.isNinthMode = false;
-			}
-		}
-
-		const mappedKey = codeToKey[e.code];
+		const mappedKey = KeyboardUtil.codeToKey(e.code);
 
 		// Handle action key release (Z, X, V, C)
 		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c') {
@@ -546,7 +560,7 @@ export const keyboardState = {
 		}
 
 		// Handle piano key release
-		if (mappedKey && pianoKeyChars.has(mappedKey)) {
+		if (mappedKey && KeyboardUtil.isPianoKey(mappedKey)) {
 			// Check if this key has chord notes playing (chord mode)
 			if (playingPianoKeyChords.has(mappedKey)) {
 				const chordNotes = playingPianoKeyChords.get(mappedKey)!;
@@ -580,16 +594,12 @@ export const keyboardState = {
 		currentNoteInfo = null;
 		appState.pressedDegree = null;
 		appState.clearPressedNotes();
-		appState.isSeventhMode = false;
-		appState.isNinthMode = false;
-		shiftKeyboardPressed = false;
-		altKeyboardPressed = false;
-		tabKeyboardPressed = false;
-		ctrlKeyboardPressed = false;
-		shiftMousePressed = false;
-		altMousePressed = false;
-		tabMousePressed = false;
-		ctrlMousePressed = false;
+
+		// Reset all modifiers
+		for (const modifier of modifiers.values()) {
+			modifier.reset();
+		}
+
 		spacePressed = false;
 		// Note: capsLockOn is not reset on blur - it's a hardware toggle state
 		nKeyPressed = false;
@@ -677,39 +687,7 @@ export const keyboardState = {
 		// During glissando, white keys only trigger below black key level (realistic piano behavior)
 		if (!isBlackKey && mouseInBlackKeyZone) return;
 
-		const noteInfo = getNoteForKey(noteKey);
-		if (!noteInfo) return;
-
-		if (appState.playMode === 'chords') {
-			// Stop previous chord notes
-			for (const [key, notes] of mouseChordNotes) {
-				appState.removePressedNotes(notes);
-				clickedVirtualKeys.delete(key);
-			}
-			mouseChordNotes.clear();
-
-			// Start new chord
-			clickedVirtualKeys.add(noteKey.toLowerCase());
-			const isMinor = capsLockOn;
-			const chordNotes = getChordNotesForNote(
-				noteInfo.note,
-				isMinor,
-				keyboardState.inversion,
-				keyboardState.tabPressed,
-				keyboardState.ninePressed
-			);
-			if (chordNotes.length > 0) {
-				mouseChordNotes.set(noteKey.toLowerCase(), chordNotes);
-				appState.addPressedNotes(chordNotes);
-			}
-		} else {
-			// Notes mode - original behavior
-			if (currentNoteInfo) {
-				appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-			}
-			currentNoteInfo = noteInfo;
-			appState.addPressedNote(noteInfo.note, noteInfo.octave);
-		}
+		playMouseNoteOrChord(noteKey);
 	},
 
 	handlePianoSectionMouseMove(e: MouseEvent): void {
@@ -728,39 +706,7 @@ export const keyboardState = {
 		if (wasInBlackZone !== nowInBlackZone) {
 			const keyUnderCursor = findKeyAtPosition(relativeX, nowInBlackZone);
 			if (keyUnderCursor) {
-				const noteInfo = getNoteForKey(keyUnderCursor);
-				if (!noteInfo) return;
-
-				if (appState.playMode === 'chords') {
-					// Stop previous chord notes
-					for (const [key, notes] of mouseChordNotes) {
-						appState.removePressedNotes(notes);
-						clickedVirtualKeys.delete(key);
-					}
-					mouseChordNotes.clear();
-
-					// Start new chord
-					clickedVirtualKeys.add(keyUnderCursor.toLowerCase());
-					const isMinor = capsLockOn;
-					const chordNotes = getChordNotesForNote(
-						noteInfo.note,
-						isMinor,
-						keyboardState.inversion,
-						keyboardState.tabPressed,
-						keyboardState.ninePressed
-					);
-					if (chordNotes.length > 0) {
-						mouseChordNotes.set(keyUnderCursor.toLowerCase(), chordNotes);
-						appState.addPressedNotes(chordNotes);
-					}
-				} else {
-					// Notes mode - original behavior
-					if (currentNoteInfo) {
-						appState.removePressedNote(currentNoteInfo.note, currentNoteInfo.octave);
-					}
-					currentNoteInfo = noteInfo;
-					appState.addPressedNote(noteInfo.note, noteInfo.octave);
-				}
+				playMouseNoteOrChord(keyUnderCursor);
 			}
 		}
 	},
