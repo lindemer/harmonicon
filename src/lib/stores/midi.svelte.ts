@@ -7,9 +7,12 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 // State
 let midiAccess: MIDIAccess | null = $state(null);
 let availableInputs: MIDIInput[] = $state([]);
+let availableOutputs: MIDIOutput[] = $state([]);
 let selectedInputId: string | null = $state(null);
+let selectedOutputId: string | null = $state(null);
 const isSupported = $state(typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator);
-let isMenuOpen = $state(false);
+let isInputMenuOpen = $state(false);
+let isOutputMenuOpen = $state(false);
 let initError: string | null = $state(null);
 let initialized = false;
 
@@ -21,6 +24,25 @@ function midiNoteToNoteInfo(midiNote: number): { note: string; octave: number } 
 	const note = NOTE_NAMES[midiNote % 12];
 	const octave = Math.floor(midiNote / 12) - 1;
 	return { note, octave };
+}
+
+/** Convert note name and octave to MIDI note number */
+function noteInfoToMidiNote(note: string, octave: number): number {
+	const normalizedNote = note.replace('♯', '#').replace('♭', 'b');
+	// Handle flats by converting to sharps
+	const flatToSharp: Record<string, string> = {
+		Db: 'C#',
+		Eb: 'D#',
+		Fb: 'E',
+		Gb: 'F#',
+		Ab: 'G#',
+		Bb: 'A#',
+		Cb: 'B'
+	};
+	const sharpNote = flatToSharp[normalizedNote] ?? normalizedNote;
+	const noteIndex = NOTE_NAMES.indexOf(sharpNote);
+	if (noteIndex === -1) return 60; // Default to middle C if note not found
+	return (octave + 1) * 12 + noteIndex;
 }
 
 /** Handle incoming MIDI messages */
@@ -50,22 +72,36 @@ function handleMidiMessage(event: MIDIMessageEvent): void {
 	}
 }
 
-/** Update the list of available inputs from MIDIAccess */
-function updateInputs(autoConnect: boolean = false): void {
+/** Update the list of available inputs and outputs from MIDIAccess */
+function updateDevices(autoConnect: boolean = false): void {
 	if (!midiAccess) {
 		availableInputs = [];
+		availableOutputs = [];
 		return;
 	}
 
+	// Update inputs
 	const inputs: MIDIInput[] = [];
 	midiAccess.inputs.forEach((input) => {
 		inputs.push(input);
 	});
 	availableInputs = inputs;
 
+	// Update outputs
+	const outputs: MIDIOutput[] = [];
+	midiAccess.outputs.forEach((output) => {
+		outputs.push(output);
+	});
+	availableOutputs = outputs;
+
 	// If selected input is no longer available, deselect it
 	if (selectedInputId && !inputs.find((i) => i.id === selectedInputId)) {
 		selectInput(null);
+	}
+
+	// If selected output is no longer available, deselect it
+	if (selectedOutputId && !outputs.find((o) => o.id === selectedOutputId)) {
+		selectOutput(null);
 	}
 
 	// Auto-connect if exactly one device and not already connected
@@ -101,6 +137,33 @@ function selectInput(inputId: string | null): void {
 	}
 }
 
+/** Select a MIDI output device */
+function selectOutput(outputId: string | null): void {
+	selectedOutputId = outputId;
+}
+
+/** Send MIDI Note On message */
+function sendNoteOn(note: string, octave: number, velocity: number = 100): void {
+	if (!selectedOutputId || !midiAccess) return;
+	const output = midiAccess.outputs.get(selectedOutputId);
+	if (!output) return;
+
+	const midiNote = noteInfoToMidiNote(note, octave);
+	// Note On on channel 1: 0x90
+	output.send([0x90, midiNote, velocity]);
+}
+
+/** Send MIDI Note Off message */
+function sendNoteOff(note: string, octave: number): void {
+	if (!selectedOutputId || !midiAccess) return;
+	const output = midiAccess.outputs.get(selectedOutputId);
+	if (!output) return;
+
+	const midiNote = noteInfoToMidiNote(note, octave);
+	// Note Off on channel 1: 0x80
+	output.send([0x80, midiNote, 0]);
+}
+
 /** Initialize MIDI access */
 async function initialize(): Promise<void> {
 	if (initialized || !isSupported) {
@@ -118,11 +181,11 @@ async function initialize(): Promise<void> {
 
 		// Listen for device changes
 		midiAccess.onstatechange = () => {
-			updateInputs(false);
+			updateDevices(false);
 		};
 
 		// Initial update with auto-connect enabled
-		updateInputs(true);
+		updateDevices(true);
 	} catch (err) {
 		initError = err instanceof Error ? err.message : 'Failed to access MIDI devices';
 		midiAccess = null;
@@ -141,21 +204,40 @@ export const midiState = {
 	get availableInputs() {
 		return availableInputs;
 	},
+	get availableOutputs() {
+		return availableOutputs;
+	},
 	get selectedInputId() {
 		return selectedInputId;
+	},
+	get selectedOutputId() {
+		return selectedOutputId;
 	},
 	get selectedInput(): MIDIInput | null {
 		if (!selectedInputId || !midiAccess) return null;
 		return midiAccess.inputs.get(selectedInputId) ?? null;
 	},
-	get isConnected() {
+	get selectedOutput(): MIDIOutput | null {
+		if (!selectedOutputId || !midiAccess) return null;
+		return midiAccess.outputs.get(selectedOutputId) ?? null;
+	},
+	get isInputConnected() {
 		return selectedInputId !== null;
 	},
-	get isMenuOpen() {
-		return isMenuOpen;
+	get isOutputConnected() {
+		return selectedOutputId !== null;
 	},
-	set isMenuOpen(value: boolean) {
-		isMenuOpen = value;
+	get isInputMenuOpen() {
+		return isInputMenuOpen;
+	},
+	set isInputMenuOpen(value: boolean) {
+		isInputMenuOpen = value;
+	},
+	get isOutputMenuOpen() {
+		return isOutputMenuOpen;
+	},
+	set isOutputMenuOpen(value: boolean) {
+		isOutputMenuOpen = value;
 	},
 	get initError() {
 		return initError;
@@ -163,8 +245,16 @@ export const midiState = {
 
 	initialize,
 	selectInput,
+	selectOutput,
+	sendNoteOn,
+	sendNoteOff,
 
-	toggleMenu(): void {
-		isMenuOpen = !isMenuOpen;
+	toggleInputMenu(): void {
+		isInputMenuOpen = !isInputMenuOpen;
+		if (isInputMenuOpen) isOutputMenuOpen = false;
+	},
+	toggleOutputMenu(): void {
+		isOutputMenuOpen = !isOutputMenuOpen;
+		if (isOutputMenuOpen) isInputMenuOpen = false;
 	}
 };

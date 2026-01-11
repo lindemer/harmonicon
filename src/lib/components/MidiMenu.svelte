@@ -1,47 +1,84 @@
 <script lang="ts">
 	import { midiState } from '$lib/stores/midi.svelte';
 
+	interface Props {
+		type: 'input' | 'output';
+	}
+
+	let { type }: Props = $props();
+
+	const isInput = $derived(type === 'input');
+	const isOpen = $derived(isInput ? midiState.isInputMenuOpen : midiState.isOutputMenuOpen);
+	const devices = $derived(isInput ? midiState.availableInputs : midiState.availableOutputs);
+	const selectedId = $derived(isInput ? midiState.selectedInputId : midiState.selectedOutputId);
+
+	function closeMenu() {
+		if (isInput) {
+			midiState.isInputMenuOpen = false;
+		} else {
+			midiState.isOutputMenuOpen = false;
+		}
+	}
+
 	function handleClickOutside(e: MouseEvent) {
 		const target = e.target as HTMLElement;
 		if (!target.closest('.midi-dropdown') && !target.closest('.midi-key-trigger')) {
-			midiState.isMenuOpen = false;
+			closeMenu();
 		}
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
-			midiState.isMenuOpen = false;
+			closeMenu();
 		}
 	}
 
-	function handleSelectDevice(inputId: string) {
-		if (midiState.selectedInputId === inputId) {
-			midiState.selectInput(null);
+	// Only register handlers when this menu is open
+	$effect(() => {
+		if (isOpen) {
+			window.addEventListener('click', handleClickOutside);
+			window.addEventListener('keydown', handleKeydown);
+			return () => {
+				window.removeEventListener('click', handleClickOutside);
+				window.removeEventListener('keydown', handleKeydown);
+			};
+		}
+	});
+
+	function handleSelectDevice(deviceId: string) {
+		if (isInput) {
+			if (midiState.selectedInputId === deviceId) {
+				midiState.selectInput(null);
+			} else {
+				midiState.selectInput(deviceId);
+			}
 		} else {
-			midiState.selectInput(inputId);
+			if (midiState.selectedOutputId === deviceId) {
+				midiState.selectOutput(null);
+			} else {
+				midiState.selectOutput(deviceId);
+			}
 		}
 	}
 </script>
 
-<svelte:window onclick={handleClickOutside} onkeydown={handleKeydown} />
-
-{#if midiState.isMenuOpen}
-	<div class="midi-dropdown" role="menu" aria-label="MIDI devices">
+{#if isOpen}
+	<div class="midi-dropdown" role="menu" aria-label="MIDI {type} devices">
 		{#if !midiState.isSupported}
 			<p class="message error">Web MIDI not supported. Try Chrome or Edge.</p>
 		{:else if midiState.initError}
 			<p class="message error">{midiState.initError}</p>
-		{:else if midiState.availableInputs.length === 0}
-			<p class="message">No MIDI devices found</p>
+		{:else if devices.length === 0}
+			<p class="message">No MIDI {type}s found</p>
 		{:else}
-			{#each midiState.availableInputs as input (input.id)}
+			{#each devices as device (device.id)}
 				<button
 					class="device-btn"
-					class:selected={midiState.selectedInputId === input.id}
-					onclick={() => handleSelectDevice(input.id)}
+					class:selected={selectedId === device.id}
+					onclick={() => handleSelectDevice(device.id)}
 					role="menuitem"
 				>
-					<span class="device-name">{input.name || 'Unknown Device'}</span>
+					<span class="device-name">{device.name || 'Unknown Device'}</span>
 				</button>
 			{/each}
 		{/if}

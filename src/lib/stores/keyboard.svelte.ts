@@ -80,6 +80,7 @@ const codeToKey: Record<string, string> = {
 	KeyX: 'x',
 	KeyC: 'c',
 	KeyV: 'v',
+	KeyN: 'n',
 	KeyM: 'm'
 };
 
@@ -100,6 +101,7 @@ let spacePressed = $state(false);
 // Visual feedback state
 let clickedActionKey = $state<string | null>(null);
 let spaceClicked = $state(false);
+let nKeyPressed = $state(false);
 let mKeyPressed = $state(false);
 
 // Drag states
@@ -319,6 +321,12 @@ export const keyboardState = {
 	set spaceClicked(value: boolean) {
 		spaceClicked = value;
 	},
+	get nKeyPressed() {
+		return nKeyPressed;
+	},
+	set nKeyPressed(value: boolean) {
+		nKeyPressed = value;
+	},
 	get mKeyPressed() {
 		return mKeyPressed;
 	},
@@ -443,9 +451,13 @@ export const keyboardState = {
 			clickedActionKey = 'C';
 			appState.togglePlayMode();
 		}
+		if (mappedKey === 'n' && !e.repeat) {
+			nKeyPressed = true;
+			midiState.toggleInputMenu();
+		}
 		if (mappedKey === 'm' && !e.repeat) {
 			mKeyPressed = true;
-			midiState.toggleMenu();
+			midiState.toggleOutputMenu();
 		}
 
 		// Handle piano keys (A-L, W-P)
@@ -526,6 +538,9 @@ export const keyboardState = {
 		if (mappedKey === 'z' || mappedKey === 'x' || mappedKey === 'v' || mappedKey === 'c') {
 			clickedActionKey = null;
 		}
+		if (mappedKey === 'n') {
+			nKeyPressed = false;
+		}
 		if (mappedKey === 'm') {
 			mKeyPressed = false;
 		}
@@ -577,6 +592,7 @@ export const keyboardState = {
 		ctrlMousePressed = false;
 		spacePressed = false;
 		// Note: capsLockOn is not reset on blur - it's a hardware toggle state
+		nKeyPressed = false;
 		mKeyPressed = false;
 		isDraggingDegree = false;
 		isDraggingNote = false;

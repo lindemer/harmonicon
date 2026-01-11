@@ -364,29 +364,53 @@
 					{/if}
 				</div>
 			{/each}
-			<!-- B and N keys (disabled placeholders) -->
+			<!-- B key (disabled placeholder) -->
 			<div class="key dark-key disabled-key">
 				<span class="key-label">B</span>
 			</div>
-			<div class="key dark-key disabled-key">
-				<span class="key-label">N</span>
-			</div>
-			<!-- M key (MIDI menu toggle) -->
+			<!-- N key (MIDI IN toggle) -->
 			<div class="midi-key-wrapper">
 				<div
 					class="key dark-key midi-key-trigger"
-					class:midi-connected={midiState.isConnected}
+					class:pressed={kb.nKeyPressed}
+					onmousedown={() => {
+						kb.nKeyPressed = true;
+						midiState.toggleInputMenu();
+					}}
+					onmouseup={() => (kb.nKeyPressed = false)}
+					onmouseleave={() => (kb.nKeyPressed = false)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							midiState.toggleInputMenu();
+						}
+					}}
+					role="button"
+					tabindex="0"
+				>
+					<span class="key-label">N</span>
+					<span class="key-function midi-label">
+						<span>MIDI</span>
+						<span class:midi-active={midiState.isInputConnected}>IN</span>
+					</span>
+				</div>
+				<MidiMenu type="input" />
+			</div>
+			<!-- M key (MIDI OUT toggle) -->
+			<div class="midi-key-wrapper">
+				<div
+					class="key dark-key midi-key-trigger"
 					class:pressed={kb.mKeyPressed}
 					onmousedown={() => {
 						kb.mKeyPressed = true;
-						midiState.toggleMenu();
+						midiState.toggleOutputMenu();
 					}}
 					onmouseup={() => (kb.mKeyPressed = false)}
 					onmouseleave={() => (kb.mKeyPressed = false)}
 					onkeydown={(e) => {
 						if (e.key === 'Enter') {
 							e.preventDefault();
-							midiState.toggleMenu();
+							midiState.toggleOutputMenu();
 						}
 					}}
 					role="button"
@@ -395,10 +419,10 @@
 					<span class="key-label">M</span>
 					<span class="key-function midi-label">
 						<span>MIDI</span>
-						<span>IN</span>
+						<span class:midi-active={midiState.isOutputConnected}>OUT</span>
 					</span>
 				</div>
-				<MidiMenu />
+				<MidiMenu type="output" />
 			</div>
 			<!-- Comma key (disabled) -->
 			<div class="key dark-key disabled-key">
@@ -853,7 +877,7 @@
 		color: white;
 	}
 
-	.midi-connected > .midi-label {
+	.midi-active {
 		color: #f59e0b;
 	}
 </style>

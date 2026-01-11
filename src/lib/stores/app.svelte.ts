@@ -2,6 +2,7 @@ import { Chord } from 'tonal';
 import { SvelteSet } from 'svelte/reactivity';
 import { FormatUtil } from '$lib/utils/format.util';
 import { audioState } from './audio.svelte';
+import { midiState } from './midi.svelte';
 import type { Mode, VoicingMode, PlayMode } from '$lib/types';
 
 // ============ AppState Interface ============
@@ -325,18 +326,21 @@ export const appState = {
 	addPressedNote(note: string, octave: number) {
 		pressedNotes.add(`${note}${octave}`);
 		audioState.playNote(note, octave);
+		midiState.sendNoteOn(note, octave);
 	},
 
 	// Remove a note from the pressed set and stop audio
 	removePressedNote(note: string, octave: number) {
 		pressedNotes.delete(`${note}${octave}`);
 		audioState.stopNote(note, octave);
+		midiState.sendNoteOff(note, octave);
 	},
 
 	// Add multiple notes at once (for chords) and play audio
 	addPressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.add(`${n.note}${n.octave}`);
+			midiState.sendNoteOn(n.note, n.octave);
 		}
 		audioState.playNotes(notes);
 	},
@@ -345,6 +349,7 @@ export const appState = {
 	removePressedNotes(notes: Array<{ note: string; octave: number }>) {
 		for (const n of notes) {
 			pressedNotes.delete(`${n.note}${n.octave}`);
+			midiState.sendNoteOff(n.note, n.octave);
 		}
 		audioState.stopNotes(notes);
 	},
