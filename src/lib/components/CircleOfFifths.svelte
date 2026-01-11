@@ -86,11 +86,13 @@
 	let svgElement: SVGSVGElement;
 	let hoveredSegment: { index: number; ring: RingType } | null = $state(null);
 	let currentChordNotes: Array<{ note: string; octave: number }> = [];
+	let lockedTouchChord: { segment: number; ring: RingType } | null = $state(null);
 
 	// Touch-specific state for tap/drag differentiation
 	let touchStartPos: { x: number; y: number } | null = $state(null);
 	let touchStartSegment: { segment: number; ring: RingType | null } | null = $state(null);
 	let isTouchDragging = $state(false);
+	let isTouchDevice = $state(false);
 	const TOUCH_DRAG_THRESHOLD = 10;
 
 	function getSvgPoint(clientX: number, clientY: number) {
@@ -229,6 +231,7 @@
 
 	// Touch event handlers
 	function handleTouchStart(e: TouchEvent) {
+		isTouchDevice = true;
 		const touch = e.touches[0];
 		touchStartPos = { x: touch.clientX, y: touch.clientY };
 		const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
@@ -245,7 +248,7 @@
 			return;
 		}
 
-		// If it was a tap (not a drag), play chord
+		// If it was a tap (not a drag), toggle chord
 		if (!isTouchDragging) {
 			const touch = e.changedTouches[0];
 			const ring = getRingFromPoint(touch.clientX, touch.clientY);
@@ -255,14 +258,23 @@
 			} else if (ring) {
 				const segment = getSegmentFromPoint(touch.clientX, touch.clientY);
 
-				// Play chord briefly then stop (chord will be auto-detected from notes)
-				playChordForSegment(segment, ring, 0);
-				setTimeout(() => {
-					if (currentChordNotes.length > 0) {
-						appState.removePressedNotes(currentChordNotes);
-						currentChordNotes = [];
-					}
-				}, 250);
+				// Clear any currently playing notes first
+				if (currentChordNotes.length > 0) {
+					appState.removePressedNotes(currentChordNotes);
+					currentChordNotes = [];
+				}
+
+				// Toggle logic: if same cell, turn off; if different, switch
+				if (lockedTouchChord?.segment === segment && lockedTouchChord?.ring === ring) {
+					// Same cell - toggle OFF
+					lockedTouchChord = null;
+					hoveredSegment = null;
+				} else {
+					// Different cell (or none locked) - toggle ON
+					playChordForSegment(segment, ring, 0);
+					lockedTouchChord = { segment, ring };
+					hoveredSegment = { index: segment, ring };
+				}
 			}
 		}
 
@@ -340,8 +352,8 @@
 	}}
 	onmouseup={(e) => {
 		if (e.button === 0) {
-			// Check for center circle click (not drag)
-			if (!isDragging && isInCenterCircle(e.clientX, e.clientY)) {
+			// Check for center circle click (not drag) - skip on touch devices
+			if (!isTouchDevice && !isDragging && isInCenterCircle(e.clientX, e.clientY)) {
 				appState.toggleMode();
 			}
 
@@ -349,8 +361,8 @@
 			currentDragSegment = null;
 			appState.pressedDegree = null;
 
-			// Clear pressed notes
-			if (currentChordNotes.length > 0) {
+			// Clear pressed notes (but not if touch-locked)
+			if (currentChordNotes.length > 0 && !lockedTouchChord) {
 				appState.removePressedNotes(currentChordNotes);
 				currentChordNotes = [];
 			}
@@ -367,13 +379,16 @@
 		hoveredSegment = null;
 		appState.pressedDegree = null;
 
-		// Clear pressed notes when leaving
-		if (currentChordNotes.length > 0) {
+		// Clear pressed notes when leaving (but not if touch-locked)
+		if (currentChordNotes.length > 0 && !lockedTouchChord) {
 			appState.removePressedNotes(currentChordNotes);
 			currentChordNotes = [];
 		}
 	}}
 	onmousemove={(e) => {
+		// Skip mouse events on touch devices
+		if (isTouchDevice) return;
+
 		const ring = getRingFromPoint(e.clientX, e.clientY);
 		const segment = getSegmentFromPoint(e.clientX, e.clientY);
 		hoveredSegment = ring ? { index: segment, ring } : null;
