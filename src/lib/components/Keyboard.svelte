@@ -400,9 +400,26 @@
 				</div>
 				<MidiMenu type="output" />
 			</div>
-			<!-- Comma key (disabled) -->
-			<div class="key dark-key disabled-key">
+			<!-- Comma key (Chord Display Mode toggle) -->
+			<div
+				class="key dark-key"
+				class:pressed={kb.clickedActionKey === ','}
+				onmousedown={() => {
+					kb.clickedActionKey = ',';
+					appState.toggleChordDisplayMode();
+				}}
+				onmouseup={() => (kb.clickedActionKey = null)}
+				onmouseleave={() => (kb.clickedActionKey = null)}
+				role="button"
+				tabindex="0"
+			>
 				<span class="key-label">,</span>
+				<span class="key-function chord-display-label">
+					<span class="chord-display-mode">
+						{appState.chordDisplayMode === 'roman' ? 'ROMAN' : 'SLASH'}
+					</span>
+					<span>CHORDS</span>
+				</span>
 			</div>
 			<!-- Period key (disabled) -->
 			<div class="key dark-key disabled-key">
@@ -879,6 +896,22 @@
 	}
 
 	.midi-active {
+		color: var(--accent-color);
+	}
+
+	.dark-key > .chord-display-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		font-size: 10px;
+		font-weight: 400;
+		letter-spacing: 0.5px;
+		line-height: 1.3;
+		top: 28px;
+		color: var(--text-primary);
+	}
+
+	.chord-display-mode {
 		color: var(--accent-color);
 	}
 </style>
