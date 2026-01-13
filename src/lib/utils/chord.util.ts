@@ -6,6 +6,20 @@ import { FormatUtil } from './format.util';
 /**
  * Utility class for chord building, detection, and symbol generation.
  * Pure static functions with no state dependencies.
+ *
+ * ## Chord Detection Architecture
+ *
+ * The app detects chords from pressed notes (via MIDI, keyboard, or circle clicks):
+ *
+ * 1. **Input** → Notes are added to `appState.pressedNotes` as "{note}{octave}" strings
+ * 2. **Detection** → `ChordUtil.detectChord()` uses Tonal's `Chord.detect()` to identify the chord
+ * 3. **Selection** → `selectPreferredChord()` picks the best interpretation when multiple exist
+ * 4. **Display** → `appState.detectedChord` is used by UI components to show the chord
+ *
+ * The detection must handle ambiguous cases where Tonal returns multiple interpretations:
+ * - Inversions: "C/E" vs "Em#5" - we prefer simple slash chords
+ * - Extensions: "Cmaj7" vs "Cmaj9" - when 5 notes are pressed, prefer 9th chords
+ * - Alterations: Prefer common chord types over augmented/altered variants
  */
 export class ChordUtil {
 	// ============ Chord Building ============
@@ -120,8 +134,9 @@ export class ChordUtil {
 	 * Select the preferred chord interpretation from Chord.detect() results.
 	 * Prefers simpler chord types (major/minor) over complex ones (augmented/altered).
 	 * For inversions, prefers slash chords of simple types over root-position complex chords.
+	 * When 5 unique notes are pressed, prefer 9th chords over 7th chords.
 	 */
-	private static selectPreferredChord(detected: string[]): string {
+	private static selectPreferredChord(detected: string[], uniqueNoteCount: number): string {
 		if (detected.length === 1) return detected[0];
 
 		// Score each chord - lower is better
@@ -133,6 +148,10 @@ export class ChordUtil {
 			const qualityMatch = baseChord.match(/^[A-G][#b]?(.*)/);
 			const quality = qualityMatch ? qualityMatch[1] : '';
 
+			// When 5 notes are pressed, prefer 9th chords over 7th chords
+			const has9th = quality.includes('9');
+			const ninthBonus = uniqueNoteCount === 5 && has9th ? -2 : 0;
+
 			// Prefer these common chord types (lower score = more preferred)
 			if (quality === 'M' || quality === '' || quality === 'maj') return isSlash ? 1 : 0; // Major triad
 			if (quality === 'm') return isSlash ? 1 : 0; // Minor triad
@@ -142,7 +161,7 @@ export class ChordUtil {
 			if (quality === '7') return isSlash ? 2 : 1; // Dominant 7
 			if (quality === 'dim7' || quality === 'o7') return isSlash ? 3 : 2; // Diminished 7
 			if (quality === 'm7b5' || quality === 'ø' || quality === 'ø7') return isSlash ? 3 : 2; // Half-dim
-			if (quality.includes('9')) return isSlash ? 3 : 2; // 9th chords
+			if (has9th) return (isSlash ? 3 : 2) + ninthBonus; // 9th chords
 
 			// Penalize augmented and altered chords heavily
 			if (quality.includes('#5') || quality.includes('+') || quality === 'aug') return 10;
@@ -212,7 +231,8 @@ export class ChordUtil {
 		// Chord.detect() returns multiple interpretations. For inversions, it often returns
 		// an obscure chord first (e.g., "Bbm#5") and the slash chord second (e.g., "GbM/Bb").
 		// Prefer simpler chord types: major/minor triads and 7ths over augmented/diminished variants.
-		const preferredChord = this.selectPreferredChord(detected);
+		// Pass uniquePitchClasses to prefer 9th chords when 5 notes are pressed.
+		const preferredChord = this.selectPreferredChord(detected, uniquePitchClasses);
 
 		// Parse slash chord for inversions (e.g., "Am7/E")
 		const slashIndex = preferredChord.indexOf('/');

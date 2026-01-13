@@ -62,6 +62,10 @@ export interface AppState {
 	seventhStyle: SeventhStyle;
 	toggleSeventhStyle(): void;
 
+	// Chord display mode (roman numerals vs slash notation)
+	chordDisplayMode: 'roman' | 'letter';
+	toggleChordDisplayMode(): void;
+
 	// Pressed state (visual + MIDI)
 	pressedDegree: number | null;
 	pressedNotes: SvelteSet<string>;
@@ -87,6 +91,7 @@ let chordDisplayOctave = $state(3); // Default octave for chord display (C3)
 let voicingMode = $state<VoicingMode>('open');
 let playMode = $state<PlayMode>('notes');
 let seventhStyle = $state<SeventhStyle>('classic');
+let chordDisplayMode = $state<'roman' | 'letter'>('roman');
 let pressedDegree = $state<number | null>(null);
 
 // Track all currently pressed notes as "{note}{octave}" strings (e.g., "C4", "F#3")
@@ -180,6 +185,14 @@ export const appState = {
 
 	toggleSeventhStyle() {
 		seventhStyle = seventhStyle === 'classic' ? 'modern' : 'classic';
+	},
+
+	get chordDisplayMode() {
+		return chordDisplayMode;
+	},
+
+	toggleChordDisplayMode() {
+		chordDisplayMode = chordDisplayMode === 'roman' ? 'letter' : 'roman';
 	},
 
 	// Pressed key state for visual feedback
