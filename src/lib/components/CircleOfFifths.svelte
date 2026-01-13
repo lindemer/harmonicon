@@ -70,7 +70,7 @@
 	// Minor: uppercase root + superscript minus (A⁻, D⁻⁷, E⁻⁹)
 	// Diminished: use degree symbol (B°, F♯°⁷)
 	// 7th/9th: use superscript numbers
-	// b5: use superscript flat + 5 (♭⁵)
+	// Alterations: ♭5, ♯5, ♭7, ♯7, ♭9, ♯9, no3, no5 in superscript
 	function formatSlashChordSymbol(symbol: string): string {
 		const formatted = FormatUtil.formatNote(symbol);
 
@@ -81,24 +81,31 @@
 		const root = match[1];
 		let suffix = match[2];
 
-		// Process suffix
+		// Process suffix - handle quality first
 		suffix = suffix
-			// Remove 'M' for major chords
-			.replace(/^M(?=7|9|$)/, '')
-			// Remove 'maj' before 7/9
-			.replace(/^maj(?=[79])/, '')
+			// Remove 'M' for major chords (before 7, 9, add, sus, or end)
+			.replace(/^M(?=7|9|add|sus|$)/, '')
+			// Remove 'maj' before extensions
+			.replace(/^maj(?=[79]|$)/, '')
+			// Replace 'aug' with + (augmented)
+			.replace(/aug/g, '+')
 			// Replace 'dim' with degree symbol
 			.replace(/dim/g, '°')
 			// Replace 'm' (minor) with superscript minus (but not 'maj')
 			.replace(/^m(?!aj)/, '⁻');
 
-		// Check if there's a numeric extension (7, 9, 7b5, 9b5)
-		const extMatch = suffix.match(/(.*?)(7b5|9b5|7|9)$/);
-		if (extMatch) {
+		// Match quality prefix and all extensions/alterations that should be superscripted
+		// Extensions: 7, 9, b5, #5, b7, #7, b9, #9, no3, no5
+		const extMatch = suffix.match(/^([⁻°]?)(.*)$/);
+		if (extMatch && extMatch[2]) {
 			const qualityPart = extMatch[1]; // e.g., '⁻' or '°' or ''
-			let extPart = extMatch[2]; // e.g., '7', '9', '7b5', '9b5'
-			// Convert b to flat symbol in extension
-			extPart = extPart.replace(/b/g, '♭');
+			let extPart = extMatch[2]; // e.g., '7', '9', '7b5', 'b9#5', etc.
+
+			// Convert accidentals to symbols
+			extPart = extPart
+				.replace(/b/g, '♭')
+				.replace(/#/g, '♯');
+
 			return root + qualityPart + '<sup>' + extPart + '</sup>';
 		}
 
@@ -218,6 +225,11 @@
 
 	function getInversionFromEvent(e: MouseEvent): 0 | 1 | 2 | 3 {
 		const seventh = keyboardState.tabPressed;
+		const ninth = keyboardState.ninePressed || e.ctrlKey;
+
+		// 9th chords don't support inversions
+		if (ninth) return 0;
+
 		if (e.shiftKey && e.altKey) {
 			// Both pressed: 3rd inversion in 7th mode, 2nd inversion otherwise
 			return seventh ? 3 : 2;

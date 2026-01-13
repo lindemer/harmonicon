@@ -95,11 +95,12 @@ export class VoicingUtil {
 		// The notes array will be: [root, 3rd, 5th, 7th, 9th]
 		const notes = [...seventhChord.notes, ninthNote];
 
-		// Return a chord-like object
+		// Return a chord-like object with updated symbol and name for 9th chord
 		return {
 			...seventhChord,
 			notes,
 			intervals: [...seventhChord.intervals, '9M'],
+			symbol: seventhChord.symbol ? seventhChord.symbol.replace('7', '9') : '',
 			name: seventhChord.name ? seventhChord.name.replace('7', '9') : ''
 		};
 	}
