@@ -58,7 +58,9 @@ export class KeyboardUtil {
 		KeyV: 'v',
 		KeyB: 'b',
 		KeyN: 'n',
-		KeyM: 'm'
+		KeyM: 'm',
+		Comma: ',',
+		Period: '.'
 	};
 
 	/** Piano key characters that trigger note playback */

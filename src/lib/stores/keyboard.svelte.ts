@@ -349,6 +349,10 @@ export const keyboardState = {
 			mKeyPressed = true;
 			midiState.toggleOutputMenu();
 		}
+		if (mappedKey === ',' && !e.repeat) {
+			clickedActionKey = ',';
+			appState.toggleChordDisplayMode();
+		}
 
 		// Handle piano keys (A-L, W-P)
 		if (mappedKey && KeyboardUtil.isPianoKey(mappedKey) && !e.repeat) {
@@ -426,6 +430,9 @@ export const keyboardState = {
 		}
 		if (mappedKey === 'm') {
 			mKeyPressed = false;
+		}
+		if (mappedKey === ',') {
+			clickedActionKey = null;
 		}
 
 		// Handle piano key release
