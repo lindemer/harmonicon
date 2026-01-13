@@ -102,9 +102,7 @@
 			let extPart = extMatch[2]; // e.g., '7', '9', '7b5', 'b9#5', etc.
 
 			// Convert accidentals to symbols
-			extPart = extPart
-				.replace(/b/g, '♭')
-				.replace(/#/g, '♯');
+			extPart = extPart.replace(/b/g, '♭').replace(/#/g, '♯');
 
 			return root + qualityPart + '<sup>' + extPart + '</sup>';
 		}

@@ -68,6 +68,12 @@ export class VoicingUtil {
 	/**
 	 * Get the 9th chord for a scale degree in a given key.
 	 * Built by taking the 7th chord and adding the 9th (major 2nd above the chord root).
+	 *
+	 * Note: We manually construct the chord object (rather than using Tonal's Chord.get())
+	 * because Tonal doesn't have built-in support for diatonic 9th chords. We must update
+	 * both the `symbol` and `name` properties so that when this chord is played,
+	 * the center display (which uses `chord.symbol`) shows the correct 9th chord notation.
+	 *
 	 * @param degree - Scale degree (1-7)
 	 * @param keyRoot - Root note of the key (e.g., 'C', 'G')
 	 * @param mode - 'major' or 'minor'

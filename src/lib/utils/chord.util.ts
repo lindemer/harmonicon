@@ -6,6 +6,20 @@ import { FormatUtil } from './format.util';
 /**
  * Utility class for chord building, detection, and symbol generation.
  * Pure static functions with no state dependencies.
+ *
+ * ## Chord Detection Architecture
+ *
+ * The app detects chords from pressed notes (via MIDI, keyboard, or circle clicks):
+ *
+ * 1. **Input** → Notes are added to `appState.pressedNotes` as "{note}{octave}" strings
+ * 2. **Detection** → `ChordUtil.detectChord()` uses Tonal's `Chord.detect()` to identify the chord
+ * 3. **Selection** → `selectPreferredChord()` picks the best interpretation when multiple exist
+ * 4. **Display** → `appState.detectedChord` is used by UI components to show the chord
+ *
+ * The detection must handle ambiguous cases where Tonal returns multiple interpretations:
+ * - Inversions: "C/E" vs "Em#5" - we prefer simple slash chords
+ * - Extensions: "Cmaj7" vs "Cmaj9" - when 5 notes are pressed, prefer 9th chords
+ * - Alterations: Prefer common chord types over augmented/altered variants
  */
 export class ChordUtil {
 	// ============ Chord Building ============

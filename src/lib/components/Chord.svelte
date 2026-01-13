@@ -60,15 +60,6 @@
 	}
 
 	const figuredBass = $derived(getFiguredBass(inversion, isSeventh, isNinth));
-
-	// Letter mode chord suffix (7, 9, etc.)
-	function getLetterSuffix(seventh: boolean, ninth: boolean): string {
-		if (ninth) return '9';
-		if (seventh) return '7';
-		return '';
-	}
-
-	const letterSuffix = $derived(getLetterSuffix(isSeventh, isNinth));
 </script>
 
 {#if displayMode === 'letter'}
