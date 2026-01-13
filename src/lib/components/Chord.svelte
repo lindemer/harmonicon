@@ -72,11 +72,18 @@
 </script>
 
 {#if displayMode === 'letter'}
-	<span class="chord {size} font-music" style:color>
-		<span class="chord-root">{numeral}</span>{#if letterSuffix}<sup class="chord-suffix"
-				>{letterSuffix}</sup
-			>{/if}{#if bassNote}<span class="chord-slash">/{bassNote}</span>{/if}
-	</span>
+	{#if bassNote}
+		<!-- Fraction/stacked display for slash chords -->
+		<span class="chord-fraction {size} font-music" style:color>
+			<span class="fraction-top">{@html numeral}</span>
+			<span class="fraction-line"></span>
+			<span class="fraction-bottom">{bassNote}</span>
+		</span>
+	{:else}
+		<span class="chord {size} font-music" style:color>
+			<span class="chord-root">{@html numeral}</span>
+		</span>
+	{/if}
 {:else}
 	<span class="roman-numeral {size} font-music" style:color>
 		<span class="numeral">{numeral}</span>{#if figuredBass}<span class="inversion"
@@ -109,15 +116,44 @@
 		line-height: 1;
 	}
 
-	.chord-suffix {
-		font-size: 0.6em;
-		vertical-align: super;
-		line-height: 0;
+	/* Fraction/stacked slash chord styles */
+	.chord-fraction {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
+		overflow: visible;
 	}
 
-	.chord-slash {
-		font-size: 0.7em;
-		line-height: 1;
+	.chord-fraction.sm {
+		font-size: 14px;
+	}
+	.chord-fraction.md {
+		font-size: 20px;
+	}
+	.chord-fraction.lg {
+		font-size: 28px;
+	}
+
+	.fraction-top,
+	.fraction-bottom {
+		line-height: 1.2;
+		display: flex;
+		align-items: baseline;
+		overflow: visible;
+	}
+
+	.fraction-top :global(sup),
+	.chord-root :global(sup) {
+		font-size: 0.65em;
+	}
+
+	.fraction-line {
+		width: 100%;
+		height: 1px;
+		background-color: currentColor;
+		margin: 1px 0;
 	}
 
 	/* Roman numeral mode styles */

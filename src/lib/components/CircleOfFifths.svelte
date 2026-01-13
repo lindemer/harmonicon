@@ -65,6 +65,46 @@
 		return 'triad';
 	}
 
+	// Format chord symbol for slash notation display
+	// Major: uppercase root only (C, G⁷, F⁷) - remove M, maj, etc.
+	// Minor: uppercase root + superscript minus (A⁻, D⁻⁷, E⁻⁹)
+	// Diminished: use degree symbol (B°, F♯°⁷)
+	// 7th/9th: use superscript numbers
+	// b5: use superscript flat + 5 (♭⁵)
+	function formatSlashChordSymbol(symbol: string): string {
+		const formatted = FormatUtil.formatNote(symbol);
+
+		// Extract root note and quality/extensions
+		const match = formatted.match(/^([A-G][♯♭]?)(.*)$/);
+		if (!match) return formatted;
+
+		const root = match[1];
+		let suffix = match[2];
+
+		// Process suffix
+		suffix = suffix
+			// Remove 'M' for major chords
+			.replace(/^M(?=7|9|$)/, '')
+			// Remove 'maj' before 7/9
+			.replace(/^maj(?=[79])/, '')
+			// Replace 'dim' with degree symbol
+			.replace(/dim/g, '°')
+			// Replace 'm' (minor) with superscript minus (but not 'maj')
+			.replace(/^m(?!aj)/, '⁻');
+
+		// Check if there's a numeric extension (7, 9, 7b5, 9b5)
+		const extMatch = suffix.match(/(.*?)(7b5|9b5|7|9)$/);
+		if (extMatch) {
+			const qualityPart = extMatch[1]; // e.g., '⁻' or '°' or ''
+			let extPart = extMatch[2]; // e.g., '7', '9', '7b5', '9b5'
+			// Convert b to flat symbol in extension
+			extPart = extPart.replace(/b/g, '♭');
+			return root + qualityPart + '<sup>' + extPart + '</sup>';
+		}
+
+		return root + suffix;
+	}
+
 	// Build keys array from circle of fifths using Tonal
 	const keys = FormatUtil.CIRCLE_OF_FIFTHS.map((root) => {
 		const keyInfo = Key.majorKey(root);
@@ -397,8 +437,9 @@
 
 		if (isLeftClick) {
 			// Check for center circle click (not drag) - skip on touch devices
+			// On desktop, toggle chord display mode; on mobile, toggleMode is handled in touch handlers
 			if (!isTouchDevice && !isDragging && isInCenterCircle(e.clientX, e.clientY)) {
-				appState.toggleMode();
+				appState.toggleChordDisplayMode();
 			}
 
 			isDragging = false;
@@ -592,15 +633,20 @@
 			{@const numeralColor = bassDegree
 				? FormatUtil.getDegreeColor(bassDegree)
 				: 'var(--text-primary)'}
-			<foreignObject x={cx - 50} y={cy - 25} width="100" height="50" class="pointer-events-none">
+			{@const isLetterMode = appState.chordDisplayMode === 'letter'}
+			{@const letterChordSymbol = formatSlashChordSymbol(detected.symbol)}
+			{@const letterBassNote = detected.bass ? FormatUtil.formatNote(detected.bass) : undefined}
+			<foreignObject x={cx - 60} y={cy - 45} width="120" height="90" class="pointer-events-none">
 				<div class="center-numeral">
 					<ChordDisplay
-						numeral={result.numeral}
+						numeral={isLetterMode ? letterChordSymbol : result.numeral}
+						bassNote={isLetterMode ? letterBassNote : undefined}
 						{inversion}
-						isSeventh={chordType === 'seventh'}
-						isNinth={chordType === 'ninth'}
+						isSeventh={isLetterMode ? false : chordType === 'seventh'}
+						isNinth={isLetterMode ? false : chordType === 'ninth'}
 						color={numeralColor}
 						size="lg"
+						displayMode={appState.chordDisplayMode}
 					/>
 				</div>
 			</foreignObject>
