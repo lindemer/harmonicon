@@ -119,8 +119,9 @@ export const appState = {
 	},
 
 	// Detect chord from all currently pressed notes (across all octaves)
+	// Passes current key to use correct sharp/flat notation for detected chords
 	get detectedChord(): DetectedChord | null {
-		return ChordUtil.detectChord(pressedNotes);
+		return ChordUtil.detectChord(pressedNotes, selectedRoot);
 	},
 
 	get isSeventhMode() {
