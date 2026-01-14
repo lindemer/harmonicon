@@ -186,13 +186,25 @@ export class ChordUtil {
 	}
 
 	/**
+	 * Convert a chord symbol's root note to flat notation.
+	 * E.g., "C#m7" → "Dbm7", "G#/B" → "Ab/B"
+	 */
+	private static convertChordToFlatNotation(chordSymbol: string): string {
+		const match = chordSymbol.match(/^([A-G][#b]?)(.*)$/);
+		if (!match) return chordSymbol;
+		const [, root, suffix] = match;
+		return FormatUtil.toFlatNotation(root) + suffix;
+	}
+
+	/**
 	 * Detect chord from a set of pressed notes.
 	 * Notes are expected to be in the format "{note}{octave}" (e.g., "C4", "F#3").
 	 *
 	 * @param pressedNotes - Set of note strings in "{note}{octave}" format
+	 * @param keyRoot - Optional key root to determine sharp/flat preference
 	 * @returns DetectedChord object or null if no valid chord detected
 	 */
-	static detectChord(pressedNotes: Set<string>): DetectedChord | null {
+	static detectChord(pressedNotes: Set<string>, keyRoot?: string): DetectedChord | null {
 		const notesWithPitch: Array<{ note: string; pitch: number }> = [];
 
 		for (const noteStr of pressedNotes) {
@@ -234,11 +246,17 @@ export class ChordUtil {
 		// Pass uniquePitchClasses to prefer 9th chords when 5 notes are pressed.
 		const preferredChord = this.selectPreferredChord(detected, uniquePitchClasses);
 
+		// Convert to flat notation if the key uses flats (e.g., C# → Db in Db major)
+		const useFlatNotation = keyRoot && FormatUtil.usesFlatNotation(keyRoot);
+
 		// Parse slash chord for inversions (e.g., "Am7/E")
 		const slashIndex = preferredChord.indexOf('/');
 		if (slashIndex === -1) {
+			const formattedChord = useFlatNotation
+				? this.convertChordToFlatNotation(preferredChord)
+				: preferredChord;
 			return {
-				symbol: FormatUtil.formatNote(preferredChord),
+				symbol: FormatUtil.formatNote(formattedChord),
 				bass: null,
 				inversion: 0
 			};
@@ -247,12 +265,16 @@ export class ChordUtil {
 		const symbol = preferredChord.substring(0, slashIndex);
 		const bass = preferredChord.substring(slashIndex + 1);
 
+		// Apply flat notation conversion to both symbol and bass note
+		const formattedSymbol = useFlatNotation ? this.convertChordToFlatNotation(symbol) : symbol;
+		const formattedBass = useFlatNotation ? FormatUtil.toFlatNotation(bass) : bass;
+
 		// Determine inversion by finding bass note position in chord
 		const chord = Chord.get(symbol);
 		if (chord.empty) {
 			return {
-				symbol: FormatUtil.formatNote(symbol),
-				bass: FormatUtil.formatNote(bass),
+				symbol: FormatUtil.formatNote(formattedSymbol),
+				bass: FormatUtil.formatNote(formattedBass),
 				inversion: 0
 			};
 		}
@@ -265,8 +287,8 @@ export class ChordUtil {
 		const inversion = (bassIndex >= 0 && bassIndex <= 3 ? bassIndex : 0) as 0 | 1 | 2 | 3;
 
 		return {
-			symbol: FormatUtil.formatNote(symbol),
-			bass: FormatUtil.formatNote(bass),
+			symbol: FormatUtil.formatNote(formattedSymbol),
+			bass: FormatUtil.formatNote(formattedBass),
 			inversion
 		};
 	}
