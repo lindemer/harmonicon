@@ -301,12 +301,17 @@
 		const ninth = keyboardState.ninePressed || forceNinth;
 		const chordSymbol = getChordSymbol(segmentIndex, ring, seventh, ninth);
 		const unformatted = FormatUtil.unformatNote(chordSymbol);
-		const notes = VoicingUtil.getVoicedNotesFromSymbol(
+		let notes = VoicingUtil.getVoicedNotesFromSymbol(
 			unformatted,
 			inv,
 			appState.chordDisplayOctave,
 			appState.voicingMode
 		);
+		// Convert notes to appropriate enharmonic spelling for the current key
+		notes = notes.map((n) => ({
+			note: FormatUtil.toKeyNotation(n.note, appState.selectedRoot),
+			octave: n.octave
+		}));
 		if (notes.length > 0) {
 			currentChordNotes = notes;
 			appState.addPressedNotes(notes);
@@ -644,8 +649,14 @@
 				? FormatUtil.getDegreeColor(bassDegree)
 				: 'var(--text-primary)'}
 			{@const isLetterMode = appState.chordDisplayMode === 'letter'}
-			{@const letterChordSymbol = formatSlashChordSymbol(detected.symbol)}
-			{@const letterBassNote = detected.bass ? FormatUtil.formatNote(detected.bass) : undefined}
+			{@const letterChordSymbol = formatSlashChordSymbol(
+				FormatUtil.toKeyNotationFormatted(detected.symbol, appState.selectedRoot)
+			)}
+			{@const letterBassNote = detected.bass
+				? FormatUtil.formatNote(
+						FormatUtil.toKeyNotationFormatted(detected.bass, appState.selectedRoot)
+					)
+				: undefined}
 			<foreignObject x={cx - 60} y={cy - 45} width="120" height="90" class="pointer-events-none">
 				<div class="center-numeral">
 					<ChordDisplay

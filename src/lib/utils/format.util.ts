@@ -76,6 +76,86 @@ export class FormatUtil {
 	}
 
 	/**
+	 * Convert a flat note to its sharp enharmonic equivalent.
+	 * E.g., Db → C#, Eb → D#, etc.
+	 */
+	static toSharpNotation(note: string): string {
+		const flatToSharp: Record<string, string> = {
+			Db: 'C#',
+			Eb: 'D#',
+			Gb: 'F#',
+			Ab: 'G#',
+			Bb: 'A#'
+		};
+		return flatToSharp[note] ?? note;
+	}
+
+	/**
+	 * Convert a note to the appropriate enharmonic spelling for the given key.
+	 * Sharp keys use sharps, flat keys use flats.
+	 */
+	static toKeyNotation(note: string, keyRoot: string): string {
+		if (this.usesFlatNotation(keyRoot)) {
+			return this.toFlatNotation(note);
+		}
+		return this.toSharpNotation(note);
+	}
+
+	/**
+	 * Convert a formatted chord symbol's root to flat notation.
+	 * Works with Unicode symbols (♯ → ♭).
+	 * E.g., "C♯m7" → "D♭m7", "G♯" → "A♭"
+	 */
+	static toFlatNotationFormatted(chordSymbol: string): string {
+		const sharpToFlat: Record<string, string> = {
+			'C♯': 'D♭',
+			'D♯': 'E♭',
+			'F♯': 'G♭',
+			'G♯': 'A♭',
+			'A♯': 'B♭'
+		};
+		// Match the root note (with possible sharp) at the start
+		const match = chordSymbol.match(/^([A-G]♯?)/);
+		if (!match) return chordSymbol;
+		const root = match[1];
+		const flatRoot = sharpToFlat[root];
+		if (!flatRoot) return chordSymbol;
+		return flatRoot + chordSymbol.slice(root.length);
+	}
+
+	/**
+	 * Convert a formatted chord symbol's root to sharp notation.
+	 * Works with Unicode symbols (♭ → ♯).
+	 * E.g., "D♭m7" → "C♯m7", "A♭" → "G♯"
+	 */
+	static toSharpNotationFormatted(chordSymbol: string): string {
+		const flatToSharp: Record<string, string> = {
+			'D♭': 'C♯',
+			'E♭': 'D♯',
+			'G♭': 'F♯',
+			'A♭': 'G♯',
+			'B♭': 'A♯'
+		};
+		// Match the root note (with possible flat) at the start
+		const match = chordSymbol.match(/^([A-G]♭?)/);
+		if (!match) return chordSymbol;
+		const root = match[1];
+		const sharpRoot = flatToSharp[root];
+		if (!sharpRoot) return chordSymbol;
+		return sharpRoot + chordSymbol.slice(root.length);
+	}
+
+	/**
+	 * Convert a formatted chord symbol to the appropriate enharmonic spelling for the given key.
+	 */
+	static toKeyNotationFormatted(chordSymbol: string, keyRoot: string): string {
+		if (this.usesFlatNotation(keyRoot)) {
+			return this.toFlatNotationFormatted(chordSymbol);
+		}
+		return this.toSharpNotationFormatted(chordSymbol);
+	}
+
+	/**
 	 * Format note names with proper music symbols.
 	 * Converts ASCII accidentals to Unicode: # → ♯, b → ♭
 	 */
