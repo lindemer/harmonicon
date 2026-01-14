@@ -223,9 +223,7 @@
 				</div>
 				<!-- Black key (if present) -->
 				{#if pk.black && pk.blackNote}
-					{@const displayBlackNote = FormatUtil.usesFlatNotation(appState.selectedRoot)
-						? FormatUtil.toFlatNotation(pk.blackNote)
-						: pk.blackNote}
+					{@const displayBlackNote = FormatUtil.toKeyNotation(pk.blackNote, appState.selectedRoot)}
 					{@const blackChordInfo = isChordMode
 						? getChordDisplayInfo(
 								displayBlackNote,

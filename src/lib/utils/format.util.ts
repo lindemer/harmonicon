@@ -61,33 +61,11 @@ export class FormatUtil {
 	}
 
 	/**
-	 * Convert a sharp note to its flat enharmonic equivalent.
-	 * E.g., C# → Db, D# → Eb, etc.
+	 * Convert a note to its enharmonic equivalent using Tonal.
+	 * E.g., C# ↔ Db, D# ↔ Eb, etc.
 	 */
-	static toFlatNotation(note: string): string {
-		const sharpToFlat: Record<string, string> = {
-			'C#': 'Db',
-			'D#': 'Eb',
-			'F#': 'Gb',
-			'G#': 'Ab',
-			'A#': 'Bb'
-		};
-		return sharpToFlat[note] ?? note;
-	}
-
-	/**
-	 * Convert a flat note to its sharp enharmonic equivalent.
-	 * E.g., Db → C#, Eb → D#, etc.
-	 */
-	static toSharpNotation(note: string): string {
-		const flatToSharp: Record<string, string> = {
-			Db: 'C#',
-			Eb: 'D#',
-			Gb: 'F#',
-			Ab: 'G#',
-			Bb: 'A#'
-		};
-		return flatToSharp[note] ?? note;
+	static toEnharmonic(note: string): string {
+		return Note.enharmonic(note) || note;
 	}
 
 	/**
@@ -95,64 +73,38 @@ export class FormatUtil {
 	 * Sharp keys use sharps, flat keys use flats.
 	 */
 	static toKeyNotation(note: string, keyRoot: string): string {
-		if (this.usesFlatNotation(keyRoot)) {
-			return this.toFlatNotation(note);
-		}
-		return this.toSharpNotation(note);
+		// Natural notes don't need conversion
+		if (!note.includes('#') && !note.includes('b')) return note;
+
+		const usesFlats = this.usesFlatNotation(keyRoot);
+		const hasSharp = note.includes('#');
+		const hasFlat = note.includes('b');
+
+		// Convert if notation doesn't match key preference
+		if (usesFlats && hasSharp) return this.toEnharmonic(note);
+		if (!usesFlats && hasFlat) return this.toEnharmonic(note);
+
+		return note;
 	}
 
 	/**
-	 * Convert a formatted chord symbol's root to flat notation.
-	 * Works with Unicode symbols (♯ → ♭).
-	 * E.g., "C♯m7" → "D♭m7", "G♯" → "A♭"
-	 */
-	static toFlatNotationFormatted(chordSymbol: string): string {
-		const sharpToFlat: Record<string, string> = {
-			'C♯': 'D♭',
-			'D♯': 'E♭',
-			'F♯': 'G♭',
-			'G♯': 'A♭',
-			'A♯': 'B♭'
-		};
-		// Match the root note (with possible sharp) at the start
-		const match = chordSymbol.match(/^([A-G]♯?)/);
-		if (!match) return chordSymbol;
-		const root = match[1];
-		const flatRoot = sharpToFlat[root];
-		if (!flatRoot) return chordSymbol;
-		return flatRoot + chordSymbol.slice(root.length);
-	}
-
-	/**
-	 * Convert a formatted chord symbol's root to sharp notation.
-	 * Works with Unicode symbols (♭ → ♯).
-	 * E.g., "D♭m7" → "C♯m7", "A♭" → "G♯"
-	 */
-	static toSharpNotationFormatted(chordSymbol: string): string {
-		const flatToSharp: Record<string, string> = {
-			'D♭': 'C♯',
-			'E♭': 'D♯',
-			'G♭': 'F♯',
-			'A♭': 'G♯',
-			'B♭': 'A♯'
-		};
-		// Match the root note (with possible flat) at the start
-		const match = chordSymbol.match(/^([A-G]♭?)/);
-		if (!match) return chordSymbol;
-		const root = match[1];
-		const sharpRoot = flatToSharp[root];
-		if (!sharpRoot) return chordSymbol;
-		return sharpRoot + chordSymbol.slice(root.length);
-	}
-
-	/**
-	 * Convert a formatted chord symbol to the appropriate enharmonic spelling for the given key.
+	 * Convert a formatted chord/note symbol to the appropriate enharmonic spelling for the given key.
+	 * Works with Unicode symbols (♯/♭).
+	 * E.g., in flat key: "C♯m7" → "D♭m7"; in sharp key: "G♭" → "F♯"
 	 */
 	static toKeyNotationFormatted(chordSymbol: string, keyRoot: string): string {
-		if (this.usesFlatNotation(keyRoot)) {
-			return this.toFlatNotationFormatted(chordSymbol);
-		}
-		return this.toSharpNotationFormatted(chordSymbol);
+		// Extract root note from chord symbol (e.g., "C♯" from "C♯m7")
+		const match = chordSymbol.match(/^([A-G][♯♭]?)/);
+		if (!match) return chordSymbol;
+
+		const root = match[1];
+		const suffix = chordSymbol.slice(root.length);
+
+		// Convert to ASCII, apply key-aware enharmonic, convert back to Unicode
+		const asciiRoot = this.unformatNote(root);
+		const converted = this.toKeyNotation(asciiRoot, keyRoot);
+
+		return this.formatNote(converted) + suffix;
 	}
 
 	/**
@@ -440,10 +392,8 @@ export class FormatUtil {
 		let bassNote = chord.notes[inv] ?? chord.notes[0];
 		// Simplify enharmonics (E# → F, Fb → E, B# → C, Cb → B)
 		bassNote = Note.simplify(bassNote) || bassNote;
-		// Use flat notation if the key uses flats
-		if (this.usesFlatNotation(keyRoot)) {
-			bassNote = this.toFlatNotation(bassNote);
-		}
+		// Convert to key-appropriate notation (sharps or flats)
+		bassNote = this.toKeyNotation(bassNote, keyRoot);
 		const formattedBassNote = this.formatNote(bassNote);
 
 		return {
